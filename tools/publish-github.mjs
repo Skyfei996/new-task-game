@@ -29,7 +29,8 @@ function getToken() {
 }
 const TOKEN = getToken();
 const API = (p) => 'https://api.github.com/repos/' + REPO + p;
-async function api(method, url, body) {
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+async function apiOnce(method, url, body) {
   const res = await fetch(url, {
     method,
     headers: { Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json', 'User-Agent': 'publish-script', 'Content-Type': 'application/json' },
@@ -37,8 +38,25 @@ async function api(method, url, body) {
   });
   const text = await res.text();
   let json = null; try { json = JSON.parse(text); } catch { /* 非 JSON */ }
-  if (!res.ok) throw new Error(method + ' ' + url.replace('https://api.github.com/repos/' + REPO, '') + ' → ' + res.status + ' ' + (json?.message || text.slice(0, 200)));
+  if (!res.ok) {
+    const err = new Error(method + ' ' + url.replace('https://api.github.com/repos/' + REPO, '') + ' → ' + res.status + ' ' + (json?.message || text.slice(0, 200)));
+    err.retryable = res.status >= 500 || res.status === 429;   // 4xx 业务错误不重试
+    throw err;
+  }
   return json;
+}
+// 本机网络对 GitHub 会间歇性抖动：网络异常与 5xx/429 自动重试 4 次
+async function api(method, url, body) {
+  let lastErr;
+  for (let i = 0; i < 4; i++) {
+    try { return await apiOnce(method, url, body); }
+    catch (e) {
+      lastErr = e;
+      if (e.retryable === false) throw e;
+      if (i < 3) { console.log('  （网络抖动，重试 ' + (i + 2) + '/4：' + String(e.message || e).slice(0, 80) + '）'); await sleep(1500 * (i + 1)); }
+    }
+  }
+  throw lastErr;
 }
 const refSha = async (branch) => { try { const r = await api('GET', API('/git/ref/heads/' + branch)); return r.object.sha; } catch { return null; } };
 const setRef = async (branch, sha) => {
