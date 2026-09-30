@@ -44,7 +44,15 @@ node tools/build-public.mjs        # 打包体验版到 dist/（两关）
 node tools/build-public.mjs --original-only   # 只打原创关卡
 ```
 
-推送到 `main` 后，GitHub Actions 会自动打包并发布到 Pages（见 `.github/workflows/deploy-pages.yml`）。
+## 发布到线上（GitHub Pages）
+
+```bash
+node tools/publish-github.mjs    # 源码 → main 分支；体验版 → gh-pages 分支；并自动请求 Pages 构建
+```
+
+- 线上地址：https://skyfei996.github.io/new-task-game/ （由 `gh-pages` 分支提供）
+- 脚本走 GitHub REST API，令牌从 git 凭据管理器读取（不写入任何文件）；支持增量发布（远端已有的提交不重发）
+- 为什么不用 `git push`：本机直连 `github.com:443` 不通，而 `api.github.com` 可通
 
 ## 说明
 

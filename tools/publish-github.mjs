@@ -15,6 +15,7 @@ const REPO = arg('--repo', 'Skyfei996/new-task-game');
 const BRANCH = arg('--branch', 'main');
 const PAGES_BRANCH = arg('--pages-branch', 'gh-pages');
 const DRY = process.argv.includes('--dry');
+const FORCE_ALL = process.argv.includes('--all');   // 强制全量重发（用于把远端历史与本地对齐）
 const OWNER = REPO.split('/')[0], NAME = REPO.split('/')[1];
 
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
@@ -54,14 +55,22 @@ if (!remoteHead && !DRY) {
   console.log('  初始提交：' + String(remoteHead).slice(0, 8));
 }
 
-// 2) 本地提交序列（时间正序）；远端已有的提交跳过 → 增量发布
+// 2) 本地提交序列（时间正序）；用「树 SHA」判断远端已到哪一步 → 增量发布
 const all = git('rev-list', '--reverse', 'HEAD').split('\n').filter(Boolean);
-const startAt = remoteHead ? all.indexOf(remoteHead) + 1 : 0;   // 0 = 从头发；远端链与本地无关时也从头发
+const localTrees = git('log', '--reverse', '--format=%T', 'HEAD').split('\n').filter(Boolean);
+let startAt = 0;
+if (remoteHead && !DRY && !FORCE_ALL) {
+  try {
+    const rc = await api('GET', API('/git/commits/' + remoteHead));
+    const i = localTrees.indexOf(rc.tree?.sha);
+    startAt = i >= 0 ? i + 1 : 0;
+  } catch { startAt = 0; }
+}
 const todo = all.slice(startAt);
 console.log('本地提交 ' + all.length + ' 个，本次需发布 ' + todo.length + ' 个 → ' + REPO + ' @ ' + BRANCH);
 
 const blobCache = new Map();
-let parent = todo.length && startAt > 0 ? remoteHead : null;
+let parent = (!FORCE_ALL && startAt > 0 && todo.length) ? remoteHead : null;
 let lastCommit = remoteHead;
 for (const sha of todo) {
   const msg = git('log', '-1', '--format=%s%n%n%b', sha).trim();
@@ -81,7 +90,7 @@ for (const sha of todo) {
     tree.push({ path: f, mode: '100644', type: 'blob', sha: blobSha });
   }
   const t = await api('POST', API('/git/trees'), { tree });
-  const c = await api('POST', API('/git/commits'), { message: msg, tree: t.sha, parents: parent ? [parent] : [], ...who });
+  const c = await api('POST', API('/git/commits'), { message: msg + '\n', tree: t.sha, parents: parent ? [parent] : [], ...who });
   parent = c.sha; lastCommit = c.sha;
   const same = c.sha === sha ? '' : '（远端 SHA 与本地不同，内容一致）';
   console.log('  ✓ ' + c.sha.slice(0, 8) + '  ' + msg.split('\n')[0] + '（' + files.length + ' 文件）' + same);
