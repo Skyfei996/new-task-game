@@ -1,0 +1,14 @@
+{
+  "name": "mygame2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "《你有一个新任务！》网页版原型（家庭自用）",
+  "scripts": {
+    "test": "node prototype/test.core.mjs",
+    "test:station": "node prototype/test.station.mjs",
+    "detect": "node tools/detect-pins.mjs images/dd_sw_5_BIG.jpg"
+  },
+  "devDependencies": {
+    "jpeg-js": "^0.4.4"
+  }
+}
