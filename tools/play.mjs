@@ -8,12 +8,15 @@
 //   node tools/play.mjs choose 3               执行当前可见选项里的第 3 个（1 起）
 //   node tools/play.mjs buy 1 | buy 通行证      在商店买东西（序号见屏幕上的「商店」块）
 //   node tools/play.mjs sell 毛绒玩具           在废料回收点卖东西（红框道具不能卖）
+//   node tools/play.mjs read 桑尼的账本          翻看文本道具的正文（只读；未拥有的会明确报错）
 //   node tools/play.mjs state | where | items | log [--tail 5]
 //   node tools/play.mjs save my-run.json | load my-run.json
 //   node tools/play.mjs auto [--steps 40] [--seed 7]
 //   node tools/play.mjs --json state           （JSON 输出，AI 友好；--json 可放子命令前）
+//   node tools/play.mjs --player choose 2      （玩家模式，给 AI 体验师：隐藏数值/去向编号/机械理由；
+//                                                禁用 --json / load / auto；会话单独存）
 //
-// 会话状态存在 <当前目录>/.playtest/session.json（已加入 .gitignore）。
+// 会话状态存在 <当前目录>/.playtest/session.json（玩家模式 = player-session.json；已加入 .gitignore）。
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -24,7 +27,8 @@ const ROOT = path.resolve(HERE, '..');
 const LEVEL_DIR = path.join(ROOT, 'prototype', 'levels');
 const ENGINE_FILE = path.join(ROOT, 'prototype', 'engine.js');
 const SESSION_DIR = path.join(process.cwd(), '.playtest');
-const SESSION_FILE = path.join(SESSION_DIR, 'session.json');
+const SESSION_FILE = path.join(SESSION_DIR, 'session.json');               // 开发会话
+const PLAYER_SESSION_FILE = path.join(SESSION_DIR, 'player-session.json');  // --player：体验师独立会话（E10）
 const USAGE_HINT = 'node tools/play.mjs help';
 
 class CliError extends Error {}
@@ -32,7 +36,8 @@ class CliError extends Error {}
 /* ============================ 参数 ============================ */
 function parseArgs(argv) {
   const json = argv.indexOf('--json') >= 0;
-  const rest = argv.filter(a => a !== '--json');
+  const player = argv.indexOf('--player') >= 0;               // 玩家模式（E10）：与 --json 一样可放任意子命令前
+  const rest = argv.filter(a => a !== '--json' && a !== '--player');
   const flags = {}, pos = [];
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
@@ -43,7 +48,7 @@ function parseArgs(argv) {
       if (nxt !== undefined && !nxt.startsWith('--')) { flags[k] = nxt; i++; } else flags[k] = true;
     } else pos.push(a);
   }
-  return { json, flags, pos };
+  return { json, player, flags, pos };
 }
 function intFlag(v, def, min, max, name) {
   if (v === undefined) return def;
@@ -69,20 +74,20 @@ function loadEngine(levelId) {
 }
 
 /* ============================ 会话 ============================ */
-function readSession() {
-  if (!fs.existsSync(SESSION_FILE)) return null;
+function readSession(file) {
+  if (!fs.existsSync(file)) return null;
   let s;
-  try { s = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8')); }
-  catch (e) { throw new CliError('会话文件读不出来（' + SESSION_FILE + '）：' + e.message + '——可以先开一局：node tools/play.mjs new <关卡id>'); }
+  try { s = JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (e) { throw new CliError('会话文件读不出来（' + file + '）：' + e.message + '——可以先开一局：node tools/play.mjs new <关卡id>'); }
   return (s && s.level && s.state && s.state.loc) ? s : null;
 }
-function writeSession(s) {
+function writeSession(s, file) {
   fs.mkdirSync(SESSION_DIR, { recursive: true });
   s.updatedAt = new Date().toISOString();
-  fs.writeFileSync(SESSION_FILE, JSON.stringify(s, null, 2) + '\n');
+  fs.writeFileSync(file, JSON.stringify(s, null, 2) + '\n');
 }
-function requireSession() {
-  const s = readSession();
+function requireSession(file) {
+  const s = readSession(file);
   if (!s) throw new CliError('还没有进行中的试玩——先开一局：node tools/play.mjs new <关卡id>');
   return s;
 }
@@ -146,7 +151,8 @@ function choiceInfo(C, st, e) {
 /* 选项的去向：给人看的一小段（如「→ 18 中央大厅（顶层）」） */
 function destText(C, st, c) {
   const one = id => id + ' ' + nodeName(C, id);
-  if (c.kind === 'price') return '　（付 ' + c.price + ' 枚）' + (c.to.length ? ' → ' + c.to.map(one).join(' / ') : '');
+  const unit = (C.resDef(C.mainResId()) || {}).unit || '';
+  if (c.kind === 'price') return '　（付 ' + c.price + ' ' + unit + '）' + (c.to.length ? ' → ' + c.to.map(one).join(' / ') : '');
   if (c.kind === 'back') return '　→ ↩ ' + (c.to.length ? '返回 ' + one(c.to[0]) : '返回上一处');
   if (c.kind === 'battle') return '　→ 胜 ' + one(c.to[0]) + ' ｜ 负 ' + one(c.to[1]) + '（你的武力 ' + c.battle.mine + '，需要 ' + c.battle.need + '）';
   if (c.kind === 'random') return '　→ ' + c.to.map(one).join(' 或 ') + '（50/50）';
@@ -161,7 +167,8 @@ function choiceLogLabel(c) { return c.label + (c.kind === 'price' ? '（付 ' + 
 function shopLines(C, st) {
   const shop = C.shopInfo(st);
   if (!shop) return [];
-  const L = ['商店（买完必须留 1 ' + (shop.unit || '') + '，花光会闯关失败）：'];
+  /* 花光警语跟资源自己的失败规则走（E1：fail:null 的资源花光不判失败） */
+  const L = ['商店（' + (C.resNoFail(C.resDef(shop.resId) || {}) ? '花光不判失败' : '买完必须留 1 ' + (shop.unit || '') + '，花光会闯关失败') + '）：'];
   shop.stock.forEach((s, k) => L.push('  ' + (k + 1) + ') ' + (s.icon ? s.icon + ' ' : '') + s.id + '　' + shop.price + ' ' + shop.unit
     + (s.ok ? '　→ 可买：buy ' + (k + 1) + '（或 buy ' + s.id + '）' : '　（灰：' + (s.why || '买不了') + '）')));
   return L;
@@ -175,36 +182,97 @@ function sellLines(C, st) {
     + '　→ 卖：sell <道具名>'];
 }
 
-/* 每个子命令都会打印的「一屏」 */
-function renderScreen(C, sess) {
+/* 每个子命令都会打印的「一屏」；player = 玩家模式（E10：隐藏数值/去向编号/机械理由） */
+function renderScreen(C, sess, player) {
   const st = sess.state, node = getNode(C, st), D = C.currentLevel();
   const L = [];
   L.push('══ 当前位置 ══');
   L.push(st.loc + ' · ' + C.fillName(node.n || '？', st) + '　【' + sceneLabel(C, C.sceneOf(st)) + '】'
     + (node.endTag ? '　🏁 ' + node.endTag : '') + (node.fail ? '　💀 失败结算' : ''));
   L.push('──────');
-  L.push(C.fillName(node.t || '', st));
+  L.push(C.fillName(C.nodeText(st, node) || '', st));    // E8：正文分叉（首个满足的 tIf；都不满足用 node.t）
   L.push('');
   if (node.win) {
     L.push('🏁 ' + (node.endTag || '闯关成功！'));
     if (D.meta.winReward) L.push('🎁 通关奖励：' + D.meta.winReward);
-    L.push('（重开一局：node tools/play.mjs new ' + sess.level + '）');
+    L.push('（重开一局：node tools/play.mjs ' + (player ? '--player ' : '') + 'new ' + sess.level + '）');
   } else if (node.fail || st.bankrupt) {
     const info = st.bankrupt ? C.failInfo(st.zeroRes) : null;
     L.push('💀 ' + ((info && info.title) || node.endTag || '闯关失败'));
-    L.push('（重开一局：node tools/play.mjs new ' + sess.level + '）');
+    L.push('（重开一局：node tools/play.mjs ' + (player ? '--player ' : '') + 'new ' + sess.level + '）');
   } else {
-    const list = C.visibleChoices(st).map(e => choiceInfo(C, st, e));
-    shopLines(C, st).forEach(x => L.push(x));      // 商店块（网页版同位置的纯文字版）
-    sellLines(C, st).forEach(x => L.push(x));      // 废料回收块
+    const entries = C.visibleChoices(st);
+    const list = entries.map(e => choiceInfo(C, st, e));
+    if (player) playerShopLines(C, st).forEach(x => L.push(x));
+    else {
+      shopLines(C, st).forEach(x => L.push(x));      // 商店块（网页版同位置的纯文字版）
+      sellLines(C, st).forEach(x => L.push(x));      // 废料回收块
+    }
     L.push('选项：');
     if (!list.length) L.push('  （现在没有可执行的选项）');
-    list.forEach(c => L.push('  ' + c.i + ') ' + (c.ok ? '' : '🔒 ') + c.label + destText(C, st, c)
-      + (c.ok ? '' : '　（灰：' + (c.why || '条件不足') + '）')));
+    list.forEach((c, k) => L.push(player ? playerChoiceLine(C, st, node, c, entries[k]) : devChoiceLine(C, st, c)));
   }
   L.push('');
-  L.push(stateText(C, sess));
+  L.push(player ? playerStateText(C, st) : stateText(C, sess));
   return L.join('\n');
+}
+
+/* 开发版选项行：带去向编号 + 机械理由（lab 与开发版 CLI 保留该标签；玩家模式不用） */
+function devChoiceLine(C, st, c) {
+  return '  ' + c.i + ') ' + (c.ok ? '' : '🔒 ') + c.label + destText(C, st, c)
+    + (c.ok ? '' : '　（灰：' + (c.why || '条件不足') + '）');
+}
+
+/* ============ 玩家模式（E10，给 AI 体验师）============
+ * 隐藏：资源数字（改定性档位）、武力面板、步数、计数、去向编号、机械理由；显示 lockText。
+ * 例外：战斗选项保留与真实玩家一模一样的「你的武力值 X ≥/< Y」对照（白名单③，§8.3）。
+ * 规范：docs/design-station-v1.md §7-E10、§8.3；简报见 docs/playtest-guide.md §二。 */
+const PLAYER_TIER = {
+  /* 氧气：§8.3 的 ≥50% / 20~50% / <20% 三档（基准 = 普通开局 100，即绝对值 50 / 20） */
+  oxygen: v => (v >= 50 ? '还好' : v >= 20 ? '有点闷' : '快喘不上气'),
+  /* 星币：§8.3 直接给的绝对值档位（≥5 / 1~4 / 0） */
+  coins: v => (v >= 5 ? '能买点东西' : v >= 1 ? '不多了' : '花光了')
+};
+/* 定性档位：没有档位定义的资源只报名字，不报数字 */
+function playerResText(C, st, r) {
+  const name = (r.icon ? r.icon + ' ' : '') + (r.name || r.id);
+  const tier = PLAYER_TIER[r.id] ? PLAYER_TIER[r.id](C.resOf(st, r.id)) : null;
+  return tier ? name + ' ' + tier : name;
+}
+function playerChoiceLine(C, st, node, c, e) {
+  const ch = (node.c || [])[e.ci] || {};               // 原始选项：拿 battle / lockText 用
+  let tail = '';
+  if (ch.battle) {                                   // 例外：与网页版同一句对照（白名单③）
+    const mine = C.atkOf(st), need = C.battleNeed(st, ch.battle);
+    tail = '　你的武力值 ' + mine + (mine >= need ? ' ≥ ' : ' < ') + need;
+  } else if (c.price != null) {
+    tail = '　（付 ' + c.price + ' ' + ((C.resDef(C.mainResId()) || {}).unit || '枚') + '）';
+  }
+  if (!c.ok) tail += '　（灰：' + C.lockHint(ch) + '）';   // E5：lockText 优先，兜底同样不含数字
+  return '  ' + c.i + ') ' + (c.ok ? '' : '🔒 ') + c.label + tail;
+}
+/* 玩家版商店/回收：只带货架与明码价格（白名单①），不带「买完留几 / 怎么买」这些机械指点 */
+function playerShopLines(C, st) {
+  const L = [];
+  const shop = C.shopInfo(st);
+  if (shop) L.push('🛒 商店：' + shop.stock.map(s =>
+    (s.icon ? s.icon + ' ' : '') + s.id + ' ' + shop.price + ' ' + shop.unit + (s.owned ? '（已拥有）' : '')).join('、'));
+  const sell = C.sellInfo(st);
+  if (sell) L.push(sell.length
+    ? '♻ 废料回收：' + sell.map(s => (s.icon ? s.icon + ' ' : '') + s.id).join('、')
+    : '♻ 废料回收：（没有可卖的东西）');
+  return L;
+}
+/* 玩家版状态（E10）：资源只给定性档位；不报武力/步数/计数 */
+function playerStateText(C, st) {
+  const D = C.currentLevel();
+  const res = C.resources().map(r => playerResText(C, st, r)).join('　');
+  const items = st.items.length
+    ? st.items.map(id => ((D.items[id] || {}).icon ? (D.items[id] || {}).icon + ' ' : '') + id).join('、')
+    : '（空）';
+  const clues = Object.keys(st.learned).length ? Object.keys(st.learned).join('、') : '（还没有）';
+  return '状态：' + res + ' ｜ 物品：' + items + ' ｜ 线索：' + clues
+    + '\n难度 ' + (st.diff === 'hard' ? '困难' : '普通') + ' ｜ 玩家 ' + st.me;
 }
 
 function stateText(C, sess) {
@@ -232,19 +300,35 @@ function detailText(C, sess) {
   return L.join('\n');
 }
 
+/* 玩家版 state 的「详细」：位置/物品（可读的标 📖）/线索；数值一律不出 */
+function playerDetailText(C, sess) {
+  const st = sess.state, D = C.currentLevel();
+  const L = ['── 详细状态 ──'];
+  L.push('位置：' + st.loc + ' · ' + C.fillName(getNode(C, st).n || '？', st) + '（' + sceneLabel(C, C.sceneOf(st)) + '）');
+  L.push('物品：' + (st.items.length
+    ? st.items.map(id => ((D.items[id] || {}).icon ? (D.items[id] || {}).icon + ' ' : '') + id + (C.itemText(id) ? ' 📖' : '')).join('、')
+    : '（空）'));
+  L.push('线索：' + (Object.keys(st.learned).length ? Object.keys(st.learned).join('、') : '（还没有）'));
+  L.push('提示：灰显选项 = 现在做不到，理由写在旁边；标 📖 的东西可以用 read 翻看。');
+  return L.join('\n');
+}
+
 /* ============================ 执行一个选项（规则全部走 Core）============================ */
 function executeChoice(C, st, e) {
   const ch = (getNode(C, st).c || [])[e.ci] || {};
   const ev = [];
+  let say = null;                                 // E7：选项旁白（执行时单独打印；不改状态、与效果日志并列）
   if (e.price != null) {                          // 价格类选项（如大里姆的腕带）：每个价格一个按钮
     const why = C.payReason(st, e.price);
     if (why) return { ev, error: why };
     ev.push(...C.buySticker(st, e.price));
+    if (ch.say) say = C.fillName(ch.say, st);
     const hit = (ch.toIf || []).find(x => C.condOk(st, x.cond));
     ev.push(...C.go(st, hit ? hit.to : ch.to));
   } else {
     const res = C.choose(st, e.ci);
     ev.push(...(res.log || []));
+    say = res.say || null;
     if (res.back) ev.push(...C.goBack(st));
     else if (res.to) ev.push(...C.go(st, res.to));
   }
@@ -254,7 +338,7 @@ function executeChoice(C, st, e) {
     if (flash.kind === 'theft') ev.push('🥷 ' + flash.thief + '偷走了你 ' + flash.amount + ' ' + (r.unit || '') + (r.name || '') + '！');
     else if (flash.kind === 'blocked') ev.push('🪢 ' + flash.guard + '挡住了' + flash.thief);
   }
-  return { ev };
+  return { ev, say };
 }
 
 /* 一局里发生过的事：记进会话流水 */
@@ -308,7 +392,7 @@ function buildPayload(C, sess, extra) {
 
 /* ============================ 子命令 ============================ */
 function cmdNew(ctx) {
-  const { flags, pos, say } = ctx;
+  const { flags, pos, say, player, sessFile } = ctx;
   const levelId = pos[1];
   if (!levelId) throw new CliError('用法：node tools/play.mjs new <关卡id> [--hard] [--name 名字]（可用：' + listLevels().join(' / ') + '）');
   const C = loadEngine(levelId);
@@ -317,19 +401,19 @@ function cmdNew(ctx) {
   const ev = C.go(st, D.start.node);
   const sess = newSession(levelId, st);
   logEntry(sess, 'new', null, '开局 · ' + ((D.meta && D.meta.title) || levelId) + '（' + (st.diff === 'hard' ? '困难' : '普通') + '）· 玩家 ' + st.me, ev);
-  writeSession(sess);
+  writeSession(sess, sessFile);
   say('🎬 开局：' + ((D.meta && D.meta.title) || levelId) + '（' + levelId + '）· ' + (st.diff === 'hard' ? '困难' : '普通') + '模式 · 玩家 ' + st.me);
   ev.forEach(x => say('  · ' + x));
   say('');
-  say(renderScreen(C, sess));
+  say(renderScreen(C, sess, player));
   say('');
-  say('（下一步：node tools/play.mjs choose <序号>；随时 state / where / items / log 看情况）');
+  say('（下一步：node tools/play.mjs ' + (player ? '--player ' : '') + 'choose <序号>；随时 state / where / items / log 看情况）');
   return buildPayload(C, sess, { cmd: 'new', fields: { events: ev } });
 }
 
 function cmdChoose(ctx) {
-  const { pos, say } = ctx;
-  const sess = requireSession();
+  const { pos, say, player, sessFile } = ctx;
+  const sess = requireSession(sessFile);
   const C = loadEngine(sess.level);
   const st = sess.state;
   const raw = pos[1];
@@ -343,47 +427,57 @@ function cmdChoose(ctx) {
   }
   const info = list[n - 1];
   const e = entries[n - 1];
-  if (!e.ok) throw new CliError('选项 ' + n + '「' + info.label + '」现在不能执行：' + (info.why || '条件不足') + '；（位置没有变化）');
+  if (!e.ok) {
+    /* 玩家模式：灰显理由用玩家向措辞（lockText / 兜底），不透机械理由 */
+    const chLock = (getNode(C, st).c || [])[e.ci] || {};
+    throw new CliError('选项 ' + n + '「' + info.label + '」现在不能执行：'
+      + (player ? C.lockHint(chLock) : (info.why || '条件不足')) + '；（位置没有变化）');
+  }
   const from = st.loc;
   const r = executeChoice(C, st, e);
-  if (r.error) throw new CliError('选项 ' + n + '「' + info.label + '」现在不能执行：' + r.error + '；（位置没有变化）');
+  if (r.error) throw new CliError('选项 ' + n + '「' + info.label + '」现在不能执行：'
+    + (player ? C.lockHint({ cond: { [C.mainResId()]: e.price } }) : r.error) + '；（位置没有变化）');   // 玩家模式：钱不够 → 玩家向兜底措辞（同 E5）
+  const notes = r.say ? r.ev.concat(['💬 ' + r.say]) : r.ev;   // E7：旁白也进流水（与效果日志并列）
   sess.steps += 1;
-  logEntry(sess, 'choose', from, n + ') ' + choiceLogLabel(info), r.ev);
-  writeSession(sess);
-  say('▶ 执行：' + n + ') ' + choiceLogLabel(info) + '　（' + from + ' → ' + st.loc + '）');
+  logEntry(sess, 'choose', from, n + ') ' + choiceLogLabel(info), notes);
+  writeSession(sess, sessFile);
+  say('▶ 执行：' + n + ') ' + choiceLogLabel(info) + (player ? '' : '　（' + from + ' → ' + st.loc + '）'));
   r.ev.forEach(x => say('  · ' + x));
+  if (r.say) say('  💬 ' + r.say);
   say('');
-  say(renderScreen(C, sess));
-  return buildPayload(C, sess, { cmd: 'choose', fields: { stepped: { i: n, label: info.label, from, to: st.loc }, events: r.ev } });
+  say(renderScreen(C, sess, player));
+  return buildPayload(C, sess, { cmd: 'choose', fields: { stepped: { i: n, label: info.label, from, to: st.loc }, events: r.ev, say: r.say } });
 }
 
 function cmdState(ctx) {
-  const { say } = ctx;
-  const sess = requireSession();
+  const { say, player, sessFile } = ctx;
+  const sess = requireSession(sessFile);
   const C = loadEngine(sess.level);
-  say(renderScreen(C, sess));
+  say(renderScreen(C, sess, player));
   say('');
-  say(detailText(C, sess));
+  say(player ? playerDetailText(C, sess) : detailText(C, sess));
   return buildPayload(C, sess, { cmd: 'state' });
 }
 
 function cmdWhere(ctx) {
-  const { say } = ctx;
-  const sess = requireSession();
+  const { say, player, sessFile } = ctx;
+  const sess = requireSession(sessFile);
   const C = loadEngine(sess.level);
   const st = sess.state;
   const node = getNode(C, st);
   say('📍 当前位置：' + st.loc + ' · ' + C.fillName(node.n || '？', st) + '　【' + sceneLabel(C, C.sceneOf(st)) + '】'
     + (node.endTag ? '　🏁 ' + node.endTag : '') + (node.fail ? '　💀 失败结算' : ''));
-  say('   场景：' + sceneLabel(C, C.sceneOf(st)) + '（' + C.sceneOf(st) + '）　｜　已探索 ' + visitedIds(C, st).length + ' 处　｜　第 ' + sess.steps + ' 步');
+  if (!player) {   // 玩家模式不带场景 id / 已探索计数 / 步数
+    say('   场景：' + sceneLabel(C, C.sceneOf(st)) + '（' + C.sceneOf(st) + '）　｜　已探索 ' + visitedIds(C, st).length + ' 处　｜　第 ' + sess.steps + ' 步');
+  }
   if (st.bankrupt) say('   ⚠ 本关已结束（' + C.failInfo(st.zeroRes).title + '）');
   return buildPayload(C, sess, { cmd: 'where' });
 }
 
 /* 商店购买（规则走 Core.buy / Core.payReason，与网页版的购买按钮同一条路） */
 function cmdBuy(ctx) {
-  const { pos, say } = ctx;
-  const sess = requireSession();
+  const { pos, say, player, sessFile } = ctx;
+  const sess = requireSession(sessFile);
   const C = loadEngine(sess.level);
   const st = sess.state;
   const shop = C.shopInfo(st);
@@ -396,22 +490,24 @@ function cmdBuy(ctx) {
   if (!item) throw new CliError('商店里没有「' + raw + '」——这里卖：' + goods);
   if (item.owned) throw new CliError('你已经有一件「' + item.id + '」了（不用再买）；（没有变化）');
   const why = C.payReason(st, shop.price);
-  if (why) throw new CliError('买不了「' + item.id + '」：' + why + '；（没有变化）');
+  if (why) throw new CliError('买不了「' + item.id + '」：'
+    + (player ? C.lockHint({ cond: { [shop.resId]: shop.price } }) : why) + '；（没有变化）');   // 玩家模式不透含数字的 payReason
   const ev = C.buy(st, item.id, shop.price);
   sess.steps += 1;
   logEntry(sess, 'buy', st.loc, '买 ' + item.id + '（-' + shop.price + ' ' + shop.unit + '）', ev);
-  writeSession(sess);
-  say('🛒 购买：' + (item.icon ? item.icon + ' ' : '') + item.id + '　（-' + shop.price + ' ' + shop.unit + '，剩 ' + C.resOf(st, shop.resId) + ' ' + shop.unit + '）');
+  writeSession(sess, sessFile);
+  say('🛒 购买：' + (item.icon ? item.icon + ' ' : '') + item.id + '　（-' + shop.price + ' ' + shop.unit + '，现在 '
+    + (player ? playerResText(C, st, C.resDef(shop.resId) || {}) : '剩 ' + C.resOf(st, shop.resId) + ' ' + shop.unit) + '）');
   ev.forEach(x => say('  · ' + x));
   say('');
-  say(renderScreen(C, sess));
+  say(renderScreen(C, sess, player));
   return buildPayload(C, sess, { cmd: 'buy', fields: { bought: { id: item.id, price: shop.price }, events: ev } });
 }
 
 /* 废料回收（规则走 Core.sell，与网页版的卖出按钮同一条路） */
 function cmdSell(ctx) {
-  const { pos, say } = ctx;
-  const sess = requireSession();
+  const { pos, say, player, sessFile } = ctx;
+  const sess = requireSession(sessFile);
   const C = loadEngine(sess.level);
   const st = sess.state;
   const sell = C.sellInfo(st);
@@ -425,19 +521,57 @@ function cmdSell(ctx) {
   const ev = C.sell(st, item.id);
   sess.steps += 1;
   logEntry(sess, 'sell', st.loc, '卖 ' + item.id + '（+1 ' + unit + '）', ev);
-  writeSession(sess);
-  say('♻ 卖出：' + (item.icon ? item.icon + ' ' : '') + item.id + '　（+1 ' + unit + '，现在 ' + C.resOf(st, C.mainResId()) + ' ' + unit + '）');
+  writeSession(sess, sessFile);
+  say('♻ 卖出：' + (item.icon ? item.icon + ' ' : '') + item.id + '　（+1 ' + unit + '，现在 '
+    + (player ? playerResText(C, st, C.resDef(C.mainResId()) || {}) : C.resOf(st, C.mainResId()) + ' ' + unit) + '）');
   ev.forEach(x => say('  · ' + x));
   say('');
-  say(renderScreen(C, sess));
+  say(renderScreen(C, sess, player));
   return buildPayload(C, sess, { cmd: 'sell', fields: { sold: { id: item.id, gain: item.gain }, events: ev } });
 }
 
-function cmdItems(ctx) {
-  const { say } = ctx;
-  const sess = requireSession();
+/* E3：翻看文本道具的正文（只读：不改任何状态、不写会话）。
+ * 未拥有 → 明确报错；有这件东西但没有正文 → 「没什么可读的」（不是错误）。 */
+function cmdRead(ctx) {
+  const { pos, say, sessFile } = ctx;
+  const sess = requireSession(sessFile);
   const C = loadEngine(sess.level);
   const st = sess.state;
+  const raw = pos[1];
+  const readable = st.items.filter(id => C.itemText(id));
+  if (raw === undefined) {
+    throw new CliError('用法：node tools/play.mjs read <道具名>（手里能翻看的：' + (readable.join('、') || '暂时没有') + '）');
+  }
+  const meta = C.currentLevel().items[raw] || {};
+  if (!C.hasItem(st, raw)) {
+    throw new CliError('你手里没有「' + raw + '」这件东西，翻看不了'
+      + (readable.length ? '；能翻看的：' + readable.join('、') : '') + '；（没有变化）');
+  }
+  if (!C.itemText(raw)) {
+    say('📖 ' + (meta.icon ? meta.icon + ' ' : '') + raw + '：这件东西没什么可读的。');
+    return buildPayload(C, sess, { cmd: 'read', fields: { read: { id: raw, text: null } } });
+  }
+  const text = C.fillName(C.itemText(raw), st);
+  say('📖 ' + (meta.icon ? meta.icon + ' ' : '') + raw);
+  say('');
+  say(text);
+  return buildPayload(C, sess, { cmd: 'read', fields: { read: { id: raw, text: text } } });
+}
+
+function cmdItems(ctx) {
+  const { say, player, sessFile } = ctx;
+  const sess = requireSession(sessFile);
+  const C = loadEngine(sess.level);
+  const st = sess.state;
+  if (player) {   // 玩家版：不带件数/武力；可读的标 📖
+    say('🎒 物品：');
+    if (!st.items.length) say('  （空——去任务点找找看）');
+    st.items.forEach(id => {
+      const meta = C.currentLevel().items[id] || {};
+      say('  ' + (meta.icon || '•') + ' ' + id + (meta.nosell ? '　【关键·不可卖】' : '') + (C.itemText(id) ? '　📖 可读' : ''));
+    });
+    return buildPayload(C, sess, { cmd: 'items' });
+  }
   say('🎒 物品（' + st.items.length + ' 件，其中红框关键道具 ' + st.items.filter(id => (C.currentLevel().items[id] || {}).nosell).length + ' 件）');
   if (!st.items.length) say('  （空——去任务点找找看）');
   st.items.forEach(id => {
@@ -449,23 +583,26 @@ function cmdItems(ctx) {
 }
 
 function cmdLog(ctx) {
-  const { say, flags } = ctx;
-  const sess = requireSession();
+  const { say, flags, player, sessFile } = ctx;
+  const sess = requireSession(sessFile);
   const C = loadEngine(sess.level);
   const tail = intFlag(flags.tail, sess.log.length, 1, 999, 'tail');
   const list = sess.log.slice(Math.max(0, sess.log.length - tail));
-  say('📜 操作流水（共 ' + sess.log.length + ' 条' + (list.length < sess.log.length ? '，显示最后 ' + list.length + ' 条' : '') + '）');
+  say(player
+    ? '📜 操作流水' + (list.length < sess.log.length ? '（显示最后 ' + list.length + ' 条）' : '')
+    : '📜 操作流水（共 ' + sess.log.length + ' 条' + (list.length < sess.log.length ? '，显示最后 ' + list.length + ' 条' : '') + '）');
   if (!list.length) say('  （还没有操作）');
   list.forEach(e => {
-    say('  ' + e.n + '. [' + clock(e.at) + '] ' + (e.from ? e.from + ' → ' + e.to + '　' : '') + (e.label || e.cmd)
-      + (e.notes && e.notes.length ? '　' + e.notes.join('；') : ''));
+    say('  ' + e.n + '. [' + clock(e.at) + '] '
+      + (!player && e.from ? e.from + ' → ' + e.to + '　' : '')   // 玩家模式不带「编号 → 编号」
+      + (e.label || e.cmd) + (e.notes && e.notes.length ? '　' + e.notes.join('；') : ''));
   });
   return buildPayload(C, sess, { cmd: 'log', fields: { log: list } });
 }
 
 function cmdSave(ctx) {
-  const { say, pos } = ctx;
-  const sess = requireSession();
+  const { say, pos, player, sessFile } = ctx;
+  const sess = requireSession(sessFile);
   const C = loadEngine(sess.level);
   const file = pos[1];
   if (!file) throw new CliError('用法：node tools/play.mjs save <文件>（例如 save my-run.json）');
@@ -474,12 +611,14 @@ function cmdSave(ctx) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, JSON.stringify(snap, null, 2) + '\n');
   say('💾 已保存会话快照：' + target);
-  say('   （复现问题：node tools/play.mjs load ' + file + '，然后 state / log 回看）');
+  say(player
+    ? '   （留证据用；复现问题把这份文件发给开发者）'
+    : '   （复现问题：node tools/play.mjs load ' + file + '，然后 state / log 回看）');
   return buildPayload(C, sess, { cmd: 'save', fields: { saved: target } });
 }
 
 function cmdLoad(ctx) {
-  const { say, pos } = ctx;
+  const { say, pos, sessFile } = ctx;
   const file = pos[1];
   if (!file) throw new CliError('用法：node tools/play.mjs load <文件>（由 save 生成的快照）');
   const target = path.resolve(process.cwd(), file);
@@ -492,7 +631,7 @@ function cmdLoad(ctx) {
   const st = C.normalizeState(snap.state);
   if (!C.currentLevel().nodes[st.loc]) throw new CliError('快照里的位置 ' + st.loc + ' 在关卡 ' + snap.level + ' 里不存在（关卡数据改过？）');
   const sess = { v: 1, level: snap.level, state: st, log: Array.isArray(snap.log) ? snap.log : [], steps: Number(snap.steps) || 0, createdAt: new Date().toISOString() };
-  writeSession(sess);
+  writeSession(sess, sessFile);
   say('📂 已载入快照：' + target + '　（' + (snap.savedAt || '未知时间保存') + '）');
   say('');
   say(renderScreen(C, sess));
@@ -500,8 +639,8 @@ function cmdLoad(ctx) {
 }
 
 function cmdAuto(ctx) {
-  const { say, flags } = ctx;
-  const sess = requireSession();
+  const { say, flags, sessFile } = ctx;
+  const sess = requireSession(sessFile);
   const C = loadEngine(sess.level);
   const st = sess.state;
   const maxSteps = intFlag(flags.steps, 30, 1, 500, 'steps');
@@ -530,10 +669,11 @@ function cmdAuto(ctx) {
       played += 1;
       sess.steps += 1;
       logEntry(sess, 'auto', from, pick.info.i + ') ' + choiceLogLabel(pick.info), r.ev);
-      trail.push({ n: played, from, to: st.loc, i: pick.info.i, label: pick.info.label, events: r.ev });
+      trail.push({ n: played, from, to: st.loc, i: pick.info.i, label: pick.info.label, events: r.ev, say: r.say || null });
       say('  ' + pad2(played) + '. ' + from + ' ' + nodeName(C, from) + ' → ' + pick.info.i + ') ' + pick.info.label
         + (st.loc !== from ? '　⇒ ' + st.loc + ' ' + nodeName(C, st.loc) : '')
-        + (r.ev.length ? '　[' + r.ev.join('；') + ']' : ''));
+        + (r.ev.length ? '　[' + r.ev.join('；') + ']' : '')
+        + (r.say ? '　💬 ' + r.say : ''));
     }
   } finally {
     Math.random = realRandom;
@@ -550,7 +690,7 @@ function cmdAuto(ctx) {
   say('结束原因：' + ({ ended: '到达结局/结算', stuck: '卡死', steps: '步数用尽' })[stopped]
     + '　｜　重跑：node tools/play.mjs auto --steps ' + maxSteps + ' --seed ' + seed);
   say(stateText(C, sess));
-  writeSession(sess);
+  writeSession(sess, sessFile);
   return buildPayload(C, sess, { cmd: 'auto', fields: { auto: { played, stopped, reason, seed, maxSteps, trail } } });
 }
 
@@ -567,16 +707,17 @@ function makeRng(seedStr) {
 }
 
 /* ============================ 帮助 ============================ */
-function helpText() {
-  return [
+function helpText(player) {
+  const L = [
     '《你有一个新任务！》无头试玩器 —— 在终端里真玩一局（规则 = 网页版 engine.js 的 Core，不重写）',
     '',
-    '用法：node tools/play.mjs [--json] <子命令> [参数]',
+    '用法：node tools/play.mjs [--json|--player] <子命令> [参数]',
     '',
     '  new <关卡id> [--hard] [--name 名字]   开新局并打印首屏（关卡：' + listLevels().join(' / ') + '）',
     '  choose <序号>                          执行当前可见选项里的第 <序号> 个（1 起）',
     '  buy <编号|道具名>                  在商店买东西（编号看屏幕上的「商店」块）',
     '  sell <道具名>                      在废料回收点卖东西（红框关键道具不能卖）',
+    '  read <道具名>                      翻看文本道具的正文（只读；未拥有的会明确报错）',
     '  state                                  一屏状态 + 详细（位置/资源/物品/线索/武力/步数）',
     '  where                                  当前位置（编号 · 名称 · 场景）',
     '  items                                  物品（红框关键道具会标出来）与武力值',
@@ -586,27 +727,35 @@ function helpText() {
     '  help                                   这份说明',
     '',
     '  --json 可放在任意子命令前：输出机器可读 JSON（node / name / text / choices[{i,label,to,ok,why}] / shop / sell / state{…}）',
+    '  --player 玩家模式（给 AI 体验师）：隐藏数值（改定性档位）/武力/步数/去向编号/机械理由，显示 lockText；',
+    '           禁用 --json / load / auto；会话存 player-session.json；save 可用',
     '',
-    '文件：会话 = ' + SESSION_FILE + '（.playtest/ 已进 .gitignore）',
+    '文件：会话 = ' + SESSION_FILE + '（开发）｜ ' + PLAYER_SESSION_FILE + '（--player）　（.playtest/ 已进 .gitignore）',
     '详细玩法与「给 AI 体验师下指令」的模板：docs/playtest-guide.md'
-  ].join('\n');
+  ];
+  if (player) L.splice(1, 0, '（玩家模式已启用：隐藏数值/去向编号/机械理由；禁用 --json / load / auto；会话 = player-session.json）');
+  return L.join('\n');
 }
 
 /* ============================ 入口 ============================ */
 function main() {
-  const { json, flags, pos } = parseArgs(process.argv.slice(2));
+  const { json, player, flags, pos } = parseArgs(process.argv.slice(2));
+  const sessFile = player ? PLAYER_SESSION_FILE : SESSION_FILE;    // E10：玩家模式用独立会话，不覆盖开发会话
   const sink = [];
   const say = (...xs) => { sink.push(xs.map(x => String(x)).join(' ')); };
-  const ctx = { json, flags, pos, say };
+  const ctx = { json, player, sessFile, flags, pos, say };
   const cmd = pos[0];
   let payload = null;
   let code = 0;
   try {
-    if (!cmd || cmd === 'help' || flags.help === true) { process.stdout.write(helpText() + '\n'); return; }
+    /* E10 硬隔离：玩家模式禁用 --json / load / auto */
+    if (player && json) throw new CliError('玩家模式不能用 --json（体验师硬隔离：免得看到机械数据）');
+    if (player && (cmd === 'load' || cmd === 'auto')) throw new CliError('玩家模式不能用 ' + cmd + '（体验师硬隔离：不许试探式重试 / 跳步）');
+    if (!cmd || cmd === 'help' || flags.help === true) { process.stdout.write(helpText(player) + '\n'); return; }
     const run = ({
       new: cmdNew, choose: cmdChoose, state: cmdState, where: cmdWhere,
       items: cmdItems, log: cmdLog, save: cmdSave, load: cmdLoad, auto: cmdAuto,
-      buy: cmdBuy, sell: cmdSell
+      buy: cmdBuy, sell: cmdSell, read: cmdRead
     })[cmd];
     if (!run) throw new CliError('不认识的子命令：' + cmd + '（试试 ' + USAGE_HINT + '）');
     payload = run(ctx);

@@ -2,10 +2,10 @@
   "version": 1,
   "phase": "initial-dev",
   "docRoot": {
-    "requirements": "docs/requirements",
-    "specs": "docs/requirements/specs",
-    "design": "docs/design",
-    "modules": "docs/design/modules",
+    "requirements": "docs",
+    "specs": "docs",
+    "design": "docs",
+    "modules": "docs",
     "batches": "docs/batches"
   },
   "promptsLanding": "thincoder-core/prompts",
@@ -22,5 +22,6 @@
       ]
     },
     "exemptions": []
-  }
+  },
+  "notes": "本项目文档约定 = 扁平 docs/*.md（设计/需求/试玩文档同目录，按文件名前缀区分）+ docs/README.md 作唯一文档地图 + docs/batches/ 放批次档（六段）。art/ 为美术协作目录、prototype/ 为代码与关卡数据、tools/ 为工具。"
 }
