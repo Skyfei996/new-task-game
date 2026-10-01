@@ -1,6 +1,7 @@
 // 核心逻辑自测：node prototype/test.core.mjs
 // 覆盖：数据完整性 / 完整通关路径 / 战斗 / 商店 / 出售 / 抽奖奇偶 / 密码线索 / 偷窃 / 返回 / 区域切换（v1.2）
 //       + 货币底线（v1.3：金币钳 0 / 身无分文 / 购买守卫）+ 人物表与触发点（v1.3）+ DOM id 自检（v1.3）
+//       + 引擎 v0.3 新钩子 E1~E8（fail:null / 序章 / 道具正文 / hint / lockText / once+chDone / say / tIf）
 // ⚠ v0.2：关卡数据由 prototype/data.js 迁到 prototype/levels/dalim.js —— 本文件只改这一行加载路径，
 //         其余 525 项断言一字未动（引擎 v0.2 对示例关卡保持完全兼容）。
 import fs from 'node:fs';
@@ -479,6 +480,137 @@ console.log('DOM id 引用检查：engine.js 引用 ' + refIds.length + ' 个 id
 eq(missingIds.join(','), '', 'engine.js 引用的 DOM id 全部存在于 index.html');
 const closeIds = [...new Set([...html.matchAll(/data-close="([^"]+)"/g)].map(m => m[1]))];
 eq(closeIds.filter(id => !htmlIds.has(id)).join(','), '', 'index.html 里所有 data-close 都指向存在的弹层 id');
+
+/* ---------- 14. 引擎 v0.3 新钩子（E1~E8；合成关卡，不动真实关卡数据）----------
+   临时往注册表里加一关（只用来验证引擎钩子；验证完切回大里姆）：
+     E1 coins.fail:null（花光不判失败）／ E2 meta.prologue ／ E3 items[].text ／ E4 hint
+     E5 lockText ／ E6 once + chDone 谓词 ／ E7 say ／ E8 node.tIf（E9 是纯渲染层，由 DOM id 自检与走查覆盖） */
+globalThis.LEVELS['hooktest'] = {
+  meta: { title: '钩子测试关', safeNode: 'h1', prologue: { lines: ['你是{me}。', '第二行。'], image: 'hook.png' } },
+  scenes: { hs: { id: 'hs', name: '测试·场景', image: '', width: 800, height: 800,
+    pins: { h1: [100, 100], h2: [200, 200], h3: [300, 300], h4: [400, 400] } } },
+  start: { node: 'h1' },
+  resources: [
+    { id: 'coins', name: '测试币', unit: '枚', icon: '🪙', start: { normal: 1, hard: 0 }, fail: null },
+    { id: 'oxy', name: '氧气', unit: '点', icon: '💨', start: { normal: 5, hard: 5 }, fail: { title: '缺氧', text: '没气了。' } }
+  ],
+  items: { '钥匙': { icon: '🔑', text: '第一段\n第二段' }, '木棍': { icon: '🪵', atk: 1 } },
+  characters: {}, charOrder: [], help: [],
+  nodes: {
+    h1: { n: '钩子起点', t: '开场正文。', tIf: [{ cond: { chDone: '打过招呼' }, t: '打过招呼之后的正文。' }],
+      c: [
+        { l: '打个招呼。', once: '打过招呼', say: '{me}挥了挥手。', lockText: '（还不到时候。）', fx: { learn: '招呼' }, to: 'h2' },
+        { l: '花光钱。', fx: { coins: -1 }, to: 'h2' },
+        { l: '还买不起的东西。', lock: true, cond: { coins: 9 } },
+        { l: '只做一次的动作。', once: true, to: 'h2' }
+      ] },
+    h2: { n: '钩子终点', t: '到了。', c: [{ l: '回去。', back: true }] },
+    h3: { n: '一道小门', t: '门在这。', c: [{ l: '推开小门。', once: '走过小门', to: 'h4' }] },
+    h4: { n: '门后', t: '门后。', c: [{ l: '回去。', back: true }] }
+  }
+};
+ok(C.selectLevel('hooktest'), '14-0：合成关已注册且可选中（引擎钩子测试用）');
+const LVH = C.currentLevel();
+
+/* --- E1 资源 fail:null（只钳 0、不判失败） --- */
+let h = C.newState('normal');
+eq(h.coins, 1, 'E1：合成关普通开局 1 枚');
+eq(C.payReason(h, 1), '', 'E1：fail:null 的资源可以花到 0（付款守卫放行）');
+C.applyRes(h, 'coins', -1);
+eq(h.coins, 0, 'E1：……扣到 0（仍然钳在 ≥0）');
+ok(!h.bankrupt && h.zeroRes === null, 'E1：……不判失败、不设 zeroRes');
+h = C.newState('normal');
+C.applyRes(h, 'oxy', -5);
+ok(h.bankrupt && h.zeroRes === 'oxy', 'E1：带 fail 的资源照旧归零判失败（旧行为不变）');
+h = C.newState('normal');
+C.normalizeState(h);
+ok(!h.bankrupt && h.zeroRes === null, 'E1：读档兜底——fail:null 的资源为 0 不算失败');
+
+/* --- E2 序章（meta.prologue；{me} 可替换） --- */
+const pro = C.prologue();
+ok(pro && pro.lines.length === 2 && pro.image === 'hook.png', 'E2：序章数据可读（lines + image）');
+eq(C.fillName(pro.lines[0], C.newState('normal')), '你是林小晨。', 'E2：序章 {me} 可替换');
+
+/* --- E3 道具正文（items[].text） --- */
+eq(C.itemText('钥匙'), '第一段\n第二段', 'E3：道具正文可读（多段 \\n 原样保留）');
+eq(C.itemText('木棍'), null, 'E3：没有 text 的道具 → null（面板回「没什么可读的」）');
+
+/* --- E4 hint 缺省 = vague --- */
+eq(C.choiceHint({}), 'vague', 'E4：不写 hint = vague');
+eq(C.choiceHint({ hint: 'exact' }), 'exact', 'E4：写了就原样返回（引擎不自己加料）');
+eq(C.choiceHint({ hint: 'none' }), 'none', 'E4：none 原样返回');
+h = C.newState('normal');
+C.go(h, 'h1');
+const vc4 = C.visibleChoices(h);
+ok(vc4.length > 0 && vc4.every(e => ['vague', 'exact', 'none'].indexOf(e.hint) >= 0), 'E4：可见选项列表带 hint 字段（缺省 vague）');
+
+/* --- E5 灰显措辞（lockText + 兜底不含数字） --- */
+eq(C.lockHint({ lockText: '（还差点门道。）' }), '（还差点门道。）', 'E5：有 lockText 就用它');
+eq(C.lockHint({ cond: { item: '木棍' } }), '还差：木棍', 'E5：道具兜底 = 还差：X');
+eq(C.lockHint({ cond: { knows: '秘密' } }), '还不到时候', 'E5：线索兜底 = 还不到时候');
+eq(C.lockHint({ cond: { oxy: 3 } }), '还差点底气', 'E5：资源兜底 = 还差点底气');
+ok(!/[0-9]/.test(C.lockHint({ cond: { oxy: 3 } })) && !/[0-9]/.test(C.lockHint({ cond: { item: '木棍' } })), 'E5：兜底不含数字');
+
+/* --- E6 once / st.chDone / { chDone } 谓词 --- */
+const h1Choices = LVH.nodes.h1.c;
+h = C.newState('normal');
+C.go(h, 'h1');
+let vc = C.visibleChoices(h);
+eq(vc.length, 4, 'E6：四个选项都在列（条件未满足但标了 lock 的 = 灰显，仍看得见）');
+const r0 = C.choose(h, 0);
+ok(h.chDone['打过招呼'] === true, 'E6：命名 once 执行后记入 st.chDone');
+ok(C.choiceDone(h, h1Choices[0], 0, 'h1'), 'E6：choiceDone 认这份标记');
+ok(C.condOk(h, { chDone: '打过招呼' }), 'E6+：{ chDone } 谓词 = 做过');
+ok(!C.condOk(C.newState('normal'), { chDone: '打过招呼' }), 'E6+：没做过 = false');
+ok(!h.chDone['@h1#0'], 'E6：命名 once 不用内部键（键 = 标记名）');
+C.go(h, r0.to);
+C.goBack(h);
+eq(h.loc, 'h1', 'E6：转一圈回到起点');
+const r3 = C.choose(h, 3);
+ok(h.chDone['@h1#3'] === true, 'E6：once:true 用内部键记录（不可被条件查询）');
+ok(!C.condOk(h, { chDone: '只做一次的动作。' }), 'E6：once:true 不留可查询的标记名');
+C.go(h, r3.to);
+C.goBack(h);
+vc = C.visibleChoices(h);
+ok(vc.every(e => e.ci !== 0 && e.ci !== 3), 'E6：做过的一次性选项不再出现在可见列表里');
+eq(C.choose(h, 0).to, undefined, 'E6：做过的一次性选项再执行 = 空操作');
+let ek = C.reachablePins(h);
+ok(!!ek['h2'], 'E6：还有别的选项通向 h2 —— 编号仍然点亮');
+h = C.newState('normal');
+C.go(h, 'h3');
+ek = C.reachablePins(h);
+ok(!!ek['h4'], 'E6：唯一出口的编号可达');
+const r4 = C.choose(h, 0);
+C.go(h, r4.to);
+C.goBack(h);
+eq(C.pinChoiceIndex(h, 'h4'), -1, 'E6：做过的一次性选项 → 该编号不再可点');
+eq(Object.keys(C.reachablePins(h)).length, 0, 'E6：……地图上也不再点亮');
+ok(C.deadEnd(h), 'E6：……没有别的出路 → 按走投无路处理（弹求救面板）');
+h = C.newState('normal');
+C.go(h, 'h1');
+eq(C.pinChoiceIndex(h, 'h2'), 0, 'E6：普通选项的编号照旧可点');
+
+/* --- E7 say 旁白 --- */
+h = C.newState('normal');
+C.go(h, 'h1');
+eq(C.choose(h, 0).say, '林小晨挥了挥手。', 'E7：say 随执行返回（{me} 已替换）');
+h = C.newState('normal');
+C.go(h, 'h1');
+eq(C.choose(h, 1).say, null, 'E7：没写 say 的选项 → null（不附加任何旁白）');
+
+/* --- E8 node.tIf 正文分叉 --- */
+h = C.newState('normal');
+C.go(h, 'h1');
+eq(C.nodeText(h, LVH.nodes.h1), '开场正文。', 'E8：tIf 都不满足 → 用 node.t');
+h.chDone['打过招呼'] = true;
+eq(C.nodeText(h, LVH.nodes.h1), '打过招呼之后的正文。', 'E8：tIf 首个满足 → 用分叉正文');
+
+/* 收拾干净：从注册表里拿走合成关，切回大里姆 */
+ok(C.selectLevel('dalim'), '14-末：切回大里姆');
+delete globalThis.LEVELS['hooktest'];
+eq(C.prologue(), null, 'E2：没有 prologue 的关卡 → null（不显示序章）');
+h = C.newState('normal');
+ok(C.payReason(h, h.coins).indexOf('买完就剩 0') >= 0, 'E1：没有 fail:null 的资源仍守「买完必须留 1」（旧行为不变）');
 
 /* ---------- 汇总 ---------- */
 console.log('');

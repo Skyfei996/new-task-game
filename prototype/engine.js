@@ -20,6 +20,18 @@
  *      （回到安全点 = 关卡 meta.safeNode；重开本关）
  *   ⑥ 条件语言新增 all / any / pinsAll / notPins；战斗选项也可以带代价（fx）
  *
+ * v0.3 改动（B01 体验层整改 · 引擎小能力 E1~E9，接口以设计档 §7 v0.3 表为准）：
+ *   E1 资源 resources[].fail: null → 该资源只钳 0，不判失败、不设 bankrupt（缺省不写 = 旧行为）
+ *   E2 序章 meta.prologue = { lines, image? } → 新局进入前整屏显示一次（读档不重放）；{me} 可替换
+ *   E3 道具正文 items[].text（多段 \n）→ 背包里点开只读面板；无 text = 「没什么可读的」
+ *   E4 提示分级 choice.hint: vague|exact|none（缺省 vague）→ 引擎不自动往选项上附加效果/数值
+ *   E5 灰显理由 choice.lockText → 玩家向、不含数字；没写时用 Core.lockHint 的兜底
+ *   E6 一次性选项 choice.once: true|'标记名' → 做过即隐藏，记 st.chDone（随存档）；条件 { chDone } 可查
+ *   E7 选项旁白 choice.say → 执行时 toast（加长停留），不改状态、与效果日志并列不重复
+ *   E8 正文分叉 node.tIf = [{ cond, t }] → 取第一个满足条件的正文，都不满足用 node.t
+ *   E9 商店折叠（渲染层）→ 选项在上；商店/回收收成一行默认折叠（折叠不影响可点性）
+ *   另（§8.3）：去向标注「→ 编号 / 节点名」从玩家视图撤下；lab 与开发版 CLI 自带渲染，保留该标签。
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
@@ -57,6 +69,12 @@
       D = lv; levelId = id; G.GAME_DATA = lv;
       return true;
     },
+    /* E2 序章：meta.prologue = { lines: […], image? }；没有该字段的关卡不显示（读档不重放） */
+    prologue() {
+      const p = (D && D.meta && D.meta.prologue) || null;
+      if (!p || !Array.isArray(p.lines) || !p.lines.length) return null;
+      return { lines: p.lines, image: p.image || null };
+    },
 
     /* ---- 场景：编号点属于哪个场景 = 它印在哪张图上（单一数据源） ---- */
     /* 同一编号点出现在多张图的 pins 里（如电梯井）→ 无固定场景，返回 null（保持当前场景不换图） */
@@ -82,6 +100,8 @@
     /* ---- 通用资源（v0.2）：资源直接住在 state 的同名字段上（coins / oxygen / …） ---- */
     resources() { return (D && D.resources) || []; },
     resDef(id) { return Core.resources().find(r => r.id === id) || null; },
+    /* E1：声明了 fail: null 的资源「不判失败」——只钳到 0，不触发失败结算、不设 bankrupt */
+    resNoFail(def) { return !!def && def.fail === null; },
     /* 花钱/扣资源的那个资源：优先 noSpendToZero 的；否则第一个 */
     mainResId() {
       const rs = Core.resources();
@@ -99,7 +119,7 @@
       const applied = st[id] - before;
       if (applied !== 0) log.push((applied > 0 ? '+' : '') + applied + ' ' + (def.unit || '') + (def.name || id));
       else if (delta < 0) log.push((def.icon || '') + ' 没有可扣的' + (def.name || id) + '了（资源不会变成负数）');
-      if (st[id] <= 0) {
+      if (st[id] <= 0 && !Core.resNoFail(def)) {   // E1：fail:null 的资源归零只到 0，不判失败
         if (!st.bankrupt) st.zeroRes = id;      // 第一个归零的资源决定失败结算文案
         st.bankrupt = true;
         log.push('💀 ' + Core.failInfo(id).title + '——闯关失败！');
@@ -140,6 +160,7 @@
         me: Core.cleanName(me),
         items: [],
         visited: {}, done: {}, learned: {},
+        chDone: {},        // E6：做过的一次性选项标记（随存档；旧存档没有该字段 = 空）
         wristband: 0,
         hist: [],
         loc: null,
@@ -157,7 +178,7 @@
       if (!st) return st;
       if (!st.scene) st.scene = Core.sceneOfNode(st.loc) || Core.defaultScene();
       ['items'].forEach(k => { if (!Array.isArray(st[k])) st[k] = []; });
-      ['visited', 'done', 'learned'].forEach(k => { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; });
+      ['visited', 'done', 'learned', 'chDone'].forEach(k => { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; });
       if (!Array.isArray(st.hist)) st.hist = [];
       if (st.wristband == null) st.wristband = 0;
       if (!st.diff) st.diff = 'normal';
@@ -166,7 +187,7 @@
       Core.resources().forEach(r => {
         const v = Number(st[r.id]);
         st[r.id] = Math.max(0, isFinite(v) ? v : ((r.start && (r.start[st.diff] != null ? r.start[st.diff] : r.start.normal)) || 0));
-        if (st[r.id] <= 0 && !zero) zero = r.id;
+        if (st[r.id] <= 0 && !zero && !Core.resNoFail(r)) zero = r.id;   // E1：fail:null 归零不算失败
       });
       st.zeroRes = zero;
       st.bankrupt = !!zero;
@@ -219,6 +240,11 @@
 
     /* ---- 条件 ---- */
     hasItem(st, id) { return st.items.indexOf(id) >= 0; },
+    /* E3 道具正文：只读；没有 text（或空串）= 没什么可读的 */
+    itemText(id) {
+      const m = (D.items && D.items[id]) || {};
+      return typeof m.text === 'string' && m.text ? m.text : null;
+    },
     atkOf(st) {
       let a = st.items.reduce((s, id) => s + ((D.items[id] && D.items[id].atk) || 0), 0);
       const bonus = (D.meta && D.meta.atkFromClues) || null;   // v0.2：知道某条线索 = 武力 +N（如收编的小帮手）
@@ -231,6 +257,7 @@
       if (cond.noItem && Core.hasItem(st, cond.noItem)) return false;
       if (cond.knows && !st.learned[cond.knows]) return false;
       if (cond.noKnows && st.learned[cond.noKnows]) return false;
+      if (cond.chDone && !(st.chDone && st.chDone[cond.chDone])) return false;   // E6：该命名一次性选项做过
       if (cond.anyItem && !cond.anyItem.some(i => Core.hasItem(st, i))) return false;
       if (cond.notPinsAll && cond.notPinsAll.every(p => st.visited[p])) return false;
       if (cond.pinsAll && !cond.pinsAll.every(p => st.visited[p])) return false;   // v0.2：这些点全都到过
@@ -260,6 +287,39 @@
       }
       return bits.filter(Boolean).join('；') || '条件不足';
     },
+    /* E5：灰显理由（玩家视图用）——优先选项自己的 lockText；没写就用兜底，兜底同样不含数字 */
+    lockHint(ch) {
+      if (ch && ch.lockText) return ch.lockText;
+      const c = (ch && ch.cond) || {};
+      const bits = [];
+      if (c.item) bits.push('还差：' + c.item);                      // 道具 → 还差：X
+      if (c.anyItem) bits.push('还差：' + c.anyItem.join(' 或 '));
+      if (c.all) bits.push(...c.all.map(x => Core.lockHint({ cond: x })));
+      if (c.any) bits.push(...c.any.map(x => Core.lockHint({ cond: x })));
+      if (c.noItem || c.knows || c.noKnows || c.pinsAll || c.notPinsAll || c.notPins || c.chDone) bits.push('还不到时候');   // 线索等
+      Core.resources().forEach(r => { if (c[r.id] != null) bits.push('还差点底气'); });   // 资源 → 还差点底气
+      return [...new Set(bits.filter(Boolean))].join('；') || '还不到时候';
+    },
+    /* E4：提示分级——不写 = vague；引擎不自动往选项上附加效果/数值（写什么由作者定） */
+    choiceHint(ch) { return (ch && ch.hint) || 'vague'; },
+    /* ---- E6 一次性选项 ----
+     * once: '<标记名>' → 记 st.chDone['<标记名>']（随存档，可被条件 { chDone } 查询）
+     * once: true      → 只作内部记录（键带 @ 前缀，数据查不到） */
+    chMarkKey(nodeId, ci, once) { return once === true ? ('@' + nodeId + '#' + ci) : String(once); },
+    choiceDone(st, ch, ci, nodeId) {
+      if (!ch || !ch.once) return false;
+      return !!(st && st.chDone && st.chDone[Core.chMarkKey(nodeId, ci, ch.once)]);
+    },
+    markChoiceDone(st, ch, ci, nodeId) {
+      if (!ch || !ch.once) return;
+      if (!st.chDone) st.chDone = {};
+      st.chDone[Core.chMarkKey(nodeId, ci, ch.once)] = true;
+    },
+    /* E8 正文分叉：取第一个满足条件的 t；都不满足用 node.t */
+    nodeText(st, node) {
+      const hit = ((node && node.tIf) || []).find(x => Core.condOk(st, x.cond));
+      return hit ? hit.t : (node && node.t);
+    },
 
     /* ---- 货币 / 资源守卫（v1.3 规则推广到任何 noSpendToZero 的资源）----
      * 买东西（商店 / 腕带 / 自动贩卖机）付款后必须至少留 1 —— 花光 = 该资源归零 = 闯关失败 */
@@ -267,6 +327,7 @@
       const r = Core.resDef(resId || Core.mainResId()) || { id: 'coins', name: '萨瓦币', unit: '枚', zeroWarn: '花光就闯关失败' };
       const have = Core.resOf(st, r.id);
       if (have < price) return (r.name || r.id) + '不够（需要 ' + price + ' ' + (r.unit || '') + '）';
+      if (Core.resNoFail(r)) return '';           // E1：该资源花光不判失败 → 可以花到 0
       if (have - price < 1) return '买完就剩 0 ' + (r.unit || '') + '——' + (r.zeroWarn || '花光就闯关失败') + '，不能买';
       return '';
     },
@@ -362,23 +423,26 @@
       const node = D.nodes[st.loc];
       const ch = node && node.c && node.c[idx];
       if (!ch) return { log: [] };
+      if (Core.choiceDone(st, ch, idx, st.loc)) return { log: [] };   // E6：做过的一次性选项不再执行
       const log = [];
+      Core.markChoiceDone(st, ch, idx, st.loc);          // E6：执行过 = 记标记（随存档）
+      const say = ch.say ? Core.fillName(ch.say, st) : null;          // E7：旁白（不改状态；与效果日志并列、不重复）
       Core.applyFx(st, ch.fx, log);                      // v0.2：战斗选项也可以带代价（例如耗氧 5）
-      if (st.bankrupt) { Core.checkFail(st, log); return { log }; }   // 代价把资源花光 → 就地结算，不再移动
+      if (st.bankrupt) { Core.checkFail(st, log); return { log: log, say: say }; }   // 代价把资源花光 → 就地结算，不再移动
       if (ch.battle) {
         const need = Core.battleNeed(st, ch.battle);
         const mine = Core.atkOf(st);
-        if (mine >= need) { log.push('⚔ 你赢了！（武力值 ' + mine + ' ≥ ' + need + '）'); return { to: ch.battle.winTo, log: log }; }
+        if (mine >= need) { log.push('⚔ 你赢了！（武力值 ' + mine + ' ≥ ' + need + '）'); return { to: ch.battle.winTo, log: log, say: say }; }
         log.push('⚔ 你输了……（武力值 ' + mine + ' < ' + need + '）');
-        return { to: ch.battle.loseTo, log: log };
+        return { to: ch.battle.loseTo, log: log, say: say };
       }
-      if (ch.random) return { to: ch.random[Math.random() < 0.5 ? 0 : 1], log: log };
-      if (ch.back) return { back: true, log: log };
+      if (ch.random) return { to: ch.random[Math.random() < 0.5 ? 0 : 1], log: log, say: say };
+      if (ch.back) return { back: true, log: log, say: say };
       if (ch.toIf) {
         const hit = ch.toIf.find(x => Core.condOk(st, x.cond));
-        return { to: hit ? hit.to : ch.to, log: log };
+        return { to: hit ? hit.to : ch.to, log: log, say: say };
       }
-      return { to: ch.to, log: log };
+      return { to: ch.to, log: log, say: say };
     },
     /* 点击编号应执行哪个选项（含“返回”类）——返回下标，找不到返回 -1
      * v0.2：先匹配普通去向（to / random / 返回），再匹配战斗的胜/负去向——
@@ -387,9 +451,10 @@
       const node = D.nodes[st.loc];
       if (!node) return -1;
       const list = node.c || [];
-      const target = (ch, asBattle) => {
+      const target = (ch, ci, asBattle) => {
         if (asBattle && !ch.battle) return false;
         if (!asBattle && ch.battle) return false;
+        if (Core.choiceDone(st, ch, ci, st.loc)) return false;      // E6：做过的一次性选项不可点
         if (!Core.condOk(st, ch.cond)) return false;
         const t = Core.choiceTargets(ch);
         if (asBattle) return [...t.win, ...t.lose].indexOf(pinId) >= 0;
@@ -397,8 +462,8 @@
         if (t.back && st.hist.length && st.hist[st.hist.length - 1] === pinId) return true;
         return false;
       };
-      for (let i = 0; i < list.length; i++) if (target(list[i], false)) return i;
-      for (let i = 0; i < list.length; i++) if (target(list[i], true)) return i;
+      for (let i = 0; i < list.length; i++) if (target(list[i], i, false)) return i;
+      for (let i = 0; i < list.length; i++) if (target(list[i], i, true)) return i;
       return -1;
     },
     /* 选项会通往哪些编号（供“选项→地图”对应显示） */
@@ -420,7 +485,8 @@
       if (node.fail || node.win) return set;             // 结束状态不可走
       const sc = D.scenes[Core.sceneOf(st)];
       const pins = (sc && sc.pins) || {};
-      (node.c || []).forEach(ch => {
+      (node.c || []).forEach((ch, ci) => {
+        if (Core.choiceDone(st, ch, ci, st.loc)) return;    // E6：做过的一次性选项 = 不可达
         if (!Core.condOk(st, ch.cond)) return;
         const t = Core.choiceTargets(ch);
         [...t.to, ...t.random, ...t.win, ...t.lose].forEach(x => { if (pins[x]) set[x] = true; });
@@ -439,9 +505,10 @@
       if (!node || st.bankrupt) return false;
       if (node.fail || node.win) return false;
       const list = node.c || [];
-      const anyChoice = list.some(ch => Core.condOk(st, ch.cond) && Core.choiceUsable(st, ch));
+      const live = (ch, ci) => !Core.choiceDone(st, ch, ci, st.loc);   // E6：做过的一次性选项 = 不可用
+      const anyChoice = list.some((ch, ci) => live(ch, ci) && Core.condOk(st, ch.cond) && Core.choiceUsable(st, ch));
       const anyPin = Object.keys(Core.reachablePins(st)).length > 0;
-      const anyBack = st.hist.length > 0 && list.some(ch => ch.back && Core.condOk(st, ch.cond));
+      const anyBack = st.hist.length > 0 && list.some((ch, ci) => live(ch, ci) && ch.back && Core.condOk(st, ch.cond));
       return !anyChoice && !anyPin && !anyBack;
     },
     /* 选项是否真的点得动：prices 类要至少有一个能买得起的价格（全灰 = 不是可执行动作） */
@@ -451,12 +518,14 @@
     },
     /* ---- 只读助手（v0.3，无头试玩器 / 管理台共用；只看不改）----
      * 当前节点在界面上「看得见」的选项列表 —— 与 renderNode 的显示规则同出一处：
-     *   条件不满足且没标 lock 的选项直接不显示；标了 lock 的灰显；带 prices 的选项按价格拆成多项。
-     * 返回 [{ i, ci, label, price, ok, why, back, targets }]
+     *   条件不满足且没标 lock 的选项直接不显示；标了 lock 的灰显；带 prices 的选项按价格拆成多项；
+     *   E6：做过的一次性选项（once）不再出现。
+     * 返回 [{ i, ci, label, price, ok, why, hint, back, targets }]
      *   i     = 显示序号（1 起；执行时由调用方回传给 Core.choose，用 ci）
      *   ci    = node.c 里的下标
      *   ok    = 现在能不能点（条件满足 且 买得起）
-     *   why   = 不能点的原因（能点 = ''），供灰显与 CLI 报错用
+     *   why   = 不能点的原因（能点 = ''），供灰显与 CLI 报错用（机械理由；玩家向措辞见 Core.lockHint）
+     *   hint  = E4 提示分级（缺省 vague）
      *   targets = Core.choiceTargets(ch)（去重前的原始去向）
      * 注：价格类选项「条件不满足 + 标了 lock」时，这里比 renderNode 更严（DOM 只按钱禁用价格按钮，
      *     这里条件不满足就整项判灰）——当前关卡数据没有这种组合，留着这行是为了标明这处有意的偏离。 */
@@ -465,18 +534,20 @@
       if (!node || node.fail || node.win || st.bankrupt) return [];
       const out = [];
       (node.c || []).forEach((ch, ci) => {
+        if (Core.choiceDone(st, ch, ci, st.loc)) return;    // E6：做过的一次性选项 = 隐藏
         const condOk = Core.condOk(st, ch.cond);
         if (!condOk && !ch.lock) return;                    // 与界面一致：没标 lock 的隐藏
         const targets = Core.choiceTargets(ch);
+        const hint = Core.choiceHint(ch);                   // E4：提示分级（缺省 vague）
         if (ch.prices && ch.prices.length) {
           ch.prices.forEach(n => {
             const why = condOk ? Core.payReason(st, n) : Core.lockReason(ch);
-            out.push({ i: out.length + 1, ci, label: ch.l, price: n, ok: !why, why, back: false, targets });
+            out.push({ i: out.length + 1, ci, label: ch.l, price: n, ok: !why, why, hint, back: false, targets });
           });
           return;
         }
         const why = condOk ? '' : Core.lockReason(ch);
-        out.push({ i: out.length + 1, ci, label: ch.l, price: null, ok: !why, why, back: !!ch.back, targets });
+        out.push({ i: out.length + 1, ci, label: ch.l, price: null, ok: !why, why, hint, back: !!ch.back, targets });
       });
       return out;
     },
@@ -562,15 +633,20 @@
   const save = () => { if (store && st) Core.saveTo(store, curLevelId, st); };
   const nm = txt => Core.fillName(txt, st);                      // {me} 占位符 → 玩家名
   const resDef = id => Core.resDef(id) || {};
+  const esc = s => String(s == null ? '' : s)                    // 关卡数据的文本进 innerHTML 前先转义
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-  function toast(msg) {
+  /* 提示气泡：默认总计 3.4 秒；opts.hold 可延长（E7 的旁白用得更久）。
+   * 第二参数必须是对象——log.forEach(toast) 会把下标当第二参数传进来，收数字当毫秒会出事。 */
+  function toast(msg, opts) {
+    const hold = (opts && typeof opts === 'object' && opts.hold) || 3400;
     const box = $('toasts');
     const d = document.createElement('div');
     d.className = 'toast';
     d.textContent = msg;
     box.appendChild(d);
-    setTimeout(() => d.classList.add('fade'), 2600);
-    setTimeout(() => d.remove(), 3400);
+    setTimeout(() => d.classList.add('fade'), hold - 800);
+    setTimeout(() => d.remove(), hold);
   }
 
   /* ---------- 被偷强反馈（v1.3，v0.2 起对任何资源都通用） ---------- */
@@ -723,6 +799,28 @@
     $('playerName').value = Core.playerName(store);
   }
 
+  /* 真正进入关卡：跑开局效果 + 存档 + 渲染（序章层按下「跳过 / 开始」后才走到这里） */
+  function beginRun() {
+    Core.go(st, D.start.node).forEach(toast);
+    save();
+    renderAll();
+  }
+  /* E2：序章层——新局开场整屏显示一次（读档不重放；没有 meta.prologue 的关卡不显示） */
+  function showPrologue(pro) {
+    $('prologueLines').innerHTML = pro.lines.map(t => '<p>' + esc(nm(t)) + '</p>').join('');
+    const img = $('prologueImg');
+    if (pro.image) { img.src = pro.image; img.classList.remove('hidden'); }
+    else { img.removeAttribute('src'); img.classList.add('hidden'); }
+    const go = () => { $('prologueLayer').classList.add('hidden'); beginRun(); };   // 两个按钮都只负责进入关卡
+    $('prologueSkip').onclick = go;
+    $('prologueStart').onclick = go;
+    $('prologueLayer').classList.remove('hidden');
+  }
+  /* E2：新局的统一起手——有 meta.prologue 就先弹序章层，没有就直接进关卡（读档不重放） */
+  function startRun() {
+    const pro = Core.prologue();
+    if (pro) showPrologue(pro); else beginRun();
+  }
   function startGame(id, diff) {
     if (!Core.selectLevel(id)) return;
     curLevelId = id;
@@ -730,10 +828,9 @@
     if (store) Core.savePlayer(store, name);
     st = Core.newState(diff, name);
     curScene = null;
-    Core.go(st, D.start.node).forEach(toast);
-    save();
+    foldLoc = null;                      // 换关卡 = 折叠状态归零（foldLoc 在下方声明，执行时早已初始化）
     $('overlay').classList.add('hidden');
-    renderAll();
+    startRun();
   }
   function resumeGame(id, s) {
     if (!Core.selectLevel(id)) return;
@@ -741,6 +838,7 @@
     st = Core.normalizeState(s);
     if (store && st.me) Core.savePlayer(store, st.me);
     curScene = null;
+    foldLoc = null;
     save();
     $('overlay').classList.add('hidden');
     renderAll();
@@ -749,8 +847,8 @@
     if (!confirm('重新开始？本关进度将清空。')) return;
     st = Core.newState(st ? st.diff : 'normal', st ? st.me : Core.playerName(store));
     curScene = null;
-    Core.go(st, D.start.node).forEach(toast);
-    save(); renderAll();
+    foldLoc = null;
+    startRun();          // E2：重开本关 = 新局 → 有 prologue 也先弹一次（读档不重放）
   }
   function backToLevelSelect() {
     save();
@@ -954,28 +1052,148 @@
     $('charsModal').classList.remove('hidden');
   }
 
-  /* 目标编号的显示标签：目标不在当前场景时补场景后缀（如 4（负一层）） */
-  function targetTag(id) {
-    const own = Core.sceneOfNode(id);
-    if (!own || own === Core.sceneOf(st)) return id;
-    return id + '（' + sceneLabel(own) + '）';
+  /* v0.3（§8.3）：去向标注「→ 编号 / 节点名」从玩家视图撤下——它会把事件节点的名字直接剧透；
+   * 导航改由地图高亮（选项悬停点亮编号）与选项里的方向感文案承担；lab 与开发版 CLI 自带渲染，保留。 */
+
+  /* ---------- 选项 / 商店（E9：选项在上；商店与回收收成一行，默认折叠） ---------- */
+  let foldOpen = { shop: false, sell: false };   // 折起状态：同一地点内保持，换地点恢复默认折叠
+  let foldLoc = null;
+
+  /* 一行折叠块：默认收拢；点开即可买/卖（折叠不影响可点性） */
+  function foldBox(title, key) {
+    const d = document.createElement('details');
+    d.className = 'shopFold';
+    const s = document.createElement('summary');
+    s.textContent = title;
+    d.appendChild(s);
+    d.open = !!foldOpen[key];
+    d.addEventListener('toggle', () => { foldOpen[key] = d.open; });
+    return d;
   }
-  function fmtTargets(t) {
-    const bits = [];
-    if (t.back) bits.push('↩ 返回');
-    if (t.to.length) bits.push('→ ' + t.to.map(x => targetTag(x)).join(' / '));
-    if (t.random.length) bits.push('→ ' + t.random.map(x => targetTag(x)).join(' 或 '));
-    return bits.join('　');
+
+  function renderChoiceList(box, node) {
+    node.c.forEach((ch, idx) => {
+      if (Core.choiceDone(st, ch, idx, st.loc)) return;    // E6：做过的一次性选项 → 隐藏
+      const ok = Core.condOk(st, ch.cond);
+      if (!ok && !ch.lock) return;
+      if (ch.prices) {
+        const wrap = document.createElement('div');
+        wrap.className = 'priceBox';
+        const lab = document.createElement('div');
+        lab.className = 'priceLabel';
+        lab.textContent = ch.l + '（选一个价格）：';
+        wrap.appendChild(lab);
+        const row = document.createElement('div');
+        row.className = 'priceRow';
+        let floorStop = false;
+        ch.prices.forEach(n => {
+          const why = Core.payReason(st, n);
+          const b = document.createElement('button');
+          b.className = 'priceBtn';
+          b.textContent = n + ' ' + (resDef(Core.mainResId()).unit || '');
+          b.disabled = !!why;
+          b.title = why;
+          if (why) {
+            const tag = document.createElement('span');
+            tag.className = 'pwTag';
+            tag.textContent = Core.resOf(st, Core.mainResId()) < n ? '钱不够' : '要留 1 ' + (resDef(Core.mainResId()).unit || '');
+            b.appendChild(tag);
+            if (Core.resOf(st, Core.mainResId()) >= n) floorStop = true;
+          }
+          b.onclick = () => {
+            if (Core.payReason(st, n)) return;   // 守卫判定与按钮禁用同出一处
+            Core.buySticker(st, n).forEach(toast);
+            if (ch.say) toast(Core.fillName(ch.say, st), { hold: 6000 });   // E7：价格类选项也走同一条旁白口径
+            Core.markChoiceDone(st, ch, idx, st.loc);      // E6：价格类选项同样只做一次
+            const hit = (ch.toIf || []).find(x => Core.condOk(st, x.cond));
+            Core.go(st, hit ? hit.to : ch.to).forEach(toast);
+            const fl = Core.takeFlash(st);
+            save(); renderAll(); showFlash(fl);
+          };
+          row.appendChild(b);
+        });
+        wrap.appendChild(row);
+        if (floorStop) {
+          const hint = document.createElement('div');
+          hint.className = 'priceWhy';
+          hint.textContent = '❗ 付款后必须至少留 1 ' + (resDef(Core.mainResId()).unit || '') + '——花光就闯关失败。';
+          wrap.appendChild(hint);
+        }
+        box.appendChild(wrap);
+        return;
+      }
+      box.appendChild(makeChoiceButton(ch, idx, ok));
+    });
   }
-  function expandWin(winTo) {   // 战斗胜利后如果是中转节点，列出它的去向
-    const n = D.nodes[winTo];
-    if (n && n.hidden && n.c) return [...new Set(n.c.map(ch => ch.to))];
-    return [winTo];
+
+  /* 商店 / 废料回收：各收成一行（E9），展开后与从前一样——入口从 Core.shopInfo/sellInfo 同一份数据来 */
+  function renderShopFolds(box, node) {
+    if (foldLoc !== st.loc) { foldLoc = st.loc; foldOpen = { shop: false, sell: false }; }
+    if (node.shop) {
+      const fold = foldBox('🛒 商店（点开）', 'shop');
+      const wrap = document.createElement('div');
+      wrap.className = 'shopBox';
+      const why = Core.payReason(st, node.shop.price);
+      node.shop.stock.forEach(it => {
+        const meta = D.items[it] || {};
+        const owned = Core.hasItem(st, it);
+        const row = document.createElement('div');
+        row.className = 'shopRow';
+        row.innerHTML = '<span class="sIcon">' + (meta.icon || '❔') + '</span>' +
+          '<span class="sName">' + it + (meta.atk ? ' <em>武力+' + meta.atk + '</em>' : '') + '</span>' +
+          '<span class="sPrice">' + node.shop.price + ' ' + (resDef(Core.mainResId()).unit || '') + '</span>';
+        const b = document.createElement('button');
+        b.textContent = owned ? '已拥有' : '购买';
+        b.disabled = owned || !!why;
+        b.title = why;
+        b.onclick = () => {
+          if (Core.payReason(st, node.shop.price)) { renderAll(); return; }
+          Core.buy(st, it, node.shop.price).forEach(toast);
+          save(); renderAll();
+        };
+        row.appendChild(b);
+        wrap.appendChild(row);
+      });
+      if (why && node.shop.stock.some(it => !Core.hasItem(st, it))) {
+        const note = document.createElement('div');
+        note.className = 'shopWhy';
+        note.textContent = '❗ ' + why;
+        wrap.appendChild(note);
+      }
+      fold.appendChild(wrap);
+      box.appendChild(fold);
+    }
+    if (node.sell) {
+      const fold = foldBox('♻ 回收（点开）', 'sell');
+      const wrap = document.createElement('div');
+      wrap.className = 'shopBox';
+      const sellable = st.items.filter(it => !(D.items[it] && D.items[it].nosell));
+      if (!sellable.length) {
+        const p = document.createElement('div');
+        p.className = 'dim';
+        p.textContent = '（没有可出售的道具；红框道具不能卖。）';
+        wrap.appendChild(p);
+      }
+      sellable.forEach(it => {
+        const meta = D.items[it] || {};
+        const row = document.createElement('div');
+        row.className = 'shopRow';
+        row.innerHTML = '<span class="sIcon">' + (meta.icon || '❔') + '</span><span class="sName">' + it + '</span>';
+        const b = document.createElement('button');
+        b.textContent = '卖出 +1 ' + (resDef(Core.mainResId()).unit || '');
+        b.onclick = () => { Core.sell(st, it).forEach(toast); save(); renderAll(); };
+        row.appendChild(b);
+        wrap.appendChild(row);
+      });
+      fold.appendChild(wrap);
+      box.appendChild(fold);
+    }
   }
 
   function doChoice(idx) {
     const res = Core.choose(st, idx);
     (res.log || []).forEach(toast);
+    if (res.say) toast(res.say, { hold: 6000 });   // E7：旁白（与效果日志并列，不走 log 通道所以不会重复）
     let log = [];
     if (res.back) log = Core.goBack(st);
     else if (res.to) log = Core.go(st, res.to);
@@ -990,23 +1208,21 @@
     b.className = 'choice';
     const t = Core.choiceTargets(ch);
 
-    if (ch.battle) {
+    if (!ok) {                     // 锁定（含带战斗的战斗选项）：先于战斗分支——锁定项永远显示 lockText 且不可点
+      b.classList.add('locked');
+      b.disabled = true;
+      /* E5：灰显理由是玩家向的 lockText / 兜底（不带数字与内部词），不再是机械理由 */
+      b.innerHTML = '<span>🔒 ' + nm(ch.l) + '</span><span class="chip">' + esc(Core.lockHint(ch)) + '</span>';
+    } else if (ch.battle) {
       const need = Core.battleNeed(st, ch.battle);
       const mine = Core.atkOf(st);
       b.classList.add('battle');
       if (mine < need) b.classList.add('risk');
+      /* 战斗对照（exact 白名单③）保留；「胜 → / 负 → 」去向标签已按 §8.3 撤下 */
       b.innerHTML = '<span>' + nm(ch.l) + '</span>' +
-        '<span class="chip">你的武力值 ' + mine + (mine >= need ? ' ≥ ' : ' < ') + need + '</span>' +
-        '<span class="chip tgt">胜 → ' + expandWin(ch.battle.winTo).map(x => targetTag(x)).join(' / ') + '　｜　负 → ' + targetTag(ch.battle.loseTo) + '</span>';
-    } else if (!ok) {
-      b.classList.add('locked');
-      b.disabled = true;
-      const tgl = fmtTargets(t);
-      b.innerHTML = '<span>🔒 ' + nm(ch.l) + '</span><span class="chip">' + Core.lockReason(ch) + '</span>' +
-        (tgl ? '<span class="chip tgt">' + tgl + '</span>' : '');
+        '<span class="chip">你的武力值 ' + mine + (mine >= need ? ' ≥ ' : ' < ') + need + '</span>';
     } else {
-      const tg = fmtTargets(t);
-      b.innerHTML = '<span>' + nm(ch.l) + '</span>' + (tg ? '<span class="chip tgt">' + tg + '</span>' : '');
+      b.innerHTML = '<span>' + nm(ch.l) + '</span>';
     }
 
     b.onclick = () => doChoice(idx);
@@ -1042,7 +1258,7 @@
     if (!node) return;
     $('locBadge').textContent = st.loc;
     $('locName').textContent = nm(node.n);
-    $('nodeText').textContent = nm(node.t);
+    $('nodeText').textContent = nm(Core.nodeText(st, node));   // E8：正文分叉（首个满足的 tIf；都不满足用 t）
     renderHereChars();
 
     const box = $('choiceList');
@@ -1076,132 +1292,41 @@
       return;
     }
 
-    // 商店（自动贩卖机 / 柜台，都是 data 驱动）
-    if (node.shop) {
-      const wrap = document.createElement('div');
-      wrap.className = 'shopBox';
-      const why = Core.payReason(st, node.shop.price);
-      node.shop.stock.forEach(it => {
-        const meta = D.items[it] || {};
-        const owned = Core.hasItem(st, it);
-        const row = document.createElement('div');
-        row.className = 'shopRow';
-        row.innerHTML = '<span class="sIcon">' + (meta.icon || '❔') + '</span>' +
-          '<span class="sName">' + it + (meta.atk ? ' <em>武力+' + meta.atk + '</em>' : '') + '</span>' +
-          '<span class="sPrice">' + node.shop.price + ' ' + (resDef(Core.mainResId()).unit || '') + '</span>';
-        const b = document.createElement('button');
-        b.textContent = owned ? '已拥有' : '购买';
-        b.disabled = owned || !!why;
-        b.title = why;
-        b.onclick = () => {
-          if (Core.payReason(st, node.shop.price)) { renderAll(); return; }
-          Core.buy(st, it, node.shop.price).forEach(toast);
-          save(); renderAll();
-        };
-        row.appendChild(b);
-        wrap.appendChild(row);
-      });
-      if (why && node.shop.stock.some(it => !Core.hasItem(st, it))) {
-        const note = document.createElement('div');
-        note.className = 'shopWhy';
-        note.textContent = '❗ ' + why;
-        wrap.appendChild(note);
-      }
-      box.appendChild(wrap);
-    }
+    // 选项（E9：选项在上）
+    renderChoiceList(box, node);
 
-    // 出售（废料回收斗）
-    if (node.sell) {
-      const wrap = document.createElement('div');
-      wrap.className = 'shopBox';
-      const sellable = st.items.filter(it => !(D.items[it] && D.items[it].nosell));
-      if (!sellable.length) {
-        const p = document.createElement('div');
-        p.className = 'dim';
-        p.textContent = '（没有可出售的道具；红框道具不能卖。）';
-        wrap.appendChild(p);
-      }
-      sellable.forEach(it => {
-        const meta = D.items[it] || {};
-        const row = document.createElement('div');
-        row.className = 'shopRow';
-        row.innerHTML = '<span class="sIcon">' + (meta.icon || '❔') + '</span><span class="sName">' + it + '</span>';
-        const b = document.createElement('button');
-        b.textContent = '卖出 +1 ' + (resDef(Core.mainResId()).unit || '');
-        b.onclick = () => { Core.sell(st, it).forEach(toast); save(); renderAll(); };
-        row.appendChild(b);
-        wrap.appendChild(row);
-      });
-      box.appendChild(wrap);
-    }
-
-    // 选项
-    node.c.forEach((ch, idx) => {
-      const ok = Core.condOk(st, ch.cond);
-      if (!ok && !ch.lock) return;
-      if (ch.prices) {
-        const wrap = document.createElement('div');
-        wrap.className = 'priceBox';
-        const tt = Core.choiceTargets(ch);
-        const lab = document.createElement('div');
-        lab.className = 'priceLabel';
-        lab.textContent = ch.l + '（选一个价格）' + (tt.to.length ? ' → ' + tt.to.map(x => targetTag(x)).join(' / ') : '') + '：';
-        wrap.appendChild(lab);
-        const row = document.createElement('div');
-        row.className = 'priceRow';
-        let floorStop = false;
-        ch.prices.forEach(n => {
-          const why = Core.payReason(st, n);
-          const b = document.createElement('button');
-          b.className = 'priceBtn';
-          b.textContent = n + ' ' + (resDef(Core.mainResId()).unit || '');
-          b.disabled = !!why;
-          b.title = why;
-          if (why) {
-            const tag = document.createElement('span');
-            tag.className = 'pwTag';
-            tag.textContent = Core.resOf(st, Core.mainResId()) < n ? '钱不够' : '要留 1 ' + (resDef(Core.mainResId()).unit || '');
-            b.appendChild(tag);
-            if (Core.resOf(st, Core.mainResId()) >= n) floorStop = true;
-          }
-          b.onclick = () => {
-            if (Core.payReason(st, n)) return;   // 守卫判定与按钮禁用同出一处
-            Core.buySticker(st, n).forEach(toast);
-            const hit = (ch.toIf || []).find(x => Core.condOk(st, x.cond));
-            Core.go(st, hit ? hit.to : ch.to).forEach(toast);
-            const fl = Core.takeFlash(st);
-            save(); renderAll(); showFlash(fl);
-          };
-          row.appendChild(b);
-        });
-        wrap.appendChild(row);
-        if (floorStop) {
-          const hint = document.createElement('div');
-          hint.className = 'priceWhy';
-          hint.textContent = '❗ 付款后必须至少留 1 ' + (resDef(Core.mainResId()).unit || '') + '——花光就闯关失败。';
-          wrap.appendChild(hint);
-        }
-        box.appendChild(wrap);
-        return;
-      }
-      box.appendChild(makeChoiceButton(ch, idx, ok));
-    });
+    // 商店 / 回收：各收成一行，默认折叠（点开即可买 / 卖）
+    renderShopFolds(box, node);
   }
 
-  /* ---------- 背包 ---------- */
+  /* ---------- 背包（E3：带正文的道具点开只读面板） ---------- */
+  function openRead(it) {
+    const text = Core.itemText(it);
+    if (!text) { toast('这件东西没什么可读的。'); return; }   // 无 text 的道具：明确说一句
+    $('readTitle').textContent = '📖 ' + it;
+    $('readBody').innerHTML = nm(text).split('\n').map(p => '<p>' + esc(p) + '</p>').join('');
+    $('readModal').classList.remove('hidden');
+  }
   function renderBag() {
     const grid = $('bagGrid');
     grid.innerHTML = '';
     D.itemOrder.forEach(it => {
       const meta = D.items[it] || {};
       const owned = Core.hasItem(st, it);
-      const d = document.createElement('div');
-      d.className = 'bagItem' + (owned ? ' owned' : '') + (meta.nosell ? ' nosell' : '');
-      d.title = owned ? (meta.nosell ? '红框道具：不可出售' : '可出售（1 枚）') : '还没有获得';
+      const text = Core.itemText(it);
+      const d = document.createElement('button');
+      d.type = 'button';
+      d.disabled = !owned;                     // 没拥有 = 点不开（阅读只针对已获得的东西）
+      d.className = 'bagItem' + (owned ? ' owned' : '') + (meta.nosell ? ' nosell' : '') + ((owned && text) ? ' readable' : '');
+      d.title = owned
+        ? ((text ? '点开看看 · ' : '') + (meta.nosell ? '红框道具：不可出售' : '可出售（1 枚）'))
+        : '还没有获得';
       d.innerHTML = '<div class="biIcon">' + (meta.icon || '❔') + '</div>' +
         '<div class="biName">' + it + '</div>' +
         (meta.atk ? '<div class="biAtk">武力 +' + meta.atk + '</div>' : '') +
-        (meta.nosell ? '<div class="biTag">不可卖</div>' : '');
+        (meta.nosell ? '<div class="biTag">不可卖</div>' : '') +
+        (owned && text ? '<div class="biRead">📖 可读</div>' : '');
+      if (owned) d.onclick = () => openRead(it);
       grid.appendChild(d);
     });
     const bonus = (D.meta && D.meta.atkFromClues) || {};

@@ -40,7 +40,7 @@
 
   <aside id="panel">
     <div id="hud">
-      <!-- v0.2：全部资源由关卡数据声明（大里姆=萨瓦币；空间站=信用点+氧气），含低额预警 -->
+      <!-- v0.2：全部资源由关卡数据声明（大里姆=萨瓦币；空间站=星币+氧气），含低额预警 -->
       <span id="resList"></span>
       <span class="stat" id="atkEl">⚔ 武力值 0</span>
       <span class="spacer"></span>
@@ -110,6 +110,15 @@
   </div>
 </div>
 
+<!-- v0.3（E3）：道具正文只读面板（背包里带正文的道具点开看） -->
+<div id="readModal" class="modal hidden">
+  <div class="card">
+    <h3 id="readTitle"></h3>
+    <div id="readBody"></div>
+    <button class="closeBtn" data-close="readModal">收起</button>
+  </div>
+</div>
+
 <!-- 人物图鉴（点一张看介绍；原创关卡立绘未到 → emoji 占位） -->
 <div id="charsModal" class="modal hidden">
   <div class="card">
@@ -124,6 +133,19 @@
   <div class="card">
     <div id="charCardBody"></div>
     <button class="closeBtn" data-close="charCardModal">关闭</button>
+  </div>
+</div>
+
+<!-- v0.3（E2）：序章层——新局开场整屏显示一次（读档不重放；无 meta.prologue 的关卡不显示）。
+     有意不用 .modal：序章只能由「跳过 / 开始」离开，免得点空白或按 Esc 把它关掉后进不了关。 -->
+<div id="prologueLayer" class="layer hidden">
+  <div class="card prologueCard">
+    <img id="prologueImg" class="prologueImg hidden" alt="开场图">
+    <div id="prologueLines" class="prologueLines"></div>
+    <div class="prologueBtns">
+      <button id="prologueSkip" class="prologueBtn ghost">跳过</button>
+      <button id="prologueStart" class="prologueBtn">开始</button>
+    </div>
   </div>
 </div>
 
