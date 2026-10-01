@@ -6,6 +6,9 @@ dist-original/
 # 生成的检测产物
 detect-out/
 
+# 无头试玩器的会话/快照（tools/play.mjs；本地试玩痕迹，不入库）
+.playtest/
+
 # 原始书页翻拍照片（体积大、含出版内容原件，不入库；如需请向作者索取）
 images/微信图片_*.jpg
 images/39295a597ed0135d0fcb123e2694d302.jpg

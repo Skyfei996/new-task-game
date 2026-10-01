@@ -17,6 +17,8 @@
 - **在线**：打开上面的 Pages 链接（手机也能玩，有竖屏布局）
 - **本地**：双击 `prototype/index.html`（纯静态、无需服务器）
 - 进度自动存在浏览器本地（按关卡独立），随时关掉随时继续
+- **不打开浏览器也能玩**：`node tools/play.mjs new station`——无头试玩器，给终端与 AI 体验师用（规则与网页版同一套）
+- **管理台（试玩 + 设计资料 + 美术需求）**：双击 `prototype/lab.html`，纯文字试玩剧情、翻设计档与美术任务单（详见 `docs/playtest-guide.md`）
 
 ## 目录结构
 
@@ -25,14 +27,18 @@ prototype/            引擎与关卡数据（纯静态，无构建）
   engine.js           引擎：纯核心 Core（可 Node 直接测）+ DOM 层
   index.html          入口（关卡选择页）
   style.css           样式（含手机布局）
+  lab.html            管理台：试玩器 + 设计资料 + 美术需求（纯文字，file:// 双击可用）
+  lab.js / lab.css    管理台的交互与样式（复用 Core，不复用游戏 DOM）
+  lab-docs.js         管理台的文档数据源（tools/build-lab.mjs 内嵌生成，勿手改）
   levels/dalim.js     关卡数据：Demo《勇闯大里姆》
   levels/station.js   关卡数据：原创《空间站大停摆》
   test.core.mjs       自测：Demo 关卡 525 项断言
   test.station.mjs    自测：原创关卡 827 项断言
+  test.play.mjs       自测：无头试玩器 + 管理台数据源 231 项断言
 images/               关卡素材（场景图、人物卡）
-docs/                 设计文档（关卡设计档、任务点网络、文档地图）
+docs/                 设计文档（关卡设计档、任务点网络、试玩指南、文档地图）
 art/                  与 AI 美工的协作目录（任务单 / 交付 / 状态表）
-tools/                工具：编号检测、关卡场景图生成、发布打包
+tools/                工具：试玩器 play.mjs、管理台数据源 build-lab.mjs、编号检测、场景图生成、发布打包
 ```
 
 ## 自测与打包
@@ -40,7 +46,10 @@ tools/                工具：编号检测、关卡场景图生成、发布打�
 ```bash
 node prototype/test.core.mjs       # Demo 关卡：525 项
 node prototype/test.station.mjs    # 原创关卡：827 项
-node tools/build-public.mjs        # 打包体验版到 dist/（两关）
+node prototype/test.play.mjs       # 试玩器 + 管理台数据源：231 项
+node tools/play.mjs new station    # 终端里试玩（无浏览器；用法见 docs/playtest-guide.md）
+node tools/build-lab.mjs           # 重生成管理台的文档数据源（node tools/build-public.mjs 会自动跑）
+node tools/build-public.mjs        # 打包体验版到 dist/（两关；顺带刷新文档与管理台）
 node tools/build-public.mjs --original-only   # 只打原创关卡
 ```
 

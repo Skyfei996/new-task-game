@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你有一个新任务！· 管理台（试玩 / 设计资料 / 美术需求）</title>
+<link rel="stylesheet" href="lab.css">
+</head>
+<body>
+<!-- 顶栏：三个标签页 + 关卡/难度/名字切换 + 回到游戏 -->
+<header id="topbar">
+  <div class="brand">🛠 管理台 <span class="dim small">《你有一个新任务！》</span></div>
+  <nav id="tabs">
+    <button class="tab active" id="tab-play" data-tab="play">试玩器</button>
+    <button class="tab" id="tab-design" data-tab="design">设计资料</button>
+    <button class="tab" id="tab-art" data-tab="art">美术需求</button>
+  </nav>
+  <div class="spacer"></div>
+  <label>关卡 <select id="levelPick"></select></label>
+  <label>难度 <select id="diffPick"><option value="normal">普通</option><option value="hard">困难</option></select></label>
+  <label>玩家 <input id="namePick" maxlength="10" value="林小晨" autocomplete="off" style="width:90px;background:#101a2c;border:1px solid #1d2b44;border-radius:6px;padding:4px 6px"></label>
+  <button id="newRun">开新局</button>
+  <a id="backToGame" href="index.html" title="回到游戏——本页与网页版共用同一套 Core 规则（engine.js）">← 回到游戏</a>
+</header>
+
+<main>
+  <!-- ============ ① 试玩器：纯文字推进（无地图、无图片） ============ -->
+  <section class="tabPane active" id="pane-play">
+    <div id="playHint">
+      ⚙ 试玩器与网页版<b>共用同一套 Core 规则</b>（<code>prototype/engine.js</code>）：同一份关卡数据、同一套选项/条件/效果/战斗/商店购买/废料回收/资源判定。
+      这里推进到哪儿，网页版就是哪儿的结果——本页只是把地图与图片换成纯文字，方便快速改剧情、试分支。
+    </div>
+    <div id="playWrap">
+      <section id="playMain">
+        <div id="playHead">
+          <span id="locBadge">–</span>
+          <span id="locName">（还没开局）</span>
+          <span id="sceneChip" class="dim small"></span>
+        </div>
+        <div id="nodeText"></div>
+        <div id="events" class="hidden"></div>
+        <div id="endBanner" class="hidden"></div>
+        <div id="choiceList"></div>
+        <div id="playFoot">灰显选项 = 现在做不到（条件不足/买不起），原因写在按钮上；按钮上的编号就是选项序号。</div>
+      </section>
+
+      <aside id="playSide">
+        <div class="box">
+          <h3>状态面板</h3>
+          <div id="statBox"></div>
+        </div>
+        <div class="box">
+          <h3>操作流水</h3>
+          <div id="logBox"></div>
+        </div>
+        <div class="box">
+          <h3>快照（复现问题用）</h3>
+          <div class="btnRow">
+            <button class="btn" id="snapOut">生成快照</button>
+            <button class="btn" id="snapIn">载入快照</button>
+            <button class="btn" id="restart">↺ 重开本关</button>
+          </div>
+          <textarea id="snapText" placeholder="「生成快照」把当前进度写成一段文本；复现问题时把它发给开发者，或粘一份快照进来点「载入快照」。"></textarea>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ ② 设计资料 ============ -->
+  <section class="tabPane" id="pane-design">
+    <div class="docHint">📄 本页为<b>只读快照</b>（生成于 <span id="genTimeDesign">—</span>）。改内容请改 <code>docs/</code> 下的 .md 源文件，然后重跑 <code>node tools/build-lab.mjs</code>。</div>
+    <div class="docWrap">
+      <nav class="docList" id="docListDesign"></nav>
+      <article class="docView" id="docViewDesign"></article>
+    </div>
+  </section>
+
+  <!-- ============ ③ 美术需求 ============ -->
+  <section class="tabPane" id="pane-art">
+    <div class="docHint">🎨 本页为<b>只读快照</b>（生成于 <span id="genTimeArt">—</span>）。这里是给美工的交接材料：任务单 + 状态总表 + 场景架构。改内容请改 <code>art/</code> 下的 .md 源文件，然后重跑 <code>node tools/build-lab.mjs</code>。</div>
+    <div class="docWrap">
+      <nav class="docList" id="docListArt"></nav>
+      <article class="docView" id="docViewArt"></article>
+    </div>
+  </section>
+</main>
+
+<!-- 关卡数据：与游戏 index.html 一样按序加载（第一个是默认关卡） -->
+<script src="levels/dalim.js"></script>
+<script src="levels/station.js"></script>
+<!-- 内嵌的文档正文（由 tools/build-lab.mjs 生成；file:// 下打不开本地 fetch，所以必须内嵌） -->
+<script src="lab-docs.js"></script>
+<!-- 管理台自己的交互（本文件不依赖引擎的 DOM 层） -->
+<script src="lab.js"></script>
+<script>
+/* 关键一步：等 DOMContentLoaded 之后再把 engine.js 动态插进来。
+ * engine.js 的 DOM 层只挂在 DOMContentLoaded 上——事件已经过去，所以它只会把纯核心 Core 挂到页面上，
+ * 不会去接管（也不去要求）游戏首页的那些 DOM 元素。管理台就只借用 Core：规则同一套，界面各写各的。 */
+document.addEventListener('DOMContentLoaded', function () {
+  var s = document.createElement('script');
+  s.src = 'engine.js';
+  s.onload = function () { window.__labStart(); };
+  s.onerror = function () {
+    document.getElementById('nodeText').textContent = 'engine.js 没加载成功——请确认 prototype/engine.js 与 lab.html 在同一目录。';
+  };
+  document.head.appendChild(s);
+});
+</script>
+</body>
+</html>

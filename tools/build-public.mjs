@@ -5,6 +5,7 @@
 // 用法：node tools/build-public.mjs [--original-only]
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -21,6 +22,12 @@ if (fs.existsSync(DIST)) {
 const put = (rel, content) => { const p = path.join(DIST, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, content); };
 const copy = (rel) => { const p = path.join(DIST, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.copyFileSync(path.join(ROOT, rel), p); };
 
+// 0) 先重生成管理台的文档数据源（prototype/lab-docs.js）——保证发布包里的文档是最新的
+{
+  const r = spawnSync(process.execPath, [path.join(HERE, 'build-lab.mjs')], { stdio: 'inherit' });
+  if (r.status !== 0) { console.error('✗ tools/build-lab.mjs 失败（退出码 ' + r.status + '）——先修好它再打包。'); process.exit(1); }
+}
+
 // 1) 主入口：按打包模式决定是否保留 Demo 关卡
 let html = fs.readFileSync(path.join(ROOT, 'prototype/index.html'), 'utf8');
 if (ONLY_ORIGINAL) html = html.replace(/\s*<script src="levels\/dalim\.js"><\/script>/, '\n<!-- 仅原创关卡打包：不含 Demo -->');
@@ -32,6 +39,16 @@ copy('prototype/engine.js');
 copy('prototype/style.css');
 copy('prototype/levels/station.js');
 if (!ONLY_ORIGINAL) copy('prototype/levels/dalim.js');
+
+// 2.5) 管理台（试玩器 + 设计资料 + 美术需求）：lab-docs.js 是上一步刚生成的
+put('prototype/lab.html', (() => {
+  let lab = fs.readFileSync(path.join(ROOT, 'prototype/lab.html'), 'utf8');
+  if (ONLY_ORIGINAL) lab = lab.replace(/\s*<script src="levels\/dalim\.js"><\/script>/, '\n<!-- 仅原创关卡打包：不含 Demo -->');
+  return lab.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<meta name="robots" content="noindex, nofollow">');
+})());
+copy('prototype/lab.js');
+copy('prototype/lab.css');
+copy('prototype/lab-docs.js');
 
 // 3) 素材：按关卡数据里的引用自动收集（原创关卡 + Demo 关卡）
 const levelFiles = ONLY_ORIGINAL ? ['prototype/levels/station.js'] : ['prototype/levels/station.js', 'prototype/levels/dalim.js'];
@@ -55,6 +72,10 @@ put('README.txt', `《你有一个新任务！》体验版（家庭自用 · 请
 包含两关：原创《空间站大停摆》 + Demo《勇闯大里姆》
 说明：进度存在你自己的浏览器里（换浏览器/清缓存会重新开始）
 
+管理台（给剧本打磨用）：打开 prototype/lab.html
+  · 试玩器：纯文字推进，跟网页版共用同一套规则——快速试剧情、试分支
+  · 设计资料 / 美术需求：内嵌的设计档与美术任务单（只读快照）
+
 想把链接发给朋友，三种办法（任选其一）：
 1) GitHub Pages：把本目录推到一个仓库，Settings → Pages → 选 main 分支 → 得到网址
 2) Netlify Drop：打开 https://app.netlify.com/drop ，把整个文件夹拖进去 → 秒出一个网址
@@ -70,6 +91,9 @@ const builtHtml = fs.readFileSync(path.join(DIST, 'prototype/index.html'), 'utf8
 if (ONLY_ORIGINAL && /dalim\.js/.test(builtHtml)) missing.push('!(仅原创模式却仍引用 Demo)');
 if (!ONLY_ORIGINAL && !/dalim\.js/.test(builtHtml)) missing.push('!(含 Demo 模式却丢了 Demo 引用)');
 if (!fs.existsSync(path.join(DIST, 'prototype/levels/' + (ONLY_ORIGINAL ? 'station.js' : 'dalim.js')))) missing.push('!(关卡数据缺失)');
+['prototype/lab.html', 'prototype/lab.js', 'prototype/lab.css', 'prototype/lab-docs.js']
+  .forEach(f => { if (!fs.existsSync(path.join(DIST, f))) missing.push(f + '（管理台文件）'); });
+if (ONLY_ORIGINAL && /levels\/dalim\.js/.test(fs.readFileSync(path.join(DIST, 'prototype/lab.html'), 'utf8'))) missing.push('!(仅原创模式：lab.html 仍引用 Demo)');
 const files = [];
 (function walk(d) { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); fs.statSync(p).isDirectory() ? walk(p) : files.push(p); } })(DIST);
 let bytes = 0; files.forEach(f => bytes += fs.statSync(f).size);

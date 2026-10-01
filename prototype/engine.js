@@ -449,6 +449,63 @@
       if (ch.prices && ch.prices.length) return ch.prices.some(n => !Core.payReason(st, n));
       return true;
     },
+    /* ---- 只读助手（v0.3，无头试玩器 / 管理台共用；只看不改）----
+     * 当前节点在界面上「看得见」的选项列表 —— 与 renderNode 的显示规则同出一处：
+     *   条件不满足且没标 lock 的选项直接不显示；标了 lock 的灰显；带 prices 的选项按价格拆成多项。
+     * 返回 [{ i, ci, label, price, ok, why, back, targets }]
+     *   i     = 显示序号（1 起；执行时由调用方回传给 Core.choose，用 ci）
+     *   ci    = node.c 里的下标
+     *   ok    = 现在能不能点（条件满足 且 买得起）
+     *   why   = 不能点的原因（能点 = ''），供灰显与 CLI 报错用
+     *   targets = Core.choiceTargets(ch)（去重前的原始去向）
+     * 注：价格类选项「条件不满足 + 标了 lock」时，这里比 renderNode 更严（DOM 只按钱禁用价格按钮，
+     *     这里条件不满足就整项判灰）——当前关卡数据没有这种组合，留着这行是为了标明这处有意的偏离。 */
+    visibleChoices(st) {
+      const node = st && st.loc ? D.nodes[st.loc] : null;
+      if (!node || node.fail || node.win || st.bankrupt) return [];
+      const out = [];
+      (node.c || []).forEach((ch, ci) => {
+        const condOk = Core.condOk(st, ch.cond);
+        if (!condOk && !ch.lock) return;                    // 与界面一致：没标 lock 的隐藏
+        const targets = Core.choiceTargets(ch);
+        if (ch.prices && ch.prices.length) {
+          ch.prices.forEach(n => {
+            const why = condOk ? Core.payReason(st, n) : Core.lockReason(ch);
+            out.push({ i: out.length + 1, ci, label: ch.l, price: n, ok: !why, why, back: false, targets });
+          });
+          return;
+        }
+        const why = condOk ? '' : Core.lockReason(ch);
+        out.push({ i: out.length + 1, ci, label: ch.l, price: null, ok: !why, why, back: !!ch.back, targets });
+      });
+      return out;
+    },
+    /* 只读助手（v0.3）：本节点的商店（renderNode 商店块的纯数据版）——没有商店 = null
+     * 返回 { price, resId, resName, unit, stock: [{ id, icon, owned, ok, why }] }
+     *   ok  = 现在能不能买（没拥有 且 payReason 放行）；why = 不能买的理由（能买 = ''） */
+    shopInfo(st) {
+      const node = st && st.loc ? D.nodes[st.loc] : null;
+      if (!node || !node.shop || node.fail || node.win || st.bankrupt) return null;
+      const rid = Core.mainResId();
+      const r = Core.resDef(rid) || {};
+      return {
+        price: node.shop.price, resId: rid, resName: r.name || rid, unit: r.unit || '',
+        stock: (node.shop.stock || []).map(it => {
+          const owned = Core.hasItem(st, it);
+          const why = owned ? '已拥有' : Core.payReason(st, node.shop.price);
+          return { id: it, icon: (D.items[it] || {}).icon || '', owned, ok: !owned && !why, why };
+        })
+      };
+    },
+    /* 只读助手（v0.3）：本节点的废料回收（出售）——没有回收点 = null，没有可卖的东西 = []
+     * 返回 [{ id, icon, gain }]（gain = 卖一件得几点主资源，与 Core.sell 一致） */
+    sellInfo(st) {
+      const node = st && st.loc ? D.nodes[st.loc] : null;
+      if (!node || !node.sell || node.fail || node.win || st.bankrupt) return null;
+      return st.items
+        .filter(it => !(D.items[it] && D.items[it].nosell))          // 红框道具不可卖
+        .map(it => ({ id: it, icon: (D.items[it] || {}).icon || '', gain: 1 }));
+    },
     safeNodeId() { return (D && D.meta && D.meta.safeNode) || (D && D.start.node) || null; },
 
     /* ---- 交易 ---- */

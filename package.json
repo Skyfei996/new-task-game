@@ -6,6 +6,9 @@
   "scripts": {
     "test": "node prototype/test.core.mjs",
     "test:station": "node prototype/test.station.mjs",
+    "test:play": "node prototype/test.play.mjs",
+    "lab": "node tools/build-lab.mjs",
+    "play": "node tools/play.mjs",
     "detect": "node tools/detect-pins.mjs images/dd_sw_5_BIG.jpg"
   },
   "devDependencies": {
