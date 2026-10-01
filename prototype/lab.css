@@ -1,0 +1,168 @@
+/* ============================================================================
+ * lab.css —— 网页管理台（prototype/lab.html）的样式
+ * 三块：① 顶栏（标签页 + 关卡切换 + 回到游戏） ② 试玩器（纯文字推进） ③ 文档查看器
+ * 与游戏（index.html / style.css）互不干扰：这里只做管理台自己的排版。
+ * ==========================================================================*/
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: #070c16;
+  color: #dbe6f5;
+  font: 15px/1.7 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+button, select, textarea, input { font: inherit; color: inherit; }
+a { color: #6cf; }
+.dim { color: #7f8ea6; }
+.small { font-size: 12px; }
+code { background: #101a2c; border: 1px solid #1d2b44; border-radius: 4px; padding: 0 4px; font-family: ui-monospace, Consolas, monospace; font-size: .92em; }
+.hidden { display: none !important; }
+
+/* ---------- 顶栏 ---------- */
+#topbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 16px; background: #0b1424; border-bottom: 1px solid #1d2b44;
+  position: sticky; top: 0; z-index: 10;
+}
+#topbar .brand { font-weight: 700; letter-spacing: .3px; }
+#tabs { display: flex; gap: 6px; margin-left: 10px; }
+.tab {
+  background: #101a2c; border: 1px solid #1d2b44; color: #9fb2cc;
+  padding: 5px 14px; border-radius: 999px; cursor: pointer;
+}
+.tab:hover { border-color: #2f80ed; color: #dbe6f5; }
+.tab.active { background: #14304f; border-color: #2f80ed; color: #fff; font-weight: 600; }
+#topbar .spacer { flex: 1; }
+#topbar label { color: #9fb2cc; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
+#topbar select {
+  background: #101a2c; border: 1px solid #1d2b44; border-radius: 6px; padding: 4px 6px;
+}
+#topbar button, .btn {
+  background: #14304f; border: 1px solid #2f80ed; color: #dbe6f5;
+  padding: 5px 12px; border-radius: 6px; cursor: pointer;
+}
+#topbar button:hover, .btn:hover { background: #1b3f6b; }
+#backToGame {
+  text-decoration: none; background: #101a2c; border: 1px solid #1d2b44;
+  padding: 5px 12px; border-radius: 6px;
+}
+#backToGame:hover { border-color: #2f80ed; }
+
+main { padding: 14px 16px 40px; max-width: 1500px; margin: 0 auto; }
+.tabPane { display: none; }
+.tabPane.active { display: block; }
+
+/* ---------- 试玩器 ---------- */
+#playHint {
+  background: #0e1c2e; border: 1px solid #1d3a5c; border-left: 3px solid #2f80ed;
+  border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; color: #a9c2de; font-size: 13px;
+}
+#playWrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+@media (max-width: 1000px) { #playWrap { grid-template-columns: 1fr; } }
+
+#playMain { background: #0b1424; border: 1px solid #1d2b44; border-radius: 10px; padding: 14px 16px; min-height: 420px; }
+#playHead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px dashed #1d2b44; padding-bottom: 8px; }
+#locBadge {
+  min-width: 34px; text-align: center; background: #14304f; border: 1px solid #2f80ed;
+  border-radius: 8px; padding: 1px 8px; font-weight: 700;
+}
+#locName { font-size: 18px; font-weight: 700; }
+#nodeText { white-space: pre-wrap; margin: 12px 0 6px; color: #e6eefb; }
+#events {
+  margin: 10px 0; padding: 8px 12px; border-radius: 6px;
+  background: #10233a; border: 1px solid #1d3a5c; color: #bfe0ff; font-size: 13px;
+}
+#events div + div { margin-top: 2px; }
+#choiceList { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.choice {
+  display: flex; align-items: baseline; gap: 10px; text-align: left; width: 100%;
+  background: #101a2c; border: 1px solid #24405f; color: #e6eefb;
+  padding: 9px 12px; border-radius: 8px; cursor: pointer;
+}
+.choice:hover:not(:disabled) { background: #16304f; border-color: #2f80ed; }
+.choice:disabled { cursor: not-allowed; color: #8593a8; background: #0d1524; border-color: #1a2436; }
+.choice .no { color: #7f8ea6; font-weight: 700; min-width: 20px; }
+.choice .lbl { flex: 1; white-space: pre-wrap; }
+.choice .chip { font-size: 12px; color: #9fb2cc; border: 1px solid #24405f; border-radius: 999px; padding: 0 8px; white-space: nowrap; }
+.choice:disabled .chip { color: #b98a5a; border-color: #4a3a28; }
+.choice.battle .lbl::before { content: "⚔ "; }
+.choice.price .chip { color: #ffd479; }
+/* 商店 / 废料回收块（与网页版同样画在选项上方） */
+.shopBox {
+  display: flex; flex-direction: column; gap: 6px;
+  border: 1px dashed #2b4568; border-radius: 10px; padding: 8px 10px; background: #0d1830;
+}
+.shopHead { color: #ffd479; font-size: 13px; }
+.choice.shopBuy, .choice.shopSell { background: #12202f; }
+.choice.shopSell .chip { color: #8fd0a2; }
+#endBanner {
+  margin: 14px 0 4px; padding: 10px 14px; border-radius: 8px; font-weight: 700; font-size: 17px;
+}
+#endBanner.win { background: #10331f; border: 1px solid #2f9e52; color: #b8f5cd; }
+#endBanner.fail { background: #33131a; border: 1px solid #9e2f45; color: #ffc9d4; }
+#playFoot { margin-top: 14px; color: #7f8ea6; font-size: 12px; }
+
+#playSide { display: flex; flex-direction: column; gap: 12px; }
+.box { background: #0b1424; border: 1px solid #1d2b44; border-radius: 10px; padding: 10px 12px; }
+.box h3 { margin: 0 0 8px; font-size: 13px; color: #9fb2cc; font-weight: 600; letter-spacing: .5px; }
+.statRow { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 6px; }
+.statRow .res { background: #101a2c; border: 1px solid #24405f; border-radius: 999px; padding: 1px 10px; }
+.statRow .res b { color: #fff; }
+.sub { color: #7f8ea6; font-size: 12px; margin-top: 6px; }
+.itemList { display: flex; flex-wrap: wrap; gap: 5px; }
+.item {
+  background: #101a2c; border: 1px solid #24405f; border-radius: 6px; padding: 1px 8px; font-size: 13px;
+}
+.item.key { border-color: #c8892f; color: #ffd479; }
+.clueList { display: flex; flex-wrap: wrap; gap: 5px; }
+.clue { background: #16233a; border: 1px dashed #3a5b85; border-radius: 6px; padding: 1px 8px; font-size: 13px; }
+#logBox { max-height: 260px; overflow: auto; font-size: 13px; }
+#logBox ol { margin: 0; padding-left: 22px; }
+#logBox li { margin-bottom: 4px; color: #c3d3e8; }
+#logBox .lg { color: #7f8ea6; }
+#logBox .fx { color: #8fd0a2; }
+#snapText {
+  width: 100%; height: 130px; resize: vertical; background: #0d1524; color: #c3d3e8;
+  border: 1px solid #24405f; border-radius: 8px; padding: 8px; font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+}
+.btnRow { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+
+/* ---------- 文档查看器 ---------- */
+.docHint {
+  background: #0e1c2e; border: 1px solid #1d3a5c; border-left: 3px solid #c8892f;
+  border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; color: #a9c2de; font-size: 13px;
+}
+.docWrap { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .docWrap { grid-template-columns: 1fr; } }
+.docList { background: #0b1424; border: 1px solid #1d2b44; border-radius: 10px; padding: 8px; max-height: 76vh; overflow: auto; }
+.docItem {
+  display: block; width: 100%; text-align: left; background: transparent; border: 1px solid transparent;
+  color: #dbe6f5; padding: 7px 9px; border-radius: 8px; cursor: pointer; margin-bottom: 2px;
+}
+.docItem:hover { background: #101f36; }
+.docItem.active { background: #14304f; border-color: #2f80ed; }
+.docItem b { display: block; font-size: 14px; }
+.docItem span { display: block; color: #7f8ea6; font-size: 12px; }
+.docItem em { font-style: normal; color: #5f7291; font-size: 11px; font-family: ui-monospace, Consolas, monospace; }
+.docView {
+  background: #0b1424; border: 1px solid #1d2b44; border-radius: 10px; padding: 16px 22px;
+  max-height: 76vh; overflow: auto;
+}
+.docView h1 { font-size: 22px; margin: .2em 0 .6em; border-bottom: 1px solid #1d2b44; padding-bottom: .3em; }
+.docView h2 { font-size: 18px; margin: 1.3em 0 .5em; color: #cfe2ff; }
+.docView h3 { font-size: 16px; margin: 1.1em 0 .4em; color: #cfe2ff; }
+.docView h4, .docView h5, .docView h6 { font-size: 14px; margin: 1em 0 .4em; color: #b9cde8; }
+.docView p { margin: .5em 0; }
+.docView ul, .docView ol { margin: .5em 0; padding-left: 1.6em; }
+.docView li { margin: .2em 0; }
+.docView blockquote {
+  margin: .6em 0; padding: .4em 12px; border-left: 3px solid #3a5b85; background: #0d1830; color: #a9c2de;
+}
+.docView pre { background: #0d1524; border: 1px solid #1d2b44; border-radius: 8px; padding: 10px 12px; overflow: auto; }
+.docView pre code { background: none; border: none; padding: 0; }
+.docView table { border-collapse: collapse; margin: .8em 0; width: 100%; font-size: 13px; }
+.docView th, .docView td { border: 1px solid #1d2b44; padding: 5px 9px; text-align: left; vertical-align: top; }
+.docView th { background: #101f36; color: #cfe2ff; }
+.docView hr { border: none; border-top: 1px solid #1d2b44; margin: 1.2em 0; }
+.docView strong { color: #fff; }
+#docEmpty, .docEmpty { color: #7f8ea6; padding: 20px; }
