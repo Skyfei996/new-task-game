@@ -3,7 +3,10 @@
 把儿童实体书《你有一个新任务！》的关卡玩法做成的**网页版迷你开放世界 RPG**（家庭自用原型）。
 一张剖面场景图 + 网状任务点 + 道具门槛 + 货币经济 + 多线结局，全部数据驱动，换一份数据就是一关。
 
-**在线体验（GitHub Pages）**：https://skyfei996.github.io/new-task-game/
+**在线体验（GitHub Pages）**：
+- 🎮 游戏：https://skyfei996.github.io/new-task-game/
+- 🧪 管理台（纯文字试玩器 / 设计资料 / 美术需求）：https://skyfei996.github.io/new-task-game/prototype/lab.html
+- 📋 试玩报告：[docs/playtest-01-report.md](docs/playtest-01-report.md)
 
 ## 两个关卡
 

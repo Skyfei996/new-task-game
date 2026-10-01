@@ -12,7 +12,9 @@
 | `prompts/station-map-ai.md` | 给外部生图工具（Codex 等）的《空间站大停摆》场景图提示词 | 待出图 |
 | `design-station-nodes.md` | 《空间站大停摆》任务点网络（M3）：场景与移动图、45 节点选项/条件/效果、结局与失败、防卡死自查 | 待老板审 |
 | `playtest-guide.md` | **试玩与管理台使用指南**：无头试玩器 `tools/play.mjs` 的用法与 JSON 字段、给「游戏体验师」Agent 下指令的模板、管理台三个标签页、改剧情工作流 | 使用中 |
+| `station-copy-v1.md` | 《空间站大停摆》**文案稿（只读快照）**：由 `tools/export-copy.mjs` 从关卡数据导出，供逐句审阅 | 使用中 |
 | `../art/` | 与美工 Codex 的交接目录（任务单 `tasks/`、交付 `deliveries/`、状态表 `status.md`） | 协同中 |
+| `playtest-01-report.md` | **试玩报告 01**：第 1 位 AI 游戏体验师的试玩发现（P1~P12 问题 + D1~D6 待裁定议题） | 待老板裁定 |
 
 **约定**（沿用既有做法）：
 - 每关一份设计档；引擎能力变化记在对应关卡档的"引擎能力"节，规模变大后独立成 `engine-vX.md`。
