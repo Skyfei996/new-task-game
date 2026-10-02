@@ -32,6 +32,10 @@
  *   E9 商店折叠（渲染层）→ 选项在上；商店/回收收成一行默认折叠（折叠不影响可点性）
  *   另（§8.3）：去向标注「→ 编号 / 节点名」从玩家视图撤下；lab 与开发版 CLI 自带渲染，保留该标签。
  *
+ * v0.4/v0.5 改动（B02 关卡与系统线 · 引擎小能力 E11/E12，接口以设计档 §7 v0.4/v0.5 表为准）：
+ *   E11 战斗败方描写 choice.battle.loseSay → 败北时在既有机械行之后，以 choice.say 同渠道带出旁白；不改状态
+ *   E12 条件灰显 choice.lockIf → cond 不满足时再判 lockIf：成立 ⇒ 灰显＋lockText；不成立 ⇒ 隐藏（无 lockIf = 旧行为）
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
@@ -302,6 +306,16 @@
     },
     /* E4：提示分级——不写 = vague；引擎不自动往选项上附加效果/数值（写什么由作者定） */
     choiceHint(ch) { return (ch && ch.hint) || 'vague'; },
+    /* E12（v0.5）：选项可见性单点判定（网页/CLI/管理台同源）——返回 'ok' | 'lock' | 'hide'
+     *   cond 满足               ⇒ 'ok'（lockIf 不参与）
+     *   cond 不满足：带 lockIf  ⇒ lockIf 成立 ? 'lock'（灰显＋lockText）: 'hide'
+     *   cond 不满足：无 lockIf  ⇒ lock 存在 ? 'lock'（旧行为）: 'hide'
+     * 细则①：给 lockIf 的选项不再写 lock；两者并存时以 lockIf 为准。 */
+    choiceState(st, ch) {
+      if (Core.condOk(st, ch.cond)) return 'ok';
+      if (ch.lockIf) return Core.condOk(st, ch.lockIf) ? 'lock' : 'hide';
+      return ch.lock ? 'lock' : 'hide';
+    },
     /* ---- E6 一次性选项 ----
      * once: '<标记名>' → 记 st.chDone['<标记名>']（随存档，可被条件 { chDone } 查询）
      * once: true      → 只作内部记录（键带 @ 前缀，数据查不到） */
@@ -434,7 +448,10 @@
         const mine = Core.atkOf(st);
         if (mine >= need) { log.push('⚔ 你赢了！（武力值 ' + mine + ' ≥ ' + need + '）'); return { to: ch.battle.winTo, log: log, say: say }; }
         log.push('⚔ 你输了……（武力值 ' + mine + ' < ' + need + '）');
-        return { to: ch.battle.loseTo, log: log, say: say };
+        /* E11（v0.4）：败方描写 battle.loseSay——在既有机械行之后，以与 choice.say 相同的旁白渠道带出；
+         * 不改状态；败北去向仍由 loseTo 决定（B02 起默认＝战斗发生地，40③→42 为登记例外） */
+        const loseSay = ch.battle.loseSay ? Core.fillName(ch.battle.loseSay, st) : null;
+        return { to: ch.battle.loseTo, log: log, say: [say, loseSay].filter(Boolean).join('\n') || null };
       }
       if (ch.random) return { to: ch.random[Math.random() < 0.5 ? 0 : 1], log: log, say: say };
       if (ch.back) return { back: true, log: log, say: say };
@@ -518,8 +535,8 @@
     },
     /* ---- 只读助手（v0.3，无头试玩器 / 管理台共用；只看不改）----
      * 当前节点在界面上「看得见」的选项列表 —— 与 renderNode 的显示规则同出一处：
-     *   条件不满足且没标 lock 的选项直接不显示；标了 lock 的灰显；带 prices 的选项按价格拆成多项；
-     *   E6：做过的一次性选项（once）不再出现。
+     *   可见性走 Core.choiceState（E12 单点判定）：'hide' 不显示、'lock' 灰显、'ok' 正常；
+     *   带 prices 的选项按价格拆成多项；E6：做过的一次性选项（once）不再出现。
      * 返回 [{ i, ci, label, price, ok, why, hint, back, targets }]
      *   i     = 显示序号（1 起；执行时由调用方回传给 Core.choose，用 ci）
      *   ci    = node.c 里的下标
@@ -535,8 +552,9 @@
       const out = [];
       (node.c || []).forEach((ch, ci) => {
         if (Core.choiceDone(st, ch, ci, st.loc)) return;    // E6：做过的一次性选项 = 隐藏
+        const state = Core.choiceState(st, ch);             // E12：ok / lock（灰显）/ hide
+        if (state === 'hide') return;                       // 与界面一致：该隐藏的直接不显示
         const condOk = Core.condOk(st, ch.cond);
-        if (!condOk && !ch.lock) return;                    // 与界面一致：没标 lock 的隐藏
         const targets = Core.choiceTargets(ch);
         const hint = Core.choiceHint(ch);                   // E4：提示分级（缺省 vague）
         if (ch.prices && ch.prices.length) {
@@ -1074,8 +1092,9 @@
   function renderChoiceList(box, node) {
     node.c.forEach((ch, idx) => {
       if (Core.choiceDone(st, ch, idx, st.loc)) return;    // E6：做过的一次性选项 → 隐藏
-      const ok = Core.condOk(st, ch.cond);
-      if (!ok && !ch.lock) return;
+      const state = Core.choiceState(st, ch);              // E12：ok / lock（灰显）/ hide
+      if (state === 'hide') return;
+      const ok = state === 'ok';
       if (ch.prices) {
         const wrap = document.createElement('div');
         wrap.className = 'priceBox';

@@ -47,13 +47,13 @@ function loadCore(tag) {
  * 每一步 = [所在节点, 选项名匹配（按名字找序号——数据文案微调不破测试）, 执行后应在的节点]。 */
 const ROUTE = [
   ['1', /摸黑去中央大厅/, '18'], ['18', /睡觉的铺位/, '2'], ['2', /回中央大厅/, '18'],
-  ['18', /去健身房/, '4'], ['4', /回中央大厅/, '18'], ['18', /去医务室/, '3'],
+  ['18', /去健身房/, '4'], ['4', /撬开墙上的急救箱/, '4'], ['4', /回中央大厅/, '18'], ['18', /去医务室/, '3'],
   ['3', /把医疗包交给阿雅/, '24'], ['24', /回中央大厅/, '18'], ['18', /去观景厅/, '5'],
-  ['5', /凑过去/, '5'], ['5', /看银河/, '28'], ['28', /用站猫罐头/, '5'],
-  ['5', /回中央大厅/, '18'], ['18', /乘电梯去中层/, '20'], ['20', /坐在补给柜旁边/, '20'],
-  ['20', /去实验室/, '7'], ['7', /帮他去找工具箱/, '25'], ['25', /这就下维修区/, '16'],
+  ['5', /钻到沙发后面/, '5'], ['5', /追出去/, '28'], ['28', /站猫罐头/, '28'],
+  ['28', /先回中层大厅/, '20'], ['20', /坐在补给柜旁边/, '20'],
+  ['20', /去实验室/, '7'], ['7', /帮他去找工具箱/, '25'], ['25', /顺着检修爬道滑下去/, '16'],
   ['16', /把零件堆翻一翻/, '16'], ['16', /钻进/, '7'], ['7', /自己动手/, '30'],
-  ['30', /把芯片收好/, '21'], ['21', /去冷却塔/, '13'], ['13', /用万能扳手拧上总阀/, '21'],
+  ['30', /把芯片收好/, '16'], ['16', /回底层大厅/, '21'], ['21', /去冷却塔/, '13'], ['13', /用万能扳手拧上总阀/, '21'],
   ['21', /乘电梯去中层/, '20'], ['20', /去气闸舱/, '11'], ['11', /打开安保柜/, '11'], ['11', /穿上磁力靴/, '19'],
   ['19', /用工具把面板焊好/, '39'], ['39', /爬回气闸舱/, '11'], ['11', /回中层大厅/, '20'],
   ['20', /乘电梯去底层/, '21'], ['21', /去太阳能控制室/, '15'], ['15', /双手推上主供电闸门/, '36'],
@@ -119,7 +119,7 @@ const seq = ['node tools/play.mjs new station'];
     'JSON 里带红框（nosell）标记：' + r.data.state.items.filter(it => it.nosell).map(it => it.id).join('/'));
   const human = play(['items']);
   ok(human.out.indexOf('【红框·关键·不可卖】') >= 0, '人类可读的 items 里也标出红框道具');
-  eq(steps, 47, 'A 路线共 47 步（4 买 + 4 吃 + 39 个选项）');
+  eq(steps, 48, 'A 路线共 48 步（4 买 + 4 吃 + 40 个选项）');
 }
 console.log('A 路线命令序列（' + (seq.length - 1) + ' 条命令）：');
 seq.forEach(s => console.log('  ' + s));
@@ -135,10 +135,10 @@ seq.forEach(s => console.log('  ' + s));
   ok(it.out.indexOf('⚔ 武力值') >= 0, 'items 打印武力值');
   const lg = play(['log', '--tail', '3']);
   eq(lg.code, 0, 'log --tail 3 退出码 0');
-  ok(/操作流水（共 48 条，显示最后 3 条）/.test(lg.out), 'log --tail 3 说明总数与显示条数');
+  ok(/操作流水（共 49 条，显示最后 3 条）/.test(lg.out), 'log --tail 3 说明总数与显示条数');
   eq((lg.out.match(/^\s+\d+\. /gm) || []).length, 3, 'log --tail 3 只输出 3 条');
   const lgAll = play(['log']);
-  ok(/操作流水（共 48 条）/.test(lgAll.out), 'log 默认显示全部（48 条：开局 1 + 47 步）');
+  ok(/操作流水（共 49 条）/.test(lgAll.out), 'log 默认显示全部（49 条：开局 1 + 48 步）');
   const hp = play(['help']);
   eq(hp.code, 0, 'help 退出码 0');
   ok(hp.out.indexOf('choose') >= 0 && hp.out.indexOf('new <关卡id>') >= 0, 'help 列出子命令与用法');
@@ -262,10 +262,12 @@ seq.forEach(s => console.log('  ' + s));
   const st4 = C.newState('normal');
   C.go(st4, '4');
   const list4 = C.visibleChoices(st4);
-  eq(list4.length, 3, '健身房：3 个选项（其中 1 个灰显）');
-  eq(list4[1].ok, false, '灰显项 ok=false');
+  eq(list4.length, 5, '健身房：5 个选项（其中 2 个灰显）');
+  eq(list4[1].ok, false, '灰显项#1 ok=false（请他帮忙：缺老布的委托）');
+  eq(list4[3].ok, false, '灰显项#2 ok=false（请铁头搭手：缺铁头已开门）');
   eq(list4[1].why, C.lockReason(C.currentLevel().nodes['4'].c[1]), '灰显理由 = Core.lockReason（同一套文案）');
-  eq(list4[0].ok && list4[2].ok, true, '其他选项 ok=true');
+  eq(list4[3].why, C.lockReason(C.currentLevel().nodes['4'].c[3]), '灰显理由 = Core.lockReason（同一套文案）');
+  eq(list4[0].ok && list4[2].ok && list4[4].ok, true, '其他选项 ok=true');
   ok(list4.every((x, k) => x.i === k + 1), 'i 从 1 连续编号');
   ok(list4.every(x => x.ci >= 0 && x.ci < C.currentLevel().nodes['4'].c.length), 'ci 是 node.c 的下标');
   /* 站位错位检查：ci 与该显示项对应的原始选项一致 */
@@ -305,6 +307,17 @@ seq.forEach(s => console.log('  ' + s));
   eq(C.visibleChoices(stT).length, 1, '测试点（标了 lock）：灰显但看得见（与界面一致）');
   eq(C.visibleChoices(stT)[0].ok, false, '测试点：灰显 ok=false');
   eq(C.visibleChoices(stT)[0].why, '需要：手电', '测试点：灰显理由来自 Core.lockReason');
+  /* E12：cond 假 + lockIf 成立 ⇒ 灰显；cond 假 + lockIf 不成立 ⇒ 隐藏（同一对判定，两侧行为） */
+  D.nodes['T-play'] = { n: '测试点', t: '（测试用）', c: [{ l: '拿上工牌（要照亮的）', cond: { all: [{ item: '工牌' }, { noItem: '手电' }] }, lockIf: { noItem: '手电' }, lockText: '（还差个照亮的。）', to: '1' }] };
+  eq(C.visibleChoices(stT).length, 1, '测试点（E12 甲侧）：cond 假 + lockIf 成立 → 灰显可见');
+  eq(C.visibleChoices(stT)[0].ok, false, '测试点（lockIf）：灰显 ok=false');
+  eq(C.visibleChoices(stT)[0].why, C.lockReason(D.nodes['T-play'].c[0]), '测试点（lockIf）：灰显机械理由 = Core.lockReason');
+  eq(C.lockHint(D.nodes['T-play'].c[0]), '（还差个照亮的。）', '测试点（lockIf）：玩家向理由优先 lockText（Core.lockHint）');
+  stT.items = ['手电'];
+  eq(C.visibleChoices(stT).length, 0, '测试点（E12 乙侧）：cond 假 + lockIf 不成立 → 隐藏');
+  stT.items = ['工牌'];
+  eq(C.visibleChoices(stT).length, 1, '测试点（条件满足）：显示');
+  eq(C.visibleChoices(stT)[0].ok, true, '测试点（条件满足）：ok=true');
   delete D.nodes['T-play'];
 }
 

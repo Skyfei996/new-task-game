@@ -31,7 +31,7 @@ export function buildCopy(L, levelId) {
   }).join('；');
   const choice = (c) => {
     const bits = [];
-    if (c.cond) bits.push('条件：' + cond(c.cond) + (c.lock ? '（不满足则灰显）' : ''));
+    if (c.cond) bits.push('条件：' + cond(c.cond) + ((c.lock || c.lockIf) ? '（不满足则灰显）' : ''));
     if (c.fx) bits.push('效果：' + fx(c.fx));
     if (c.battle) bits.push('战斗：武力 ' + c.battle.power + '（胜 → ' + c.battle.winTo + '，负 → ' + c.battle.loseTo + '）');
     if (c.random) bits.push('随机去 ' + c.random.join(' / '));

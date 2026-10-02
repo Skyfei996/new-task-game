@@ -3,6 +3,8 @@
 //       / 通关 A 路线完整模拟 / 三件重启物每条路径 / 氧气预算验算 / 双资源失败 / 卡死保险 / DOM id 自检
 //       / §8.7 十条自动断言（断循环 / 预算 95·180·100 / 简单·困难跑通 A 与困难保险柜短线反例 /
 //         结局 C 前置 / 资源不为负 / 星币不判失败 / 改名扫描 / 提示分级 lint / 文本道具 / R10~R16 落点）
+//       / B02 断言 11~14：lint L1~L5（同现·once 隐藏·跨层·代价·名词首现）/ 战斗失败 loseSay＋原地 /
+//         4 号探索化 / 机制落点（lockIf 15＋恒灰 11·完成态并 cond 7·去向修正 4·新去向 9·tIf 增补）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -196,6 +198,8 @@ Object.entries(D.nodes).forEach(([id, node]) => {
     if (ch.say !== undefined) ok(typeof ch.say === 'string' && ch.say.length > 0, `节点 ${id} 选项#${i} say 是字符串`);
     if (ch.lockText !== undefined) ok(typeof ch.lockText === 'string' && ch.lockText.length > 0, `节点 ${id} 选项#${i} lockText 是字符串`);
     if (ch.hint !== undefined) ok(['vague', 'exact', 'none'].indexOf(ch.hint) >= 0, `节点 ${id} 选项#${i} hint 合法`);
+    if (ch.lockIf !== undefined) ok(!!ch.lockIf && typeof ch.lockIf === 'object', `节点 ${id} 选项#${i} lockIf 是条件对象（E12）`);
+    if (ch.battle && ch.battle.loseSay !== undefined) ok(typeof ch.battle.loseSay === 'string' && ch.battle.loseSay.length > 0, `节点 ${id} 选项#${i} battle.loseSay 是字符串（E11）`);
     if (ch.to) targets.push(ch.to);
     if (ch.battle) targets.push(ch.battle.winTo, ch.battle.loseTo);
     if (ch.random) targets.push(...ch.random);
@@ -206,19 +210,21 @@ Object.entries(D.nodes).forEach(([id, node]) => {
       if (['gain', 'lose', 'learn', 'coinsByWristband'].indexOf(k) >= 0) return;
       ok(RES_IDS.indexOf(k) >= 0, `节点 ${id} 选项#${i} fx 的资源键「${k}」已在 resources 表`);
     });
-    /* 条件里引用的道具 / 资源 / 结构的合法性 */
-    (function walkCond(c) {
+    /* 条件里引用的道具 / 资源 / 结构的合法性（cond 与 lockIf 同一套检查，tag 只影响报错文案） */
+    const walkCondTag = (c, tag) => {
       if (!c) return;
-      if (c.item) ok(!!D.items[c.item], `节点 ${id} 选项#${i} cond.item「${c.item}」`);
-      if (c.noItem) ok(!!D.items[c.noItem], `节点 ${id} 选项#${i} cond.noItem「${c.noItem}」`);
-      if (c.anyItem) c.anyItem.forEach(it => ok(!!D.items[it], `节点 ${id} 选项#${i} cond.anyItem「${it}」`));
-      (c.all || []).forEach(walkCond);
-      (c.any || []).forEach(walkCond);
+      if (c.item) ok(!!D.items[c.item], `节点 ${id} 选项#${i} ${tag}.item「${c.item}」`);
+      if (c.noItem) ok(!!D.items[c.noItem], `节点 ${id} 选项#${i} ${tag}.noItem「${c.noItem}」`);
+      if (c.anyItem) c.anyItem.forEach(it => ok(!!D.items[it], `节点 ${id} 选项#${i} ${tag}.anyItem「${it}」`));
+      (c.all || []).forEach(x => walkCondTag(x, tag));
+      (c.any || []).forEach(x => walkCondTag(x, tag));
       Object.keys(c).forEach(k => {
         if (['item', 'noItem', 'knows', 'noKnows', 'anyItem', 'notPinsAll', 'pinsAll', 'notPins', 'all', 'any', 'chDone'].indexOf(k) >= 0) return;
-        ok(RES_IDS.indexOf(k) >= 0, `节点 ${id} 选项#${i} cond 的资源键「${k}」已在 resources 表`);
+        ok(RES_IDS.indexOf(k) >= 0, `节点 ${id} 选项#${i} ${tag} 的资源键「${k}」已在 resources 表`);
       });
-    })(ch.cond);
+    };
+    walkCondTag(ch.cond, 'cond');
+    walkCondTag(ch.lockIf, 'lockIf');
   });
   ['gain', 'lose'].forEach(k => (node.en && node.en[k] || []).forEach(it => ok(!!D.items[it], `节点 ${id} en.${k}「${it}」`)));
   Object.keys((node.en) || {}).forEach(k => {
@@ -297,7 +303,11 @@ eq(D.nodes['12'].en.oxygen, -10, '12 号反应堆舱：每次进入 −10 氧');
 eq(D.nodes['13'].en.oxygen, -5, '13 号冷却塔：每次进入 −5 氧');
 eq(D.nodes['19'].en.oxygen, -15, '19 号舱外：每次进入 −15 氧');
 eq(D.nodes['1'].en.oxygen, -5, '1 号食堂：黑暗摸索 −5 氧（首入）');
-eq(D.nodes['4'].en.oxygen, -5, '4 号健身房：撬急救箱 −5 氧');
+eq(D.nodes['4'].en, undefined, '4 号健身房：B03 探索化后不再有进入效果（不自动扣氧发物）');
+{
+  const box = D.nodes['4'].c.find(ch => (ch.l || '').indexOf('撬开墙上的急救箱') >= 0);
+  ok(!!box && box.fx.oxygen === -5 && (box.fx.gain || []).indexOf('医疗包') >= 0, '4 号撬箱改显式选项：−5 氧 + 得医疗包');
+}
 eq(D.nodes['39'].en.oxygen, -5, '39 号焊接作业 −5 氧');
 eq(D.nodes['2'].en.oxygen, 10, '睡眠舱应急包净 +10（氧气瓶 +15 ∕ 翻找 −5）');
 eq(D.nodes['3'].en.oxygen, 5, '医务室氧气站净 +5（+10 ∕ 搬运 −5）');
@@ -346,19 +356,20 @@ function runMainRoute(diff) {
   for (let i = 0; i < meals; i++) { C.buy(st, '合成料理', price); goPick('1', '吃一盒合成料理'); }
   snap('买满吃掉');
   goPick('1', '摸黑去中央大厅'); goPick('18', '摸回去'); snap('睡眠舱');
-  goPick('2', '回中央大厅'); goPick('18', '去健身房'); snap('健身房');
+  goPick('2', '回中央大厅'); goPick('18', '去健身房');
+  goPick('4', '撬开墙上的急救箱'); snap('健身房');          // B03：−5 氧从 en 移到 4③ 显式选项（数值不变）
   goPick('4', '回中央大厅'); goPick('18', '去医务室'); snap('医务室');
   goPick('3', '把医疗包交给阿雅'); snap('授权卡');
   goPick('24', '回中央大厅'); goPick('18', '去观景厅');
-  goPick('5', '凑过去'); snap('见胖胖');
-  goPick('5', '看银河'); goPick('28', '用站猫罐头'); snap('换到账本');
-  goPick('5', '回中央大厅'); goPick('18', '乘电梯去中层'); snap('中层补给柜');
+  goPick('5', '钻到沙发后面'); snap('见胖胖');
+  goPick('5', '追出去'); goPick('28', '站猫罐头'); snap('换到账本');
+  goPick('28', '先回中层大厅'); snap('中层补给柜');        // B19：28 入口仅 5、出口显式（③→20）
   goPick('20', '吃一盒合成料理'); snap('吃掉赠的料理');
   goPick('20', '乘电梯去底层'); goPick('21', '去维修区');
   goPick('16', '零件堆'); snap('翻零件堆');
   goPick('16', '钻进'); snap('爬道上来');
   goPick('7', '打开工具柜'); snap('拆到芯片');
-  goPick('30', '把芯片收好'); goPick('21', '去冷却塔'); snap('进冷却塔');
+  goPick('30', '把芯片收好'); goPick('16', '回底层大厅'); goPick('21', '去冷却塔'); snap('进冷却塔');
   goPick('13', '用万能扳手拧上总阀'); snap('关阀');
   goPick('21', '乘电梯去中层'); goPick('20', '去气闸舱');
   goPick('11', '打开安保柜'); goPick('11', '穿上磁力靴，出舱'); snap('舱外');
@@ -429,7 +440,7 @@ st = C.newState('normal');
 C.go(st, '7');
 goPick('7', '帮他去找工具箱'); eq(st.loc, '25', '7→25（老布的委托）');
 ok(st.learned['老布的委托'], '记住老布的委托');
-goPick('25', '这就下维修区'); eq(st.loc, '16', '25→16（维修区）');
+goPick('25', '顺着检修爬道滑下去'); eq(st.loc, '16', '25→16（爬道滑降）');
 st.items.push('手电');   // 16③ 需要手电（打着手电拖工具箱）
 goPick('16', '红漆工具箱'); eq(st.loc, '38', '16→38（老布的工具箱）');
 ok(C.hasItem(st, '控制芯片'), '拿到控制芯片（路径①：工具箱）');
@@ -443,13 +454,15 @@ ok(C.nodeText(st, D.nodes['7']) !== D.nodes['7'].t, '7 号两段正文不同');
 st = C.newState('normal');
 st.items = ['焊接枪'];             // 武力 1，够赢铁头（武力 1）
 C.go(st, '4');
-eq(st.oxygen, 95, '4 号进场撬急救箱 −5 氧');
+eq(st.oxygen, 100, '4 号 B03 探索化：进入不再自动扣氧（旧 en 已删）');
 goPick('4', '掰手腕'); eq(st.loc, '26', '4→26（挑战铁头）');
 goPick('26', '用力'); eq(st.loc, '27', '战斗胜利 → 27（铁头开门）');
+eq(st.oxygen, 95, '26① 掰手腕 −5 氧（唯一载体；4① 不另扣）');
 ok(st.learned['铁头已开门'], '铁头开门');
 C.go(st, '10');
 goPick('10', '直接动手搬'); eq(st.loc, '31', '10→31（硬拿冷却剂）');
 ok(C.hasItem(st, '冷却剂罐'), '拿到冷却剂罐（路径①：硬拿）');
+eq(st.oxygen, 90, '10① 搬冷却剂 −5 氧（B08）');
 eq(st.coins, 12, '被桑尼的无人机抢走 8 枚星币（20→12）');
 const theft = C.takeFlash(st);
 ok(theft && theft.kind === 'theft' && theft.thief === '桑尼的无人机' && theft.amount === 8,
@@ -476,9 +489,9 @@ ok(C.hasItem(st, '冷却剂罐'), '硬穿也能拿到冷却剂（R12）');
 /* 冷却剂·路径②：账本把柄（28 换账本 → 10② → 32） */
 st = C.newState('normal');
 C.go(st, '5');
-goPick('5', '凑过去');                                     // 拿站猫罐头
-goPick('5', '看银河'); goPick('28', '用站猫罐头');           // 换到桑尼的账本
-goPick('5', '回中央大厅'); goPick('18', '乘电梯去中层'); goPick('20', '去仓库');
+goPick('5', '钻到沙发后面');                                // 拿站猫罐头
+goPick('5', '追出去'); goPick('28', '站猫罐头');             // 换到桑尼的账本
+goPick('28', '先回中层大厅'); goPick('20', '去仓库');        // B19：28 出口显式（→20）
 eq(st.loc, '10', '20→10（仓库）');
 goPick('10', '把账本拍在他面前'); eq(st.loc, '32', '10→32（账本把柄）');
 ok(C.hasItem(st, '冷却剂罐') && C.hasItem(st, '星尘矿石'), '拿到冷却剂罐 + 星尘矿石（路径②：账本把柄）');
@@ -518,20 +531,20 @@ ok(C.nodeText(st, D.nodes['9']).indexOf('空了') >= 0, '开柜后再进站长�
 st = C.newState('normal');
 C.go(st, '5');
 eq(C.nodeText(st, D.nodes['5']), D.nodes['5'].t, '未打招呼 → 用场景正文');
-goPick('5', '凑过去');
+goPick('5', '钻到沙发后面');
 eq(st.oxygen, 95, '钻过沙发 −5 氧');
 ok(C.hasItem(st, '合成料理') && C.hasItem(st, '站猫罐头'), '打招呼拿到料理 + 罐头');
 ok(C.nodeText(st, D.nodes['5']) !== D.nodes['5'].t, '打过招呼 → 正文分叉');
-ok(C.visibleChoices(st).every(x => (x.label || '').indexOf('凑过去') < 0), '一次性选项做过即隐藏（E6）');
+ok(C.visibleChoices(st).every(x => (x.label || '').indexOf('钻到沙发') < 0), '一次性选项做过即隐藏（E6）');
 C.go(st, '18'); C.go(st, '5');
-ok(C.nodeText(st, D.nodes['5']).indexOf('呼噜') >= 0, '二次进入仍是分叉文本（R11）');
+ok(C.nodeText(st, D.nodes['5']).indexOf('猫毛') >= 0, '二次进入仍是分叉文本（R11）');
 
 /* ============ 8. 氧气预算验算（§8.7-2） ============ */
 /* 设计档 §8.2 逐段表（账面口径：补给记毛额，翻找/搬运 −5 另列；数据里 2/3 号把这两笔并入 en 净值） */
 const SEG = [
   { id: '1',  deck: '顶层', ox: -5,  at: 'en' },
   { id: '2',  deck: '顶层', ox: -5,  at: 'net', net: 10 },
-  { id: '4',  deck: '顶层', ox: -5,  at: 'en' },
+  { id: '4',  deck: '顶层', ox: -5,  at: 'fx' },   // B03：撬箱从 en 移到 4③ 选项（同额 −5）
   { id: '3',  deck: '顶层', ox: -5,  at: 'net', net: 5 },
   { id: '5',  deck: '顶层', ox: -5,  at: 'fx' },
   { id: '7',  deck: '中层', ox: -5,  at: 'fx' },
@@ -568,7 +581,7 @@ let BUDGET = null;
   eq(bad.join(','), '', '预算表 15 行逐条在数据里有落点');
   /* 设计 §8.7-2 的三处点名行：钉到具体选项（节点级匹配可能被同节点其它选项代偿） */
   const pin = (id, frag) => (D.nodes[id].c.find(ch => (ch.l || '').indexOf(frag) >= 0) || {});
-  eq((pin('5', '凑过去').fx || {}).oxygen, -5, '§8.7-2 点名行：5① 打招呼 −5（钻沙发）');
+  eq((pin('5', '钻到沙发').fx || {}).oxygen, -5, '§8.7-2 点名行：5① 打招呼 −5（钻沙发）');
   eq((pin('16', '零件堆翻一翻').fx || {}).oxygen, -5, '§8.7-2 点名行：16⑤ 翻零件堆 −5');
   eq((pin('13', '拧上总阀').fx || {}).oxygen, -5, '§8.7-2 点名行：13① 关阀 −5');
   /* 补给（毛额）：数据里的净值 20 + 并入的 10 = 30 */
@@ -812,7 +825,12 @@ eq(C.battleNeed(st, { power: 3 }), 3, '安保机器人武力 3');
 st = C.newState('normal');
 st.oxygen = 3;
 C.go(st, '16');
-ok(C.condOk(st, D.nodes['16'].c[0].cond), '16 号战斗选项无条件（总能点）');
+ok(C.condOk(st, D.nodes['16'].c[0].cond), '16 号战斗选项未收编时可点（cond: noKnows 机器人小帮手）');
+{
+  const s16 = C.newState('normal'); s16.loc = '16'; s16.learned['机器人小帮手'] = true;
+  ok(!C.visibleChoices(s16).some(x => (x.label || '').indexOf('把卡住的机器人') >= 0),
+    '16 号战斗选项收编后隐藏（cond noKnows 机器人小帮手；B13）');
+}
 const res16 = C.choose(st, 0);
 eq(st.oxygen, 0, '战斗代价 −5 氧先扣（3 → 0）');
 ok(st.bankrupt && st.loc === '44', '代价把氧气花光 → 当场走失败结算，不再进战斗');
@@ -850,10 +868,15 @@ console.log('');
 console.log('———— §8.7 十条自动断言 ————');
 function P(line) { console.log('  ' + line); }
 function applyCond(s, cond) {
+  if (!cond) return;
   if (cond.item) s.items.push(cond.item);
   if (cond.chDone) s.chDone[cond.chDone] = true;
   if (cond.knows) s.learned[cond.knows] = true;
   if (cond.pinsAll) cond.pinsAll.forEach(p => { s.visited[p] = true; });
+  if (cond.noItem) { const i = s.items.indexOf(cond.noItem); if (i >= 0) s.items.splice(i, 1); }
+  if (cond.noKnows) delete s.learned[cond.noKnows];
+  if (cond.all) cond.all.forEach(c => applyCond(s, c));
+  if (cond.any) applyCond(s, cond.any[0]);        // 满足其一即可
 }
 
 /* --- 14-1 断循环：20 轮「洗碗×3 → 买 → 吃」净氧 ≤ 0 --- */
@@ -922,22 +945,26 @@ function applyCond(s, cond) {
   eq(h.T['结局 A'].ox, 5, '困难：结束氧气 5（结余 5.00%）');
   P('主线跑通：简单 85 → 41 ｜ 困难 5 → 41（均不触失败）');
 }
-/* 反例：困难走「保险柜短线」（跳过医务室、改走 9 号开柜）→ 进 12 号就触底 */
+/* 反例：困难走「保险柜短线」（不撬箱、跳过医务室、改走 9 号开柜）→ 进 12 号触底
+ * B02 数据口径（父侧 2026-10-02 裁定「按事实走」）：B03 把 4 号 −5 从 en 移到 4③ 后，短线可避这 5 点——
+ *   ① 不带医务室：12 号入口前 10 → 入内后 0 触底（不可通，原口径不变）；
+ *   ② 补上医务室：12 号入口前 15 → 入内后 5（可通——原设计 §8.2/§8.7-3「也恰好归 0」已被数据推翻，待父侧同步）。 */
 function cabinetShortcut(withMedical) {
   st = C.newState('hard');
   const price = D.nodes['1'].shop.price;
   C.go(st, '1');
   for (let i = 0; i < 3; i++) { C.buy(st, '合成料理', price); goPick('1', '吃一盒合成料理'); }
   goPick('1', '摸黑去中央大厅'); goPick('18', '摸回去');
-  goPick('2', '回中央大厅'); goPick('18', '去健身房'); goPick('4', '回中央大厅');
+  goPick('2', '回中央大厅'); goPick('18', '去健身房'); goPick('4', '回中央大厅');   // 短线不撬箱（避掉 4③ 的 −5）
   if (withMedical) { goPick('18', '去医务室'); goPick('3', '回中央大厅'); }
-  goPick('18', '去观景厅'); goPick('5', '凑过去');
-  goPick('5', '看银河'); goPick('28', '用站猫罐头'); goPick('5', '回中央大厅');
-  goPick('18', '乘电梯去中层'); goPick('20', '吃一盒合成料理');
+  goPick('18', '去观景厅'); goPick('5', '钻到沙发后面');
+  goPick('5', '追出去'); goPick('28', '站猫罐头'); goPick('28', '先回中层大厅');
+  goPick('20', '吃一盒合成料理');
   goPick('20', '拐两个弯'); goPick('6', '问它'); goPick('23', '回中层大厅');   // 拿保险柜密码
   goPick('20', '乘电梯去底层'); goPick('21', '去维修区');
   goPick('16', '零件堆'); goPick('16', '钻进'); goPick('7', '打开工具柜');
-  goPick('30', '把芯片收好'); goPick('21', '去冷却塔'); goPick('13', '用万能扳手拧上总阀');
+  goPick('30', '把芯片收好'); goPick('16', '回底层大厅'); goPick('21', '去冷却塔');
+  goPick('13', '用万能扳手拧上总阀');
   goPick('21', '乘电梯去中层'); goPick('20', '去气闸舱'); goPick('11', '打开安保柜'); goPick('11', '穿上磁力靴，出舱');
   goPick('19', '用工具把面板焊好'); goPick('39', '爬回气闸舱');
   goPick('11', '回中层大厅'); goPick('20', '乘电梯去底层');
@@ -952,14 +979,15 @@ function cabinetShortcut(withMedical) {
 {
   const noMed = cabinetShortcut(false);
   ok(noMed.bankrupt && noMed.zeroRes === 'oxygen' && noMed.loc === '44',
-    '困难·保险柜短线（不带医务室）：进 12 号前 ' + noMed.oxBefore + ' 氧 → 12 号 −10 → 触底失败' +
-    '（对照推荐线 = 少医务室 +5、多开柜 −5）');
-  eq(noMed.oxBefore, 5, '困难·保险柜短线：开柜后进 12 号前恰好 5 氧');
+    '困难·保险柜短线（不带医务室）：进 12 号前 ' + noMed.oxBefore + ' 氧 → 12 号 −10 → 触底失败（不可通）');
+  eq(noMed.oxBefore, 10, '困难·保险柜短线（不带医务室）：进 12 号前恰好 10 氧（−10 → 0 触底）');
   const withMed = cabinetShortcut(true);
-  ok(withMed.bankrupt && withMed.zeroRes === 'oxygen' && withMed.loc === '44',
-    '困难·保险柜短线（补上医务室）：恰好归 0，仍然失败（氧 ≤ 0 即失败）');
-  eq(withMed.oxBefore, 10, '补上医务室后进 12 号前 10 氧（10 − 10 = 0）');
-  P('反例：困难保险柜短线两条 → 均在 12 号入口触底（' + noMed.oxygen + ' / ' + withMed.oxygen + ' 氧）');
+  /* B03 把 4 号 −5 移到 4③ 后，短线可避这 5 点 ⇒ 带医务室变体余 5 可通（原设计口径 §8.2/§8.7-3 待同步，父侧登记） */
+  ok(!withMed.bankrupt && withMed.zeroRes === null && withMed.loc === '12',
+    '困难·保险柜短线（补上医务室）：进 12 号前 15 氧 → 入内后余 ' + withMed.oxygen + '，可通');
+  eq(withMed.oxBefore, 15, '补上医务室：进 12 号前 15 氧');
+  eq(withMed.oxygen, 5, '补上医务室：入 12 号后余 5 氧（可通——B03 后短线可避 4③ 的 −5）');
+  P('反例：困难保险柜短线 —— 无医务室：10 → 0 触底（不可通）｜补上医务室：15 → 5 可通（B02 数据口径）');
 }
 
 /* --- 14-4 结局 C 前置：未满足即锁死 --- */
@@ -1103,14 +1131,21 @@ function cabinetShortcut(withMedical) {
   ok(!D.nodes['45'].fail && !D.nodes['45'].win, 'R10：45 号是事件节点（非失败 / 结局）');
   const c9 = D.nodes['9'].c.find(ch => ch.once === '开过保险柜');
   ok(!!c9 && c9.to === '45', 'R10：9 号①开柜 → 45（once: 开过保险柜）');
-  /* R11/R14：tIf 六处（cond 与设计一致；条件满足后正文不同） */
+  /* R11/R14 + B02：tIf 十三处（cond 与设计一致；条件满足后正文不同） */
   const TIF = {
+    '3':  { pinsAll: ['24'] },
+    '4':  { knows: '铁头已开门' },
     '5':  { chDone: '跟胖胖打过招呼' },
     '7':  { pinsAll: ['38'] },
     '9':  { chDone: '开过保险柜' },
+    '10': { pinsAll: ['32'] },
     '11': { chDone: '取了磁力靴' },
-    '15': { knows: '太阳能板已修好' },
-    '19': { knows: '太阳能板已修好' }
+    '12': { knows: '收了桑尼的贿赂' },
+    '15': { knows: '全站复电' },                 // B12：15 号 tIf 重排（复电版在前）
+    '19': { knows: '太阳能板已修好' },
+    '28': { item: '桑尼的账本' },
+    '36': { pinsAll: ['24'] },
+    '41': { any: [ { item: '桑尼的账本' }, { item: '监控回放' } ] }
   };
   Object.keys(TIF).forEach(id => {
     const node = D.nodes[id];
@@ -1152,7 +1187,7 @@ function cabinetShortcut(withMedical) {
   ok(D.nodes['17'].c[1].once === true && (D.nodes['17'].c[1].fx.gain || []).indexOf('绳索') >= 0,
     'R16：17 号②应急柜可拿（正文提到的绳索 / 应急盾真的可拿）');
   ok((D.nodes['17'].c[0].fx.gain || []).indexOf('绳索') < 0, 'R16：17 号①检查不再顺手给绳索 / 盾（分到应急柜选项）');
-  ok((D.nodes['28'].c[1].l || '').indexOf('记在心里') >= 0, 'R16：28 号②文案已改（不指路）');
+  ok((D.nodes['28'].c[2].l || '').indexOf('先回中层大厅') >= 0, 'R16：28 号出口显式回中层（不指路）');
   /* 39 / 35 / 38 / 5 进入即有可见反馈 */
   ok(C.go(C.newState('normal'), '39').length > 0, '39 号进入有反馈（焊接 −5 氧 + 线索）');
   ok(C.go(C.newState('normal'), '35').length > 0, '35 号进入有反馈（获得 监控回放 + 密码）');
@@ -1164,7 +1199,424 @@ function cabinetShortcut(withMedical) {
     const r5 = C.choose(s, i5);
     ok(r5.log.length > 0 && !!r5.say, '5 号①打招呼：有获得日志 + 旁白（反馈可见）');
   }
-  P('R10~R16 落点：45 保险柜 / 6 处 tIf / 13 硬穿收获 / 14 绕行 say / 17 拆柜 / 28 文案 逐条通过');
+  P('R10~R16 落点：45 保险柜 / 13 处 tIf / 13 硬穿收获 / 14 绕行 say / 17 拆柜 / 28 出口 逐条通过');
+}
+
+/* ============ 15. B02 断言 11~14（lint L1~L5 / 战斗失败 / 4 号探索化 / 机制落点） ============ */
+console.log('');
+console.log('———— §8.7-11 B02 lint 五条（L1 同现 / L2 once 隐藏 / L3 跨层 / L4 代价 / L5 名词）————');
+
+/* —— 支撑表数据源（照 design-station-nodes.md §9.4；维护方＝叙事/系统线）——
+ * 扫描面：node.t / tIf / 选项文案 / say / lockText / battle.loseSay / items.text / 序章 / 帮助（数据源头）；
+ * 导出文案稿 docs/station-copy-v1.md 是数据的产品面快照（重导归父侧收口），与源头同源。 */
+const L1_EVENT_CHARS = { '23': ['tangtang'], '28': ['yinhe'], '29': ['sangni'], '31': ['sangni'], '32': ['sangni'], '33': ['sangni'], '40': ['sangni', 'tietou'] };
+const L1_SPOT_TOL = 150;                       // 同房间容差（设计像素）
+const L3_WHITELIST = [['18', '20'], ['20', '21'], ['18', '21'], ['16', '7'], ['11', '19']];
+const L3_EVENT_SCENE = { '22': 'S1', '24': 'S1', '26': 'S1', '27': 'S1', '28': 'S1', '23': 'S2', '25': 'S2', '30': 'S2', '31': 'S2', '32': 'S2', '33': 'S2', '45': 'S2', '29': 'S3', '34': 'S3', '35': 'S3', '36': 'S3', '37': 'S3', '38': 'S3', '40': 'S3', '39': 'S4' };
+const L3_EVENT_DECK = { S1: 'deck1', S2: 'deck2', S3: 'deck3', S4: 'exterior' };   // 事件层 → 楼层（§9.4：S1 顶层／S2 中层／S3 底层／S4 舱外）
+const L3_CHANNEL = /电梯|爬道|舱/;
+const L3_EXEMPT = ['41', '42', '43', '29', '44'];         // 结局 / 失败节点豁免
+const L2_ONCE_LIST = [
+  ['5', '钻到沙发后面'], ['7', '打开工具柜'], ['9', '转动密码盘'], ['11', '打开安保柜'],
+  ['16', '红漆工具箱'], ['16', '零件堆翻一翻'], ['17', '检查表'], ['17', '应急柜'],
+  ['4', '撬开墙上的急救箱'], ['4', '请铁头搭把手'], ['8', '对一对'], ['8', '广播'],
+  ['12', '照一照堆芯'], ['13', '拧上总阀'], ['15', '推上主供电闸门'], ['16', '换上一节新电池'],
+  ['19', '用工具把面板焊好'], ['28', '站猫罐头'], ['3', '把医疗包交给阿雅'], ['4', '请他帮忙打开仓库'],
+  ['10', '搬一罐冷却剂'], ['10', '把账本拍在他面前'], ['12', '启动反应堆'], ['14', '让小帮手去机房后台'],
+  ['19', '让机器人小帮手去焊'], ['13', '冲过蒸汽'],
+  /* 组二·完成态条件补录（§8.7-14 点名；静态谓词判 cond 完成后恒假） */
+  ['1', '循着说话声'], ['3', '谁会知道'], ['4', '掰手腕'], ['5', '追出去'], ['6', '你能带我去哪儿'],
+  ['8', '查一查被改过的货单'], ['12', '回底层大厅'], ['14', '跟安保机器人过招'], ['16', '把卡住的机器人']
+];
+const L4_WORDS = /[撬搬拖推拽掰扛翻钻爬冲焊拧]/;
+/* 豁免登记（§10.3）：滑降·借重力（0 氧）；移动/退出类去向（去向即反馈、0 氧——依据：§10.1-R1 通道免费与 §10.3 反馈规则「纯移动以旁白为反馈」；§10.3 代价默认表本身无「移动」行，本 4 条为测试侧增补、设计登记待补） */
+const L4_EXEMPT = [
+  ['25', '滑下去'], ['30', '把芯片收好'],
+  ['28', '推开仓库的门'], ['19', '爬回气闸舱'], ['39', '爬回气闸舱'], ['26', '先不掰了']
+];
+const L4_CLIMB = [['16', '钻进维修爬道', 10]];   // 攀爬类：爬道上行 ≥10（正常命中词表靠阈值 5，爬道单列）
+/* L5 名词表（首见＋允许集）：16 条 = bible §5（14 行）＋ 本地增补「货单」「账本」两条（支撑 §10.5-L5 的 28 号反例；待叙事档 §5 收录） */
+const L5_NOUNS = [
+  { w: '晨星号', first: '序章', allow: ['序章', '41', '43', '44'] },
+  { w: '星币', first: '序章', allow: ['序章', '帮助', '1', '7', '16', '31', '33'] },
+  { w: '木星', first: '1（画面化在 5）', allow: ['5', '11', '18', '19', '39', '42', '43'] },
+  { w: '胖胖', first: '1', allow: ['1', '5'] },
+  { w: '伊莲娜', first: '3', allow: ['3', '道具:站长的便条'] },
+  { w: '阿雅', first: '3', allow: ['3', '24', '36'] },
+  { w: '铁头', first: '4', allow: ['4', '25', '26', '27', '34', '40', '41', '道具:站长的便条'] },
+  { w: '银河', first: '5', allow: ['5', '28'] },
+  { w: '糖糖', first: '6（3 号为点名指路，登记在允许集）', allow: ['3', '6', '16', '23', '35', '道具:监控回放'] },
+  { w: '老布', first: '7（4 号锁文点名，登记在允许集）', allow: ['4', '7', '16', '25', '30', '38'] },
+  { w: '桑尼', first: '10（4 号提前点名，登记在允许集）', allow: ['4', '10', '12', '29', '31', '32', '33', '34', '35', '40', '41', '42', '道具:监控回放'] },
+  { w: '维修爬道', first: '7（“那条爬道”；完整名词首见 16）', allow: ['16', '23'] },
+  { w: '星尘矿石', first: '10（矿石画面；名词随账本/货单首见 8①）', allow: ['8', '31', '32', '40', '41', '道具:桑尼的账本'] },
+  { w: '保险柜', first: '9 / 23', allow: ['3', '9', '23', '35', '道具:监控回放'] },
+  { w: '货单', first: '8', allow: ['8'] },
+  { w: '账本', first: '8（帮助里的分类词）', allow: ['帮助', '8', '10', '32', '41'] }
+];
+
+/* 扫描助手：节点的可见文案面 */
+function nodeTextOf(n) {
+  const parts = [n.t || ''];
+  (n.tIf || []).forEach(x => parts.push(x.t || ''));
+  (n.c || []).forEach(ch => parts.push(ch.l || '', ch.say || '', ch.lockText || '', (ch.battle && ch.battle.loseSay) || ''));
+  return parts.join('\n');
+}
+function localSceneMap(L) {
+  const m = {};
+  Object.keys(L.scenes).forEach(sid => Object.keys(L.scenes[sid].pins).forEach(nid => { m[nid] = sid; }));
+  return m;
+}
+
+/* --- L1 同一角色多地同现 --- */
+function lintL1(L) {
+  const bad = [], locScene = localSceneMap(L), seen = {};
+  Object.entries(L.characters).forEach(([cid, ch]) => {
+    if (!ch.spot || !L.scenes[ch.spot.scene]) { bad.push(`${cid} spot 场景不存在`); return; }
+    Object.entries(L.nodes).forEach(([id, n]) => {
+      if ((n.chars || []).indexOf(cid) < 0) return;
+      seen[cid] = true;
+      if (locScene[id]) {                                   // 地点节点：同场景 + 距该节点 pin ≤150px
+        if (ch.spot.scene !== locScene[id]) { bad.push(`角色多地同现：${cid}（spot=${ch.spot.scene}）出现在 ${id}（${locScene[id]}）`); return; }
+        const pin = L.scenes[ch.spot.scene].pins[id];
+        const d = Math.hypot(pin[0] - ch.spot.x, pin[1] - ch.spot.y);
+        if (d > L1_SPOT_TOL) bad.push(`角色多地同现：${cid} 距 ${id} 号 pin ${Math.round(d)}px > ${L1_SPOT_TOL}px`);
+      } else if ((L1_EVENT_CHARS[id] || []).indexOf(cid) < 0) {   // 事件节点：须登记在在场表
+        bad.push(`事件 ${id} 的 chars「${cid}」未登记在【角色在场表】`);
+      }
+    });
+  });
+  Object.keys(L.characters).forEach(cid => { if (!seen[cid]) bad.push(`角色 ${cid} 从未出场`); });
+  return bad;
+}
+{
+  const bad = lintL1(D);
+  eq(bad.join(' ｜ '), '', 'L1 角色同现：每角色一处 spot；地点 chars 同房间（≤150px）；事件 chars 已登记；全员出场');
+}
+
+/* --- L2 once 选项仍可见（静态 + 回放，含交叉路径） --- */
+function condHasDonePred(c) {
+  if (!c || typeof c !== 'object') return false;
+  if (c.noItem || c.noKnows || c.notPinsAll) return true;
+  return (c.all || []).some(condHasDonePred) || (c.any || []).some(condHasDonePred);
+}
+function lintL2Static(L) {
+  const bad = [];
+  L2_ONCE_LIST.forEach(([id, frag]) => {
+    const ch = (L.nodes[id].c || []).find(x => (x.l || '').indexOf(frag) >= 0);
+    if (!ch) { bad.push(`${id} 找不到选项「${frag}」`); return; }
+    if (!ch.once && !ch.lockIf && !condHasDonePred(ch.cond)) bad.push(`${id}「${frag}」缺 once／lockIf／完成态条件`);
+  });
+  return bad;
+}
+{
+  eq(lintL2Static(D).join(' ｜ '), '', 'L2 静态：一次性语义选项均带 once／lockIf／完成后条件恒假');
+  /* 回放：执行一次后从 visibleChoices 消失，且重进节点仍不出现 */
+  const REPLAY = [
+    ['5', '钻到沙发后面', null],
+    ['7', '打开工具柜', s => { s.learned['维修爬道路线'] = true; }],
+    ['9', '转动密码盘', s => { s.learned['保险柜密码'] = true; s.items.push('工牌'); }],
+    ['11', '打开安保柜', null],
+    ['16', '红漆工具箱', s => { s.items.push('手电'); }],
+    ['16', '零件堆翻一翻', s => { s.items.push('手电'); }],
+    ['17', '检查表', null],
+    ['17', '应急柜', null],
+    ['4', '撬开墙上的急救箱', null],
+    ['4', '请铁头搭把手', s => { s.learned['铁头已开门'] = true; }],
+    ['8', '把货单和账本对一对', s => { s.items.push('桑尼的账本'); }],
+    ['8', '广播', null],
+    ['12', '照一照堆芯', s => { s.items.push('手电'); }],
+    ['13', '拧上总阀', s => { s.items.push('万能扳手'); }],
+    ['13', '冲过蒸汽', null],
+    ['15', '推上主供电闸门', s => { s.learned['太阳能板已修好'] = true; }],
+    ['16', '换上一节新电池', s => { s.items.push('备用电池'); }],
+    ['19', '用工具把面板焊好', s => { s.items.push('焊接枪'); }],
+    ['19', '让机器人小帮手去焊', s => { s.learned['机器人小帮手'] = true; }],
+    ['28', '站猫罐头', s => { s.items.push('站猫罐头'); }],
+    ['3', '把医疗包交给阿雅', s => { s.items.push('医疗包'); }],
+    ['4', '请他帮忙打开仓库', s => { s.learned['老布的委托'] = true; }],
+    ['10', '搬一罐冷却剂', s => { s.learned['铁头已开门'] = true; }],
+    ['10', '把账本拍在他面前', s => { s.items.push('桑尼的账本'); }],
+    ['12', '启动反应堆', s => { s.items.push('控制芯片', '冷却剂罐', '站长授权卡'); s.learned['全站复电'] = true; }],
+    ['14', '让小帮手去机房后台', s => { s.learned['机器人小帮手'] = true; }]
+  ];
+  const rep = [];
+  REPLAY.forEach(([id, frag, setup]) => {
+    const st = C.newState('normal');
+    (setup || function () {})(st);
+    st.loc = id;
+    const node = D.nodes[id];
+    const idx = (node.c || []).findIndex(x => (x.l || '').indexOf(frag) >= 0);
+    if (idx < 0) { rep.push(`${id} 找不到「${frag}」`); return; }
+    if (!C.condOk(st, node.c[idx].cond)) { rep.push(`${id}「${frag}」前提未满足（回放无法执行）`); return; }
+    const r = C.choose(st, idx);
+    if (r.back) C.goBack(st); else if (r.to) C.go(st, r.to);
+    C.go(st, id);                                   // 重进节点：once / lockIf / 完成态条件都应关闭它
+    if (C.visibleChoices(st).some(x => x.ci === idx)) rep.push(`${id}「${frag}」执行一次后仍可见`);
+  });
+  eq(rep.join(' ｜ '), '', 'L2 回放：' + REPLAY.length + ' 条一次性选项执行一次后均消失（重进节点不出现）');
+  /* 交叉路径：经另一条路完成后同样隐藏（E12 乙侧） */
+  const CROSS = [
+    ['4', '请他帮忙打开仓库', s => { s.learned['铁头已开门'] = true; }],
+    ['28', '站猫罐头', s => { s.items.push('桑尼的账本'); }],
+    ['3', '把医疗包交给阿雅', s => { s.visited['24'] = true; }],
+    ['15', '推上主供电闸门', s => { s.learned['全站复电'] = true; }],
+    ['13', '拧上总阀', s => { s.items.push('冷却剂罐'); }],
+    ['13', '冲过蒸汽', s => { s.items.push('冷却剂罐'); }],
+    ['10', '搬一罐冷却剂', s => { s.items.push('冷却剂罐'); }],
+    ['10', '把账本拍在他面前', s => { s.items.push('桑尼的账本', '冷却剂罐'); }],
+    ['7', '打开工具柜', s => { s.items.push('控制芯片'); }],
+    ['16', '红漆工具箱', s => { s.items.push('手电', '控制芯片'); }],
+    ['16', '换上一节新电池', s => { s.learned['机器人小帮手'] = true; }],
+    ['14', '让小帮手去机房后台', s => { s.items.push('监控回放'); }],
+    ['12', '启动反应堆', s => { s.items.push('控制芯片', '冷却剂罐', '站长授权卡'); s.learned['全站复电'] = true; s.learned['收了桑尼的贿赂'] = true; }],
+    ['19', '用工具把面板焊好', s => { s.learned['太阳能板已修好'] = true; }],
+    ['19', '让机器人小帮手去焊', s => { s.learned['太阳能板已修好'] = true; }],
+    /* 完成态条件补录（§8.7-14 点名；与 L2 静态清单同步） */
+    ['1', '循着说话声', s => { s.visited['22'] = true; }],
+    ['3', '谁会知道', s => { s.learned['保险柜密码'] = true; }],
+    ['5', '追出去', s => { s.items.push('桑尼的账本'); }],
+    ['6', '你能带我去哪儿', s => { s.learned['糖糖是帮手'] = true; }],
+    ['8', '查一查被改过的货单', s => { s.items.push('桑尼的账本'); }],
+    ['14', '跟安保机器人过招', s => { s.items.push('监控回放'); }],
+    ['16', '把卡住的机器人', s => { s.learned['机器人小帮手'] = true; }]
+  ];
+  const miss = [];
+  CROSS.forEach(([id, frag, setup]) => {
+    const st = C.newState('normal');
+    (setup || function () {})(st);
+    st.loc = id;
+    const idx = (D.nodes[id].c || []).findIndex(x => (x.l || '').indexOf(frag) >= 0);
+    if (idx < 0) { miss.push(`${id} 找不到「${frag}」`); return; }
+    if (C.visibleChoices(st).some(x => x.ci === idx)) miss.push(`${id}「${frag}」经另一条路完成后仍可见`);
+  });
+  eq(miss.join(' ｜ '), '', 'L2 交叉路径：' + CROSS.length + ' 条（含 4② 经 26→27、10① 经 13/31/32 等）完成后隐藏');
+}
+
+/* --- L3 跨层跳跃（白名单外） --- */
+function lintL3(L) {
+  const bad = [], locScene = localSceneMap(L);
+  const deckOf = id => locScene[id] || L3_EVENT_DECK[L3_EVENT_SCENE[id]] || null;
+  Object.keys(L.nodes).forEach(id => {         // 事件登记完整性
+    if (locScene[id] || L3_EXEMPT.indexOf(id) >= 0) return;
+    if (!L3_EVENT_SCENE[id]) bad.push(`事件节点 ${id} 未登记发生场景（§9.4）`);
+  });
+  Object.entries(L.nodes).forEach(([id, n]) => {
+    const src = deckOf(id);
+    if (!src) return;
+    (n.c || []).forEach(ch => {
+      if (ch.back) return;                     // 动态返回豁免
+      const tgts = [];
+      if (ch.to) tgts.push(ch.to);
+      (ch.toIf || []).forEach(x => tgts.push(x.to));
+      if (ch.battle) tgts.push(ch.battle.winTo, ch.battle.loseTo);
+      (ch.random || []).forEach(x => tgts.push(x));
+      const text = (ch.l || '') + ' ' + (ch.say || '') + ' ' + (n.t || '');
+      tgts.forEach(t => {
+        if (L3_EXEMPT.indexOf(t) >= 0) return;
+        const dst = deckOf(t);
+        if (!dst || dst === src) return;
+        if (locScene[id] && locScene[t]) {     // 地点 → 地点：白名单节点对 + 文案含通道词
+          const pair = L3_WHITELIST.some(([a, b]) => (a === id && b === t) || (b === id && a === t));
+          if (!pair) bad.push(`跨层跳跃（白名单外）：${id}(${src}) → ${t}(${dst})「${ch.l}」`);
+          else if (!L3_CHANNEL.test(text)) bad.push(`跨层去向缺通道词：${id} → ${t}「${ch.l}」`);
+        } else if (!L3_CHANNEL.test(text)) {   // 事件跨层：正文/选项点出通道即过（目标不必是通道端点）
+          bad.push(`事件跨层去向缺通道词：${id}(${src}) → ${t}(${dst})「${ch.l}」`);
+        }
+      });
+    });
+  });
+  return bad;
+}
+{
+  const bad = lintL3(D);
+  eq(bad.join(' ｜ '), '', 'L3 跨层：全部去向命中通道白名单（电梯 18/20/21・爬道 16/7・舱外 11/19）且文案可读');
+}
+
+/* --- L4 动作选项缺代价标记 --- */
+function lintL4(L) {
+  const bad = [];
+  Object.entries(L.nodes).forEach(([id, n]) => (n.c || []).forEach((ch, ci) => {
+    /* 判定式（v1 §10.5-L4）：所有 battle 选项必须带 loseSay；命中力气词表的动作选项须有代价载体（battle 不豁免） */
+    if (ch.battle && !(ch.battle.loseSay && ch.battle.loseSay.length > 5)) bad.push(`${id} 战斗选项 #${ci} 缺 loseSay`);
+    let text = ch.l || '';
+    /* 通道名（「爬道」「电梯」）不计（§10.5-L4） */
+    text = text.split('爬道').join('').split('电梯').join('');
+    if (!L4_WORDS.test(text)) return;
+    if (L4_EXEMPT.some(([eid, efrag]) => eid === id && (ch.l || '').indexOf(efrag) >= 0)) return;
+    const own = (ch.fx && typeof ch.fx.oxygen === 'number' && ch.fx.oxygen < 0) ? -ch.fx.oxygen : 0;
+    const tgts = [];
+    if (ch.to) tgts.push(ch.to);
+    (ch.toIf || []).forEach(x => tgts.push(x.to));
+    let viaEn = 0;
+    tgts.forEach(t => { const tn = L.nodes[t]; if (tn && tn.en && typeof tn.en.oxygen === 'number' && tn.en.oxygen < 0) viaEn = Math.max(viaEn, -tn.en.oxygen); });
+    /* 载体唯一（§10.3）：入口选项与战斗选项同属一次动作——4① 掰手腕的 −5 挂在 26①，不另扣 */
+    let viaNext = 0;
+    tgts.forEach(t => {
+      const tn = L.nodes[t];
+      if (!tn || !(tn.c || []).some(x => x.battle)) return;
+      (tn.c || []).forEach(x => { if (x.fx && typeof x.fx.oxygen === 'number' && x.fx.oxygen < 0) viaNext = Math.max(viaNext, -x.fx.oxygen); });
+    });
+    const climbRow = L4_CLIMB.find(([eid, efrag]) => eid === id && (ch.l || '').indexOf(efrag) >= 0);
+    const need = climbRow ? climbRow[2] : 5;
+    const cost = Math.max(own, viaEn, viaNext);
+    if (cost < need) bad.push(`${id}「${ch.l}」命中力气动作但代价不足（${cost} < ${need}；fx／目标 en／载体均未给）`);
+  }));
+  return bad;
+}
+{
+  const bad = lintL4(D);
+  eq(bad.join(' ｜ '), '', 'L4 代价：动作选项均有载体（选项 fx ／ 目标 en ／ 唯一载体）或豁免；全部 battle 带 loseSay');
+}
+
+/* --- L5 文本提到未出现过的名词 --- */
+function lintL5(L) {
+  const bad = [], listing = [];
+  const pro = ((L.meta.prologue && L.meta.prologue.lines) || []).join('\n');
+  const help = (L.help || []).join('\n');
+  const itemTexts = Object.entries(L.items).map(([k, v]) => ['道具:' + k, v.text || '']);
+  L5_NOUNS.forEach(({ w, first, allow }) => {
+    const occ = [];
+    if (pro.indexOf(w) >= 0) occ.push('序章');
+    if (help.indexOf(w) >= 0) occ.push('帮助');
+    itemTexts.forEach(([tag, t]) => { if (t.indexOf(w) >= 0) occ.push(tag); });
+    Object.keys(L.nodes).sort((a, b) => a - b).forEach(id => { if (nodeTextOf(L.nodes[id]).indexOf(w) >= 0) occ.push(id); });
+    if (!occ.length) { bad.push(`名词表死条目：${w} 从未出现`); return; }
+    const outside = occ.filter(x => allow.indexOf(x) < 0);
+    if (outside.length) bad.push(`引用早于首现／超出允许集：${w} → ${outside.join(',')}`);
+    listing.push(`${w}｜设计首见：${first}｜实际出现：${occ.join('/')}`);
+  });
+  return { bad, listing };
+}
+{
+  const r5 = lintL5(D);
+  eq(r5.bad.join(' ｜ '), '', 'L5 名词首现：名词表词条均不早于允许集出现（无死条目）');
+  r5.listing.forEach(x => P('  · ' + x));
+  P('L5 首现句清单（机器产出，供人工/叙事复核「当场解释」）');
+}
+
+/* --- 15-6 §8.7 E12 两侧行为（证据：cond 假＋lockIf 真⇒灰显；假⇒隐藏） --- */
+{
+  const st = C.newState('normal'); st.loc = '4';
+  const i42 = D.nodes['4'].c.findIndex(ch => (ch.l || '').indexOf('请他帮忙打开仓库') >= 0);
+  const gray = C.visibleChoices(st).find(x => x.ci === i42);
+  ok(!!gray && gray.ok === false, 'E12 甲侧：4② 缺老布的委托＋lockIf 成立 ⇒ 灰显可见');
+  eq(C.lockHint(D.nodes['4'].c[i42]), '（得先有个由头——去实验室找老布聊聊。）', 'E12：灰显理由＝lockText（非兜底）');
+  const st2 = C.newState('normal'); st2.loc = '4'; st2.learned['铁头已开门'] = true;
+  ok(!C.visibleChoices(st2).some(x => x.ci === i42), 'E12 乙侧：4② 经 26→27 完成后 ⇒ 隐藏');
+  /* 同一对判定在 10① 上再演示（跨路径：经 13/31/32 取罐后隐藏） */
+  const i101 = D.nodes['10'].c.findIndex(ch => (ch.l || '').indexOf('搬一罐冷却剂') >= 0);
+  const st3 = C.newState('normal'); st3.loc = '10';
+  ok(!!C.visibleChoices(st3).find(x => x.ci === i101 && !x.ok), 'E12：10① 未开门 ⇒ 灰显');
+  const st4 = C.newState('normal'); st4.loc = '10'; st4.items.push('冷却剂罐');
+  ok(!C.visibleChoices(st4).some(x => x.ci === i101), 'E12：10① 经他路取罐 ⇒ 隐藏（交叉路径收口）');
+  P('E12 两侧：灰显（lockIf 成立）⇄ 隐藏（lockIf 不成立）均通过');
+}
+
+/* --- 15-7 §8.7-12 战斗失败（E11 loseSay + 原地） --- */
+{
+  const BATTLE_ROWS = [
+    { id: '14', frag: '跟安保机器人过招', loseTo: '14', hit: '铁臂' },
+    { id: '16', frag: '拖出来', loseTo: '16', hit: '呼' },
+    { id: '26', frag: '用力', loseTo: '4', hit: '就这点劲儿' },
+    { id: '40', frag: '拦住他的无人机', loseTo: '42', hit: '舱门' }
+  ];
+  BATTLE_ROWS.forEach(row => {
+    const node = D.nodes[row.id];
+    const idx = node.c.findIndex(ch => (ch.l || '').indexOf(row.frag) >= 0);
+    ok(idx >= 0, row.id + ' 号战斗选项在（' + row.frag + '）');
+    const ch = node.c[idx];
+    ok(!!ch.battle && ch.battle.loseTo === row.loseTo, row.id + ' 号败北去向 = ' + row.loseTo + '（' + (row.loseTo === '42' ? '登记迁移' : '原地') + '）');
+    ok(typeof ch.battle.loseSay === 'string' && ch.battle.loseSay.length > 10, row.id + ' 号带 battle.loseSay 败方描写');
+    const st = C.newState('normal');
+    st.loc = row.id; st.visited[row.id] = true;
+    const r = C.choose(st, idx);                       // 武力 0 打不过（四场对手武力 1/3/6）
+    eq(r.to, row.loseTo, row.id + ' 号败北 → ' + row.loseTo + '（引擎结算）');
+    ok((r.log || []).some(x => x.indexOf('你输了') >= 0), row.id + ' 号败北机械行在 log（在 loseSay 之前）');
+    ok(typeof r.say === 'string' && r.say.indexOf(row.hit) >= 0, row.id + ' 号败方描写随 say 渠道带出（E11）');
+  });
+  /* 26① −5＝掰手腕唯一载体：4① 不另扣（两处不同时收费） */
+  const c4 = D.nodes['4'].c.find(ch => (ch.l || '').indexOf('掰手腕') >= 0);
+  const c26 = D.nodes['26'].c[0];
+  eq(c4.fx, undefined, '4① 掰手腕入口不另扣氧（载体唯一，B18）');
+  eq((c26.fx || {}).oxygen, -5, '26① 掰手腕 −5 氧（唯一载体，B18）');
+  /* 真走一遍败北：4 → 26 打输 → 回 4（原地） */
+  let s = C.newState('normal');
+  C.go(s, '4');
+  const i26 = D.nodes['4'].c.findIndex(ch => (ch.l || '').indexOf('掰手腕') >= 0);
+  C.choose(s, i26); C.go(s, '26');
+  const rLose = C.choose(s, 0);
+  eq(rLose.to, '4', '掰手腕败北 → 回健身房');
+  C.go(s, rLose.to);
+  eq(s.loc, '4', '败北停留原地：回健身房后还在 4（不是大厅）');
+  eq(s.oxygen, 95, '掰手腕败北也扣 −5（败了也费，B18）');
+  P('战斗失败：4 场 loseSay＋原地（14/16/26）＋登记迁移（40③→42）；26① 唯一载体');
+}
+
+/* --- 15-8 §8.7-13 四号探索化 --- */
+{
+  ok(!D.nodes['4'].en, '4 号无进入效果（不再自动扣氧发物，B03）');
+  const box = D.nodes['4'].c.find(ch => (ch.l || '').indexOf('撬开墙上的急救箱') >= 0);
+  const help = D.nodes['4'].c.find(ch => (ch.l || '').indexOf('请铁头搭把手') >= 0);
+  ok(!!box && box.fx.oxygen === -5 && (box.fx.gain || []).indexOf('医疗包') >= 0 && box.once === '急救箱开过',
+    'B02-13：③撬箱＝显式选项（−5 氧、得医疗包、once 急救箱开过）');
+  ok(!!help && !(help.fx || {}).oxygen && (help.fx.gain || []).indexOf('医疗包') >= 0 && help.once === '急救箱开过',
+    'B02-13：④请铁头搭手＝0 氧（代劳）、共享同一 once 标记（天然互斥）');
+  ok(help.cond && JSON.stringify(help.cond).indexOf('铁头已开门') >= 0, 'B02-13：④ 前置＝铁头已开门（掰腕赢过或提老布名号）');
+  const st4 = C.newState('normal');
+  st4.learned['铁头已开门'] = true;
+  C.go(st4, '4');
+  ok(C.condOk(st4, help.cond), 'B02-13：铁头开门后 ④ 可点');
+  C.choose(st4, D.nodes['4'].c.indexOf(help));
+  ok(C.hasItem(st4, '医疗包'), 'B02-13：④ 拿到医疗包');
+  eq(st4.oxygen, 100, 'B02-13：④ 代劳不扣自己的氧（0）');
+  ok(!C.visibleChoices(st4).some(x => (x.label || '').indexOf('撬开墙上的急救箱') >= 0), 'B02-13：④ 走过后 ③ 同步隐藏（共享标记）');
+  P('4 号探索化：en 删除；③/④ 双路显式、条件与共享 once 均通过');
+}
+
+/* --- 15-9 §8.7-14 机制落点 --- */
+{
+  const find = (id, frag) => (D.nodes[id].c || []).find(ch => (ch.l || '').indexOf(frag) >= 0) || {};
+  /* 去向修正 4 处（B16/B17/B20/B21） */
+  eq(find('24', '回医务室看看').to, '3', 'B02-14：24② → 3（同层修正）');
+  eq(find('25', '顺着检修爬道滑下去').to, '16', 'B02-14：25① → 16（爬道滑降）');
+  eq(find('30', '把芯片收好').to, '16', 'B02-14：30① → 16（滑回维修区）');
+  eq(find('38', '再看看维修区').to, '16', 'B02-14：38① → 16（留存）');
+  /* 新增退出/回访选项 9 处（B18/B19/B24~B30） */
+  [['23', '回指挥舱', '6'], ['26', '先不掰了', '4'], ['28', '推开仓库', '10'], ['31', '回仓库看看', '10'],
+   ['32', '回仓库看看', '10'], ['33', '回仓库看看', '10'], ['36', '再看看控制室', '15'], ['39', '再看一眼新面板', '19'], ['45', '回站长室里看看', '9']]
+    .forEach(([id, frag, to]) => eq(find(id, frag).to, to, `B02-14：新去向 ${id}「${frag}」→ ${to}`));
+  /* lockIf 15 处名单 + 恒灰 11 处（E12；§8.7-14 清单） */
+  const LOCKIF_EXPECT = ['3#0', '4#1', '4#3', '7#1', '10#0', '10#1', '12#1', '13#0', '14#2', '15#0', '16#1', '16#2', '19#0', '19#1', '28#0'];
+  const lockIfList = [], lockList = [], noLockText = [];
+  Object.keys(D.nodes).sort((a, b) => a - b).forEach(id => (D.nodes[id].c || []).forEach((ch, i) => {
+    if (ch.lockIf) lockIfList.push(id + '#' + i);
+    if (ch.lock) lockList.push(id + '#' + i);
+    if ((ch.lock || ch.lockIf) && !ch.lockText) noLockText.push(id + '#' + i);
+  }));
+  eq(lockIfList.join(','), LOCKIF_EXPECT.join(','), 'B02-14：lockIf 恰 15 处（甲＋乙名单一致，E12/B31~B37）');
+  eq(lockList.length, 11, 'B02-14：恒灰 lock 恰 11 处（锁定项 26 − lockIf 15）');
+  ok(!Object.keys(D.nodes).some(id => (D.nodes[id].c || []).some(ch => ch.lock && ch.lockIf)), 'E12 细则①：lock 与 lockIf 不同时写');
+  eq(noLockText.join(','), '', '全关锁定项（lock / lockIf）均有 lockText（不依赖引擎兜底）');
+  /* 完成态并 cond 7 处（B34~B37）：完成后 cond 恒假 */
+  [['13', '拧上总阀', '冷却剂罐'], ['13', '冲过蒸汽', '冷却剂罐'], ['10', '搬一罐冷却剂', '冷却剂罐'], ['10', '把账本拍在他面前', '冷却剂罐'],
+   ['16', '红漆工具箱', '控制芯片'], ['19', '用工具把面板焊好', '太阳能板已修好'], ['19', '让机器人小帮手去焊', '太阳能板已修好']]
+    .forEach(([id, frag, key]) => {
+      const s = C.newState('normal'); s.loc = id;
+      s.items.push(key); s.learned[key] = true;
+      ok(!C.condOk(s, find(id, frag).cond), `B02-14：完成态并 cond——${id}「${frag}」在 ${key} 完成后 cond 恒假`);
+    });
+  /* once 新增/收口抽查（B07/B09/B10/B12/B13/B15/B19） */
+  [['8', '对一对'], ['8', '广播'], ['12', '照一照堆芯'], ['13', '拧上总阀'], ['15', '推上主供电闸门'], ['16', '换上一节新电池'], ['19', '用工具把面板焊好'], ['28', '站猫罐头']]
+    .forEach(([id, frag]) => ok(find(id, frag).once === true, `B02-14：once 收口——${id}「${frag}」带 once`));
+  /* 31/32 en learn（收口轮核定） */
+  eq(D.nodes['31'].en.learn, '桑尼翻脸了', 'B02-14：31 en learn＝桑尼翻脸了');
+  eq(D.nodes['32'].en.learn, '桑尼认栽了', 'B02-14：32 en learn＝桑尼认栽了');
+  /* 8 号 en 删除 / 走私暗号只在 22（B07）；6 号 en.once＝幕标题卡锚点（B23） */
+  ok(!D.nodes['8'].en, 'B02-14：8 号 en 已删除（货单两态：对单 / 查单）');
+  ok(!!D.nodes['22'].en && D.nodes['22'].en.learn === '走私暗号', 'B02-14：走私暗号唯一来源＝22 号电话');
+  eq(JSON.stringify(D.nodes['6'].en), JSON.stringify({ once: true }), 'B02-14：6 号 en＝{ once: true }（幕标题卡锚点）');
+  P('机制落点：去向 4 / 新去向 9 / lockIf 15＋恒灰 11 / 完成态并 cond 7 / once 8 / learn 2 逐条通过');
 }
 
 /* ============ 汇总 ============ */
