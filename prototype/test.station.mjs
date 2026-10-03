@@ -118,11 +118,17 @@ const ROOM_PINS = {
   'room-gym': { '18': [1022, 285], '26': [1240, 520] },
   'room-observation': { '18': [830, 890], '28': [1185, 600] },
   'room-lab': { '20': [830, 880], '25': [780, 55], '30': [300, 640] },
-  'room-comms': { '20': [850, 760], '8': [450, 520] }
+  'room-comms': { '20': [850, 760], '8': [450, 520] },
+  'room-cooling': { '21': [700, 870], '13': [940, 470] },
+  'room-server': { '21': [830, 870], '35': [1340, 520] },
+  'room-solarctl': { '21': [830, 870], '36': [1370, 400] },
+  'room-maintenance': { '21': [900, 880], '37': [1430, 660], '7': [830, 60] },
+  'room-escapepod': { '21': [900, 880], '17': [1425, 400], '43': [1255, 330] }
 };
 eq(Object.keys(D.scenes).join(','),
-  'deck1,deck2,deck3,exterior,room-galley,room-sleep,room-medbay,room-gym,room-observation,room-lab,room-comms',
-  '四楼层场景＋七间已入库内景（B119）');
+  'deck1,deck2,deck3,exterior,room-galley,room-sleep,room-medbay,room-gym,room-observation,room-lab,room-comms,'
+  + 'room-cooling,room-server,room-solarctl,room-maintenance,room-escapepod',
+  '四楼层场景＋本轮接线十二间内景（B119·P2a＋P2b 并批）');
 const allPins = new Set();
 Object.entries(Object.assign({}, PINS, ROOM_PINS)).forEach(([sid, pins]) => {
   const sc = D.scenes[sid];
@@ -137,8 +143,8 @@ Object.entries(Object.assign({}, PINS, ROOM_PINS)).forEach(([sid, pins]) => {
   });
 });
 eq([...allPins].sort((a, b) => Number(a) - Number(b)).join(','),
-  '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,24,25,26,28,30',
-  '全部场景编号合计 26 个＝21 个地点＋5 个房内交互点事件（B119：24/25/26/28/30；每仍对应既有节点）');
+  '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,24,25,26,28,30,35,36,37,43',
+  '全部场景编号合计 30 个＝21 个地点＋9 个房内交互点事件（B119：24/25/26/28/30/35/36/37/43；每仍对应既有节点）');
 eq(allPins.has('19'), true, '站外场景有 19 号（太阳能板阵列）');
 /* 19 号 pin（B114）：按 T04 成图（`images/station/eva-v1.jpg`）实测校准——右侧下片太阳能板阵列「面板蓝」像素
  * （b>90 且 b−r>40 且 b−g>12）在 x∈[1240,1791]×y∈[520,1010] 的质心实测 (1509,778)（窗口放宽到 x≥1150 ⇒ (1502,778)；
@@ -1362,8 +1368,13 @@ function nodeTextOf(n) {
   return parts.join('\n');
 }
 function localSceneMap(L) {
-  const m = {};
-  Object.keys(L.scenes).forEach(sid => Object.keys(L.scenes[sid].pins).forEach(nid => { m[nid] = sid; }));
+  /* B119：房间 pins 是「进房再入」的次级视图，楼层 pins 才是地点的归属场景——
+   * 两层都登记时楼层优先（否则房内跨层端口如维修区→7 会把 7 号的归属拉到房间上）。 */
+  const m = {}, roomM = {};
+  Object.keys(L.scenes).forEach(sid => Object.keys(L.scenes[sid].pins).forEach(nid => {
+    ( /^room-/.test(sid) ? roomM : m )[nid] = sid;
+  }));
+  Object.keys(roomM).forEach(nid => { if (!m[nid]) m[nid] = roomM[nid]; });
   return m;
 }
 
@@ -2708,9 +2719,13 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
 
 /* --- 19-1 B119① 注册一致性（图在库／宽高＝成图实测／节点 scene 覆盖 ↔ 场景一一对应） --- */
 {
-  const ROOMS = ['room-galley', 'room-sleep', 'room-medbay', 'room-gym', 'room-observation', 'room-lab', 'room-comms'];
-  const bound = Object.keys(D.nodes).filter(id => /^room-/.test(D.nodes[id].scene || ''));
-  eq(bound.sort((a, b) => Number(a) - Number(b)).join(','), '1,2,3,4,5,7,8', 'B119①：已接线房间节点＝1/2/3/4/5/7/8（七间已入库批）');
+  const ROOMS = ['room-galley', 'room-sleep', 'room-medbay', 'room-gym', 'room-observation', 'room-lab', 'room-comms',
+    'room-cooling', 'room-server', 'room-solarctl', 'room-maintenance', 'room-escapepod'];
+  const bound = Object.keys(D.nodes).filter(id => /^room-/.test(D.nodes[id].scene || '') && Number(id) <= 21);
+  eq(bound.sort((a, b) => Number(a) - Number(b)).join(','), '1,2,3,4,5,7,8,13,14,15,16,17', 'B119①：接线房间节点＝1/2/3/4/5/7/8/13/14/15/16/17（12 间：P2a＋P2b）');
+  const boundEv = Object.keys(D.nodes).filter(id => /^room-/.test(D.nodes[id].scene || '') && Number(id) > 21);
+  eq(boundEv.sort((a, b) => Number(a) - Number(b)).join(','), '27,30,38',
+    'B119①：房内后继事件显式声明房间场景＝27（健身房）／30（实验室）／38（维修区）——读档/直进也落回内景');
   const bad = [];
   ROOMS.forEach(sid => {
     const sc = D.scenes[sid];
@@ -2725,7 +2740,7 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
     if (hosts.length !== 1) bad.push(sid + '：绑定节点数 ' + hosts.length);
     if (!FLOOR_OF_LABEL[sc.label]) bad.push(sid + '：label 非楼层（' + sc.label + '）');
   });
-  eq(bad.join(' ｜ '), '', 'B119①：七间内景——路径前缀／文件在／宽高＝成图实测／节点一一对应／label＝楼层');
+  eq(bad.join(' ｜ '), '', 'B119①：十二间内景——路径前缀／文件在／宽高＝成图实测／节点一一对应／label＝楼层');
   ok(!LEVELS.dalim.moments && Object.keys(LEVELS.dalim.scenes).every(sid => !/^room-/.test(sid)),
     'B119⑤：示例关（dalim）无内景接线——零变化');
 }
@@ -2733,7 +2748,8 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
 /* --- 19-2 B119②③ pins：界内／出口 pin＝本层大厅／点击路径 pinChoiceIndex ≥ 0 --- */
 {
   const HALL = { '顶层': '18', '中层': '20', '底层': '21' };
-  const PROBES = [{}, { items: ['医疗包'] }, { learned: { '维修爬道路线': true } }];
+  const PROBES = [{}, { items: ['医疗包'] }, { items: ['万能扳手'] }, { learned: { '维修爬道路线': true } },
+    { learned: { '太阳能板已修好': true } }, { learned: { '逃生舱检查过': true, '已广播集合': true } }];
   const bad = [], unpick = [];
   Object.keys(D.scenes).filter(sid => /^room-/.test(sid)).forEach(sid => {
     const sc = D.scenes[sid];
@@ -2756,7 +2772,9 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
 /* --- 19-3 B119③ 行为：进房切内景／回大厅切层图（Core 直测，无 DOM）＋未接线房间零降级 --- */
 {
   const ROOM = { '1': ['room-galley', '18'], '2': ['room-sleep', '18'], '3': ['room-medbay', '18'],
-    '4': ['room-gym', '18'], '5': ['room-observation', '18'], '7': ['room-lab', '20'], '8': ['room-comms', '20'] };
+    '4': ['room-gym', '18'], '5': ['room-observation', '18'], '7': ['room-lab', '20'], '8': ['room-comms', '20'],
+    '13': ['room-cooling', '21'], '14': ['room-server', '21'], '15': ['room-solarctl', '21'],
+    '16': ['room-maintenance', '21'], '17': ['room-escapepod', '21'] };
   const bad = [];
   Object.entries(ROOM).forEach(([id, [sid, hall]]) => {
     const s = C.newState('normal');
@@ -2768,21 +2786,26 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
     C.go(s, hall);                                 // 出口 → 回大厅
     if (s.scene !== deck) bad.push('出 ' + id + '：' + s.scene + ' ≠ ' + deck);
   });
-  eq(bad.join(' ｜ '), '', 'B119③：七间进出往返——进房切内景、回大厅切回本层图（syncScene／sceneOf 同源）');
-  const s2 = C.newState('normal'); C.go(s2, '20'); const d2 = s2.scene; C.go(s2, '6');
-  eq(s2.scene, d2, 'B119⑤：未接线房间（6 指挥舱）不换图——维持本层 deck（零降级）');
-  const s3 = C.newState('normal'); C.go(s3, '21'); const d3 = s3.scene; C.go(s3, '12');
-  eq(s3.scene, d3, 'B119⑤：未接线房间（12 反应堆舱）同上');
+  eq(bad.join(' ｜ '), '', 'B119③：十二间进出往返——进房切内景、回大厅切回本层图（syncScene／sceneOf 同源）');
+  /* 未接线房间（图未入库：6 指挥舱／9 站长室／10 仓库／11 气闸舱／12 反应堆舱）——不换图（零降级） */
+  [['20', '6'], ['20', '9'], ['20', '10'], ['20', '11'], ['21', '12']].forEach(([hall, id]) => {
+    const s = C.newState('normal'); C.go(s, hall); const deck = s.scene; C.go(s, id);
+    eq(s.scene, deck, 'B119⑤：未接线房间（' + id + '）不换图——维持本层 deck（零降级）');
+  });
 }
 
 /* --- 19-4 B119④ 锚点：房间相关浮现图锚点落在本房图界内（含分支/窗景） --- */
 {
   const STALE = { 'pangpang-hail': [478, 554], 'aya-nurse': [1332, 554], 'yilanna-awake': [1572, 554],
-    'yinhe-idle': [1416, 871], 'tietou-armwrestle': [552, 879], 'tietou-open': [552, 879], 'win-observation-jupiter': [1420, 480] };
+    'yinhe-idle': [1416, 871], 'tietou-armwrestle': [552, 879], 'tietou-open': [552, 879],
+    'guardbot-block': [1322, 509], 'helper-join': [928, 927], 'laobu-lookout': [728, 947],
+    'win-observation-jupiter': [1420, 480] };
   const PROBES = [{}, { visited: { '24': true } }, { chDone: { '跟胖胖打过招呼': true } }, { items: ['桑尼的账本'] }];
   const PAIRS = Object.keys(D.scenes).filter(sid => /^room-/.test(sid))
     .map(sid => [sid, Object.keys(D.nodes).find(id => D.nodes[id].scene === sid)]);
-  PAIRS.push(['room-gym', '26'], ['room-gym', '27']);   // 房内事件（26／27 在健身房；27 无 pin——沿用当前场景）
+  /* 房内后继事件（无 pin——沿用到达场景） */
+  PAIRS.push(['room-gym', '26'], ['room-gym', '27'], ['room-server', '35'], ['room-solarctl', '36'],
+    ['room-maintenance', '37'], ['room-maintenance', '38'], ['room-escapepod', '43']);
   const bad = [], seen = new Set();
   PAIRS.forEach(([sid, host]) => {
     const sc = D.scenes[sid];
@@ -2801,9 +2824,9 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
   eq(bad.join(' ｜ '), '', 'B119④：各房浮现图锚点（含 mIf 分支与窗景矩形）落在本房图界内');
   const stale = Object.keys(STALE).filter(id => JSON.stringify(D.moments[id].at) === JSON.stringify(STALE[id]));
   eq(stale.join(','), '', 'B119④：房间相关浮现图锚点已按 room 图重标（deck 期旧值作废重标）');
-  eq([...seen].sort().join(','), 'aya-nurse,pangpang-hail,tietou-armwrestle,tietou-open,win-observation-jupiter,yilanna-awake,yinhe-idle',
-    'B119④：覆盖七张房间相关图（1／3／4／5／24／26／27 触发面）');
-  P('内景锚点：七张图逐张落在本房图界内＋旧值重标 逐条通过');
+  eq([...seen].sort().join(','), 'aya-nurse,guardbot-block,helper-join,laobu-lookout,pangpang-hail,tietou-armwrestle,tietou-open,win-observation-jupiter,yilanna-awake,yinhe-idle',
+    'B119④：覆盖十张房间相关图（1／3／4／5／14／24／26／27／37／38 触发面）');
+  P('内景锚点：十张图逐张落在本房图界内＋旧值重标 逐条通过');
 }
 
 /* --- 19-5 B119⑤ 回归：读档场景归一／未接线节点输出与改前一致 --- */
@@ -2815,10 +2838,12 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
   };
   eq(C.normalizeState(mk('1', 'deck1')).scene, 'room-galley', 'B119⑤：旧档（scene 停在 deck1）读到 1 号 ⇒ 归一为内景');
   eq(C.normalizeState(mk('5', 'deck1')).scene, 'room-observation', 'B119⑤：同一口径覆盖 5 号');
+  eq(C.normalizeState(mk('16', 'deck1')).scene, 'room-maintenance', 'B119⑤：P2b 同口径——16 号归一到维修区内景');
   eq(C.normalizeState(mk('6', 'deck2')).scene, 'deck2', 'B119⑤：未接线房间（6）读档 ⇒ 场景不变（层图）');
   eq(C.normalizeState(mk('22', 'room-galley')).scene, 'deck1', 'B119⑤：无 pin 走廊事件（22）⇒ 按声明重算回楼层（不被出发房间带走）');
   eq(C.normalizeState(mk('10')).scene, 'deck2', 'B119⑤：无 scene 字段的旧档 ⇒ 由 pin 推出层图');
   eq(C.normalizeState(mk('24')).scene, 'room-medbay', 'B119⑤：房内事件（24）⇒ 由注册场景推出内景');
+  eq(C.normalizeState(mk('38', 'deck3')).scene, 'room-maintenance', 'B119⑤：房内后继事件（38）显式声明 ⇒ 读档归一到维修区内景');
   const s = C.newState('normal'); C.go(s, '19');
   eq(s.scene, 'exterior', 'B119⑤：站外 19 照旧（未接线节点输出不变）');
   eq(JSON.stringify(D.scenes.exterior.pins['19']), '[1505,778]', 'B119⑤：deck/exterior 既有 pins 未动（19 号实测值保留——§2 另有逐条断言）');

@@ -49,7 +49,8 @@ console.log('  主线逐步（节点:场景）—— ' + stepScenes);
 const loc41 = scenes[scenes.length - 1];
 eq(loc41[0], '41', 'B119 冒烟：主线走通到结局 A（节点 41）');
 eq(loc41[1], 'deck3', 'B119 冒烟：41 号结局在底层图（deck3）');
-const wantIn = { '2': 'room-sleep', '4': 'room-gym', '3': 'room-medbay', '5': 'room-observation', '7': 'room-lab', '24': 'room-medbay' };
+const wantIn = { '2': 'room-sleep', '4': 'room-gym', '3': 'room-medbay', '5': 'room-observation', '7': 'room-lab', '24': 'room-medbay',
+  '13': 'room-cooling', '16': 'room-maintenance', '15': 'room-solarctl' };
 Object.entries(wantIn).forEach(([loc, sid]) => {
   const hit = scenes.find(x => x[0] === loc);
   ok(!!hit && hit[1] === sid, 'B119 冒烟：抵达 ' + loc + ' 号 ⇒ 切内景 ' + sid + '（实测 ' + (hit && hit[1]) + '）');

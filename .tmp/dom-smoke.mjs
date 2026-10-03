@@ -198,6 +198,61 @@ const saveKey = 'mygame2.save.station.v1';
   ok(recOf(card).indexOf('🏆 通关记录：结局 · 圆满') >= 0, 'B117③：卡片记录块（真实写入后回读）');
 }
 
+/* ---- ⑥ P2b 底层五间（并批）：进房切内景／pins＝出口 21＋房内交互点／浮图锚点 ---- */
+{
+  const mk = (loc, extra) => Object.assign({ diff: 'normal', me: '林小晨', items: [], visited: {}, done: {}, learned: {},
+    chDone: {}, wristband: 0, hist: [], loc, bankrupt: false, zeroRes: null, scene: 'deck3', coins: 3, oxygen: 40 }, extra || {});
+  const resumeAt = (loc, extra) => {
+    storeMap[saveKey] = JSON.stringify(mk(loc, extra));
+    rerender();
+    buttonsOf(stationCard())[0].onclick();            // 继续
+    return byId['pinLayer'].children.map(p => p.dataset.id).join(',');
+  };
+  eq(resumeAt('13'), '13,21', 'B119：冷却塔（P2b）⇒ 内景＋pins＝总阀 13＋出口 21');
+  eq(SCENE(), '../images/station/rooms/cooling.jpg', 'B119：13 号切 cooling.jpg');
+  eq(resumeAt('14'), '21,35', 'B119：服务器机房（P2b）⇒ pins＝出口 21＋监控台 35');
+  eq(SCENE(), '../images/station/rooms/server.jpg', 'B119：14 号切 server.jpg');
+  eq(byId['momentLayer'].children.length, 1, 'B119：14 号浮图 guardbot-block 渲一张');
+  eq(resumeAt('16'), '7,21,37', 'B119：维修区（P2b）⇒ pins＝检修口 7＋出口 21＋机器人 37');
+  eq(SCENE(), '../images/station/rooms/maintenance.jpg', 'B119：16 号切 maintenance.jpg');
+  eq(resumeAt('15'), '21,36', 'B119：太阳能控制室（P2b）⇒ pins＝出口 21＋闸门 36（缺前置时不可点）');
+  eq(SCENE(), '../images/station/rooms/solarctl.jpg', 'B119：15 号切 solarctl.jpg');
+  eq(resumeAt('17'), '17,21,43', 'B119：应急逃生舱（P2b）⇒ pins＝检查表 17＋出口 21＋发射钮 43');
+  eq(resumeAt('17'), '17,21,43', 'B119：应急逃生舱（P2b）⇒ pins＝检查表 17＋出口 21＋发射钮 43');
+  eq(SCENE(), '../images/station/rooms/escapepod.jpg', 'B119：17 号切 escapepod.jpg');
+  /* 未接线房间（图未入库）——维持层图，不抛错 */
+  resumeAt('11');
+  eq(SCENE(), '../images/station/deck2-v1.jpg', 'B119：未接线房间（11 气闸舱）⇒ 维持层图 deck2（零降级）');
+  const pin11 = byId['pinLayer'].children.map(p => p.dataset.id).join(',');
+  eq(pin11, '6,7,8,9,10,20', 'B119：未接线房间的层图 pins 照常渲染（当前点 11 因有浮图被抑制＝B112 口径）');
+}
+
+/* ---- ⑦ 缺图兜底（合成场景：临时改名→渲染不报错→还原；产品代码零改动） ---- */
+{
+  const imgDir = path.resolve('images/station/rooms');
+  const target = path.join(imgDir, 'escapepod.jpg');
+  const bak = path.join(imgDir, 'escapepod.jpg.bak');
+  const before = fs.statSync(target).size;
+  fs.renameSync(target, bak);
+  let ctxOk = true;
+  try {
+    storeMap[saveKey] = JSON.stringify({ diff: 'normal', me: '林小晨', items: [], visited: {}, done: {}, learned: {},
+      chDone: {}, wristband: 0, hist: [], loc: '17', bankrupt: false, zeroRes: null, scene: 'deck3', coins: 3, oxygen: 40 });
+    rerender();
+    buttonsOf(stationCard())[0].onclick();            // 继续 → 进 17 号（图文件不在）
+    ok(byId['pinLayer'].children.length === 3 && byId['choiceList'].children.length > 0,
+      'B119 缺图兜底：已注册房间的图文件缺失 ⇒ 渲染不抛错（pins/选项照常出）');
+    eq(SCENE(), '../images/station/rooms/escapepod.jpg', 'B119 缺图兜底：场景仍按注册表选（缺图由测试面拦截——§19-1 文件在库断言）');
+  } catch (e) {
+    ctxOk = false;
+    console.error('  ✗ B119 缺图兜底：渲染抛错 ' + e.message);
+    fail++;
+  }
+  fs.renameSync(bak, target);
+  ok(fs.existsSync(target) && fs.statSync(target).size === before && !fs.existsSync(bak),
+    'B119 缺图兜底：临时改名已还原（字节数一致、无 .bak 残留）' + (ctxOk ? '' : '（但上一步抛错）'));
+}
+
 console.log('');
 console.log('DOM 冒烟：通过 ' + pass + ' 项，失败 ' + fail + ' 项。');
 process.exit(fail ? 1 : 0);
