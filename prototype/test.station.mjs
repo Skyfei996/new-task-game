@@ -14,8 +14,10 @@
 //       / B04 同框覆盖轮（B120 · 2026-10-04）：覆盖卡（同框判据／卡面 ⊇ 轮廓框＋余量／单源去 at·w／
 //         换态不换位／z 序）＋ figures lint（§7.7-10）＋全站枚举零双现（§7.7-7／§10-③）＋标定通道（C 键两点定框）
 //       / B04 表现体系轮（B121/B122/B123/B124/B125 · 2026-10-04）：背景状态变体（scenes[].variants——
-//         判定／几何／兜底／读档／回归五条）＋同框完备性机检（§7.7-12：20 组合全分类、未登记 0）＋
+//         判定／几何／兜底／读档／回归五条）＋同框完备性机检（§7.7-12：36 组合全分类、未登记 0）＋
 //         到达提示（房间名无 🛗）＋重开确认同句＋每房自指 pin（17 房无例外；N14 标记回来）
+//       / B04 扩图批到货注册轮（B126 · 2026-10-04）：T57~T72 16 条浮现图到货即注册（注册集＝到货集；
+//         挂条件 3 处／两处场景声明）＋§20-5 完备性扩表 20→36＋T73 medbay-awake 的 figures 回填（N24 无同角色双现）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -2606,19 +2608,19 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   eq(mom('40').join(','), 'pod-standoff', 'B04 §7.7-1：N40 默认＝[pod-standoff]');
   eq(C.momentsOf(C.newState('normal'), { moments: ['不存在的图'] }).length, 0, 'B04 §7.3：id 未注册 ⇒ 忽略该条');
   const M = Object.keys(D.moments);
-  eq(M.length, 20, 'B04 §7.4/§7.5：注册表 20 条（角色 18＋窗景 2；≤20）');
+  eq(M.length, 36, 'B126 §7.4.1：注册表 36 条（原 20＋扩图批 16；角色 34＋窗景 2）');
   ok(M.every(id => D.moments[id].file === '../images/station/moments/' + id + '.jpg'), 'B04：file 路径＝images/station/moments/<id>.jpg');
   const onlyChar = M.filter(id => !D.moments[id].win);
-  eq(onlyChar.length, 18, 'B04 §7.3：角色图 18 张');
-  const COVER_IDS = ['pangpang-hail', 'aya-nurse', 'yilanna-awake', 'tietou-armwrestle', 'tietou-open', 'yinhe-idle'];
+  eq(onlyChar.length, 34, 'B04 §7.3：角色图 34 张（B126：扩图批 16 张到货注册）');
+  const COVER_IDS = ['pangpang-hail', 'aya-nurse', 'yilanna-awake', 'tietou-armwrestle', 'tietou-open', 'yinhe-idle', 'laobu-point'];
   const anchored = onlyChar.filter(id => COVER_IDS.indexOf(id) < 0);
-  ok(anchored.length === 12 && anchored.every(id => D.moments[id].w >= 0.16 && D.moments[id].w <= 0.32),
-    'B04 §7.3：非覆盖角色图 12 张、宽 w ∈ [0.16,0.32]（' + anchored.map(id => D.moments[id].w).join('/') + '）');
+  ok(anchored.length === 27 && anchored.every(id => D.moments[id].w >= 0.16 && D.moments[id].w <= 0.32),
+    'B126 §7.4.1：非覆盖图 27 张、宽 w ∈ [0.16,0.32]（' + anchored.map(id => D.moments[id].w).join('/') + '）');
   eq(COVER_IDS.filter(id => D.moments[id].at != null || D.moments[id].w != null).join(','), '',
-    'B120 §7.3：六张覆盖图无 at／w 残留（几何唯一来源＝figures；先标定后删值同批）');
+    'B120 §7.3：七张覆盖图无 at／w 残留（B126：laobu-point 到货按同口径——仅 file）');
   eq(M.filter(id => D.moments[id].win).length, 2, 'B04 §7.5：窗景 2 条（5 观景厅／11 气闸舱）');
   const nodeSet = Object.keys(D.nodes).filter(id => D.nodes[id].moments || D.nodes[id].mIf).sort((a, b) => a - b);
-  eq(nodeSet.join(','), '1,3,4,5,6,10,11,14,22,23,24,26,27,28,31,32,33,37,38,40', 'B04 §11＋B111：节点 moments/mIf 恰 20 个（B111 补登 N4）');
+  eq(nodeSet.join(','), '1,2,3,4,5,6,8,9,10,11,12,13,14,17,19,22,23,24,25,26,27,28,29,30,31,32,33,36,37,38,39,40,45', 'B126：节点 moments/mIf 恰 33 个（B111 补登 N4；B126 新增 13——2/8/9/12/13/17/19/25/29/30/36/39/45）');
   /* 2 层序与不改可点性 */
   const htmlB = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
   ok(htmlB.indexOf('id="momentLayer"') > htmlB.indexOf('id="dimSvg"') && htmlB.indexOf('id="momentLayer"') < htmlB.indexOf('id="pinLayer"'),
@@ -2653,7 +2655,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
     'B04 §7.3：未给锚点 ⇒ 左右对称（中心 ±0.32×场景宽）＋底边对齐');
   delete D.moments['T-noanchor'];
   /* 6 回归（无 moments 的节点＝空集；站关光环位停用、示例关照旧） */
-  eq(C.momentsOf(C.newState('normal'), D.nodes['2']).length, 0, 'B04 §7.7-6：无 moments 的节点 ⇒ 空集（输出与改前一致）');
+  eq(C.momentsOf(C.newState('normal'), D.nodes['16']).length, 0, 'B04 §7.7-6：无 moments 的节点 ⇒ 空集（输出与改前一致；样本＝N16——B126 换置：N2 已注册 locker-emergency）');
   ok(!!D.moments && !LEVELS.dalim.moments, 'B04 §11：站关注册了 moments（两层制）、示例关 dalim 无（光环位保留）');
   ok(engSrc.indexOf('if (D.moments) return;') >= 0, 'B04 §11：renderCharSpots 按关卡停用（站关撤下——源码契约）');
   ok(engSrc.indexOf('if (D.moments) return ids;') >= 0, 'B04 §7.6：在场条＝node.chars 直连（示例关沿用旧口径——源码契约）');
@@ -2671,7 +2673,8 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   eq(dup.join(','), '', 'B04 §7.7-7：任一节点的浮现集里同一角色至多一张（不并置同角色）');
   const COVER = [['1', 'pangpang-hail', null], ['3', 'aya-nurse', null],
     ['4', 'tietou-armwrestle', null],
-    ['5', 'yinhe-idle', null], ['24', 'yilanna-awake', null], ['26', 'tietou-armwrestle', null], ['27', 'tietou-open', null]];
+    ['5', 'yinhe-idle', null], ['24', 'yilanna-awake', null], ['25', 'laobu-point', null],
+    ['26', 'tietou-armwrestle', null], ['27', 'tietou-open', null]];
   COVER.forEach(([id, mid, extra]) => {
     const sid = C.sceneOfNode(id);
     ok(mom(id, extra).indexOf(mid) >= 0, 'B120 §7.7-7：同框组合 N' + id + '×' + mid + ' 在案（场景 ' + sid + '）');
@@ -2695,7 +2698,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
     'B04 §7.6：8 位乘员 img 全部指向 images/station/chars/（缺图回落 emoji）');
   ok(engSrc.indexOf('function guardFaces') >= 0 && engSrc.indexOf('img.onerror = () => {') >= 0,
     'B04：头像缺图回落 emoji（不留破图——源码契约）');
-  P('浮现层：断言 1~7 逐条通过（20 节点／20 条注册表／窗景对拍／层序／缺图兜底／覆盖卡 7 组几何）');
+  P('浮现层：断言 1~7 逐条通过（33 节点／36 条注册表／窗景对拍／层序／缺图兜底／覆盖卡 8 组几何）');
 }
 
 /* --- 18-8 B114 站外切换（T04 入库接管；pin 按成图实测；占位退场） --- */
@@ -2743,9 +2746,9 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
 
 /* --- 18-11 B120 同框全覆盖（覆盖卡）：figures lint ／ 全站枚举零双现 ／ 呈现与标定通道 --- */
 {
-  /* ① figures 规格＋lint（§7.7-10）：5 房 6 条（登记表 7 行——N4／N26 同角色同行）；键 ∈ characters；
-   *   框与卡面（含余量）落在图界内；6 条中 5 条与 §7.3 同框面表逐值一致；room-medbay/yilanna 一条＝
-   *   基图（卧姿）目测暂值——§7.3 该行写「＝变体 medbay-awake 的 figures（T73 出图后标定）」，随 B122 变体轮重标。 */
+  /* ① figures 规格＋lint（§7.7-10）：5 房 6 条基础框（登记表 7 行——N4／N26 同角色同行）＋medbay 变体 1 条；键 ∈ characters；
+   *   框与卡面（含余量）落在图界内；基础 6 条中 5 条与 §7.3 同框面表逐值一致；room-medbay/yilanna 基础值＝
+   *   基图（卧姿）留守回落值——苏醒态由变体 figures 承担（B126：T73 到货同批标定回填，§7.3 第 3 行）。 */
   const FIG = { 'room-galley': { pangpang: [880, 205, 160, 225] },
     'room-medbay': { aya: [455, 145, 235, 515], yilanna: [690, 255, 195, 180] },
     'room-gym': { tietou: [745, 195, 245, 445] },
@@ -2767,7 +2770,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
       if (!(box[0] - ex > 0 && box[1] - ey > 0 && box[0] + box[2] + ex < sc.width && box[1] + box[3] + ey < sc.height)) bad.push(sid + '/' + cid + '：卡面（含余量）越界');
     });
   });
-  eq(bad.join(' ｜ '), '', 'B120 §7.7-10：figures lint——键 ∈ characters／框与卡面在图界内／初值与 §7.3 表逐值（yilanna 一条＝基图暂值，随 B122 变体重标）');
+  eq(bad.join(' ｜ '), '', 'B120 §7.7-10：figures lint——键 ∈ characters／框与卡面在图界内／初值与 §7.3 表逐值（medbay/yilanna 基础值＝留守回落；变体值＝B126 T73 标定）');
   const coverFalse = Object.keys(D.moments).filter(id => D.moments[id].cover === false);
   eq(coverFalse.join(','), '', 'B120 §7.7-10：例外表初始为空 ⇒ 全关零 cover:false（与登记一致）');
   /* ② 全站枚举（含 mIf 分支与条件变化）：同框必覆盖卡；无 L1 实体者不得误判——零双现（§7.7-7／§10-③） */
@@ -2791,7 +2794,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
       });
     });
   });
-  ok(nCombos.length >= 16, 'B120 §7.7-7：全站枚举 ' + nCombos.length + ' 条（节点×角色 L2 组合，含 mIf 分支）');
+  eq(nCombos.length, 83, 'B126 计数同步：全站枚举 83 条（节点×角色 L2 组合，含 mIf 分支；较 B120 的 73 ＋10＝sangni-ambush／laobu-point ×5 探针）');
   eq(miss.join(' ｜ '), '', 'B120 §7.7-7：同框组合逐条覆盖分支命中——零漏覆盖');
   eq(wrong.join(' ｜ '), '', 'B120 §7.7-7：无 L1 实体的角色 L2 不被误判覆盖（走既有呈现；未标定即红）');
   eq(dbl.join(' ｜ '), '', 'B120 §10-③：全站同角色双现＝0（机检）');
@@ -2852,8 +2855,8 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
   eq(bound.sort((a, b) => Number(a) - Number(b)).join(','), '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17',
     'B119①：接线房间节点＝1~17 全（17 房无一走回退）');
   const boundEv = Object.keys(D.nodes).filter(id => /^room-/.test(D.nodes[id].scene || '') && Number(id) > 21);
-  eq(boundEv.sort((a, b) => Number(a) - Number(b)).join(','), '23,24,25,26,27,30,31,32,33,34,35,36,37,38,40,43,45',
-    'B119①：房内后继事件显式声明房间场景 17 个——读档/直进也落回内景');
+  eq(boundEv.sort((a, b) => Number(a) - Number(b)).join(','), '23,24,25,26,27,29,30,31,32,33,34,35,36,37,38,40,43,45',
+    'B119①：房内后继事件显式声明房间场景 18 个（B126：+29 被制服——桑尼自反应堆舱走出）——读档/直进也落回内景');
   const bad = [];
   ROOMS.forEach(sid => {
     const sc = D.scenes[sid];
@@ -2943,13 +2946,15 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
     'sangni-cave': [980, 880], 'sangni-bribe': [900, 880], 'win-airlock-array': [1456, 533],
     'pod-standoff': [1188, 857],
     'win-observation-jupiter': [1420, 480] };
-  const PROBES = [{}, { visited: { '24': true } }, { chDone: { '跟胖胖打过招呼': true } }, { items: ['桑尼的账本'] }];
+  const PROBES = [{}, { visited: { '24': true } }, { chDone: { '跟胖胖打过招呼': true } }, { items: ['桑尼的账本'] },
+    { chDone: { '开过保险柜': true } }, { chDone: { '急救箱开过': true } }, { learned: { '逃生舱检查过': true } }];
   const PAIRS = Object.keys(D.scenes).filter(sid => /^room-/.test(sid))
     .map(sid => [sid, Object.keys(D.nodes).find(id => D.nodes[id].scene === sid)]);
-  /* 房内后继事件（无 pin／有 pin 均列——确保房间相关浮图逐张被覆盖） */
+  /* 房内后继事件（无 pin／有 pin 均列——确保房间相关浮图逐张被覆盖；B126 补 25/30/29/45 与站外 19/39） */
   PAIRS.push(['room-command', '23'], ['room-medbay', '24'], ['room-gym', '26'], ['room-gym', '27'], ['room-warehouse', '31'],
     ['room-warehouse', '32'], ['room-warehouse', '33'], ['room-server', '35'], ['room-solarctl', '36'],
-    ['room-maintenance', '37'], ['room-maintenance', '38'], ['room-escapepod', '40'], ['room-escapepod', '43']);
+    ['room-maintenance', '37'], ['room-maintenance', '38'], ['room-escapepod', '40'], ['room-escapepod', '43'],
+    ['room-lab', '25'], ['room-lab', '30'], ['room-reactor', '29'], ['room-captain', '45'], ['exterior', '19'], ['exterior', '39']);
   const bad = [], seen = new Set();
   PAIRS.forEach(([sid, host]) => {
     const sc = D.scenes[sid];
@@ -2969,9 +2974,9 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
   const stale = Object.keys(STALE).filter(id => JSON.stringify(D.moments[id].at) === JSON.stringify(STALE[id]));
   eq(stale.join(','), '', 'B119④：房间相关浮现图锚点已按 room 图重标（deck 期旧值作废重标）');
   eq([...seen].sort().join(','),
-    'aya-nurse,guardbot-block,helper-join,laobu-lookout,pangpang-hail,pod-standoff,sangni-bribe,sangni-cave,sangni-flip,sangni-smile,tangtang-guide,tietou-armwrestle,tietou-open,win-airlock-array,win-observation-jupiter,yilanna-awake,yinhe-idle',
-    'B119④：覆盖十七张房间相关图（1／3／4／5／6／10／11／14／23／24／26／27／31／32／33／37／38／40 触发面）');
-  P('内景锚点：十七张图逐张落在本房图界内＋旧值重标 逐条通过');
+    'aya-nurse,broadcast,chip-extract,core-interfaces,firstaid-open,gear-locker,guardbot-block,helper-join,laobu-lookout,laobu-point,locker-emergency,manifest-clue,panel-weld,pangpang-hail,pod-standoff,pods-check,power-restore,robot-rescue,safe-open,sangni-ambush,sangni-bribe,sangni-cave,sangni-flip,sangni-smile,spec-pickup,steam-dash,tangtang-guide,tietou-armwrestle,tietou-open,win-airlock-array,win-observation-jupiter,yilanna-awake,yinhe-idle',
+    'B119④＋B126：覆盖 33 张（17 旧＋16 扩图批新增；含 mIf 分支 N9／N4／N17 与站外 19／39）——逐张锚点界内');
+  P('内景锚点：33 张图逐张落在本房图界内＋B126 扩图批全纳入 逐条通过');
 }
 
 /* --- 19-5 B119⑤ 回归：读档场景归一／未接线节点输出与改前一致 --- */
@@ -3117,7 +3122,7 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
       });
     });
   });
-  eq(geoBad.join(' ｜ '), '', 'B122 §7.10-2：变体 width/height＝基础条目逐值相等；figures（若有）键／界内／卡面（含余量）同判（现况：观景厅猫离场版 `figures:{}`——其余待 T73 出图后标定）');
+  eq(geoBad.join(' ｜ '), '', 'B122 §7.10-2：变体 width/height＝基础条目逐值相等；figures（若有）键／界内／卡面（含余量）同判（B126：medbay-awake 苏醒姿 figures 已标定回填——T73 到货）');
   /* figures 解析语义（合成探针）：整表替换 / {}＝该状态无同框面 / 缺省回落基础表 */
   {
     const sc = D.scenes['room-sleep'];
@@ -3219,8 +3224,8 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
   const s14 = C.newState('normal'); s14.loc = '14'; s14.items = ['监控回放'];
   eq(C.currentMarkerHidden(s14), false, 'B125/§7.7-8：N14 持监控回放 ⇒ 浮现集空 ⇒ 标记回来（回归）');
   ok(!!D.scenes['room-server'].pins['14'], 'B125/§7.7-8：N14「你在这里」渲染载体＝room-server 自指 pin（无浮图时标记＋遮罩开孔）');
-  const s2 = C.newState('normal'); s2.loc = '2'; s2.scene = 'room-sleep';
-  eq(C.currentMarkerHidden(s2), false, 'B125：N2（无浮图）⇒ 标记照旧（此前无载体＝缺陷，现由自指 pin 承担）');
+  const s16 = C.newState('normal'); s16.loc = '16'; s16.scene = 'room-maintenance';
+  eq(C.currentMarkerHidden(s16), false, 'B125：N16（无浮图）⇒ 标记照旧（样本换置——B126 后 N2 已注册 locker-emergency）');
   ok(engSrc.indexOf('add(x, y, 98 * k)') >= 0, 'B125：遮罩开孔按 pins 洞开（自指 pin 同享——源码契约）；自指 pin 点击＝空操作（renderPins 既有判据 st.loc === id）');
   P('自指 pin：17/17 在案＋界内＋N14 标记回来（载体在案） 逐条通过');
 }
@@ -3229,12 +3234,17 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
 {
   /* 登记表＝§7.3 同框面表＋§7.11 变体表（测试侧对照；渲染判据＝数据——新图/新场景自动纳入） */
   const REG_COVER = [['room-galley', 'pangpang-hail'], ['room-medbay', 'aya-nurse'], ['room-medbay', 'yilanna-awake'],
-    ['room-gym', 'tietou-armwrestle'], ['room-gym', 'tietou-open'], ['room-observation', 'yinhe-idle']];
+    ['room-gym', 'tietou-armwrestle'], ['room-gym', 'tietou-open'], ['room-observation', 'yinhe-idle'], ['room-lab', 'laobu-point']];
   const REG_NONE = [['room-command', 'tangtang-guide'], ['room-warehouse', 'sangni-smile'], ['room-warehouse', 'sangni-flip'],
     ['room-warehouse', 'sangni-cave'], ['room-warehouse', 'sangni-bribe'], ['room-server', 'guardbot-block'],
-    ['room-maintenance', 'laobu-lookout'], ['room-escapepod', 'pod-standoff'], ['deck2', 'yinhe-ledger'], ['deck2', 'yinhe-lick']];
-  const REG_VARIANT = [['room-maintenance', 'helper-join']];
-  const REG_OBJECT = [['room-observation', 'win-observation-jupiter'], ['room-airlock', 'win-airlock-array'], ['deck1', 'sil-figure']];
+    ['room-maintenance', 'laobu-lookout'], ['room-escapepod', 'pod-standoff'], ['deck2', 'yinhe-ledger'], ['deck2', 'yinhe-lick'],
+    ['room-reactor', 'sangni-ambush']];
+  const REG_VARIANT = [['room-maintenance', 'helper-join'], ['room-captain', 'safe-open'], ['room-gym', 'firstaid-open'],
+    ['room-maintenance', 'robot-rescue'], ['room-escapepod', 'pods-check']];
+  const REG_OBJECT = [['room-observation', 'win-observation-jupiter'], ['room-airlock', 'win-airlock-array'], ['deck1', 'sil-figure'],
+    ['room-solarctl', 'power-restore'], ['exterior', 'panel-weld'], ['room-comms', 'broadcast'], ['room-sleep', 'locker-emergency'],
+    ['room-lab', 'chip-extract'], ['room-airlock', 'gear-locker'], ['room-reactor', 'spec-pickup'], ['room-reactor', 'core-interfaces'],
+    ['room-comms', 'manifest-clue'], ['room-cooling', 'steam-dash']];
   const table = {};
   REG_COVER.forEach(([s, m]) => { table[s + '|' + m] = 'cover'; });
   REG_NONE.forEach(([s, m]) => { table[s + '|' + m] = 'none'; });
@@ -3242,7 +3252,8 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
   REG_OBJECT.forEach(([s, m]) => { table[s + '|' + m] = 'object'; });
   /* 枚举：全场景×全 L2（含 mIf 分支——条件探针覆盖节点分支） */
   const PROBES = [{}, { visited: { '24': true } }, { chDone: { '跟胖胖打过招呼': true } },
-    { items: ['桑尼的账本'] }, { items: ['监控回放'] }];
+    { items: ['桑尼的账本'] }, { items: ['监控回放'] },
+    { chDone: { '开过保险柜': true } }, { chDone: { '急救箱开过': true } }, { learned: { '逃生舱检查过': true } }];
   const combos = [], mism = [];
   Object.keys(D.nodes).forEach(id => {
     const n = D.nodes[id];
@@ -3267,12 +3278,26 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
         } else if (kind === 'none') {
           if (cid && figs[cid]) mism.push(key + '：登记「无对应」但 L1 有该角色（双现风险）');
         } else if (kind === 'variant') {
-          const host = Object.keys(D.nodes).find(x => (D.nodes[x].moments || []).indexOf(mid) >= 0);
-          const learn = ((D.nodes[host] || {}).en || {}).learn;
-          const s2 = C.newState('normal'); s2.loc = host; if (learn) s2.learned[learn] = true;
+          /* host 查找含 mIf 行；探针＝行条件合成（knows／chDone／pinsAll／item 简形）＋节点 en——L2 渲染时变体必已生效 */
+          const rows = [];
+          Object.keys(D.nodes).forEach(x => {
+            if ((D.nodes[x].moments || []).indexOf(mid) >= 0) rows.push({ node: x });
+            (D.nodes[x].mIf || []).forEach(r => { if ((r.moments || []).indexOf(mid) >= 0) rows.push({ node: x, cond: r.cond }); });
+          });
+          const row = rows.find(r => r.cond) || rows[0];
+          const s2 = C.newState('normal'); s2.loc = row.node;
+          const en = (D.nodes[row.node] || {}).en || {};
+          if (en.learn) (Array.isArray(en.learn) ? en.learn : [en.learn]).forEach(k => { s2.learned[k] = true; });
+          if (row.cond) {
+            if (row.cond.knows) s2.learned[row.cond.knows] = true;
+            if (row.cond.chDone) s2.chDone[row.cond.chDone] = true;
+            if (row.cond.pinsAll) row.cond.pinsAll.forEach(p => { s2.visited[p] = true; });
+            if (row.cond.item) s2.items.push(row.cond.item);
+          }
           const entry = C.sceneEntry(s2, sid);
           if (!entry.variant || entry.image === D.scenes[sid].image) mism.push(key + '：L2 渲染时变体未生效（防双现失败）');
           if (C.coverState(mid, sid, s2) !== 'none') mism.push(key + '：非角色图误入覆盖卡分支');
+          if (C.momentsOf(s2, D.nodes[row.node]).indexOf(mid) < 0) mism.push(key + '：探针态下 L2 未渲染（状态合成不自洽）');
         } else if (kind === 'object') {
           if (cid) mism.push(key + '：对象时刻却指向角色');
         }
@@ -3281,19 +3306,81 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
   });
   const unreg = combos.filter(k => !table[k]);
   const dead = Object.keys(table).filter(k => combos.indexOf(k) < 0);
-  eq([combos.length, unreg.join(',') || '0', dead.join(',') || '0'].join('｜'), '20｜0｜0',
-    'B122 §7.7-12：全场景×全 L2 枚举恰 20 条组合（覆盖卡 6／变体 1／对象时刻 3／无对应 10）——未登记 0、死行 0');
+  eq([combos.length, unreg.join(',') || '0', dead.join(',') || '0'].join('｜'), '36｜0｜0',
+    'B126 §7.7-12：全场景×全 L2 枚举恰 36 条组合（覆盖卡 7／变体 5／对象时刻 13／无对应 11）——未登记 0、死行 0');
   eq(mism.join(' ｜ '), '', 'B122 §7.7-12：逐条分类与登记表一致（覆盖卡几何 ⊇ 轮廓框＋余量；无对应 ⇒ L1 无该实体；变体 ⇒ L2 渲染时已生效）');
-  /* 「图到后自动纳入」证据（T72 laobu-point 未到货）：合成注册 ⇒ 自动落覆盖卡分支（用后撤除） */
-  D.moments['laobu-point'] = { file: '../images/station/moments/laobu-point.jpg' };
+  /* 传 T72 laobu-point 到货即注册（真注册·非合成）：覆盖卡分支＋仅 file 无 at／w＋图片在库 */
   const labSt = C.newState('normal');
   eq([C.coverState('laobu-point', 'room-lab', labSt), C.momentLayout('laobu-point', 'room-lab', 0, 1, labSt) !== null].join(','), 'cover,true',
-    'B122 §7.7-12：T72（laobu-point）到货注册 ⇒ 自动纳入覆盖卡（room-lab 轮廓框已在；「图到即生效」证据）');
-  delete D.moments['laobu-point'];
-  eq(C.momentDef('laobu-point'), null, 'B122：合成注册已撤除（注册表还原）');
-  P('§7.7-12 完备性：20 组合全分类（覆盖卡 6／变体 1／对象时刻 3／无对应 10）／未登记 0／死行 0／T72 到货自动纳入 逐条通过');
+    'B126 §7.7-9①：T72（laobu-point）到货即注册 ⇒ 覆盖卡分支（room-lab 轮廓框已在；「图到即生效」）');
+  ok(!!D.moments['laobu-point'] && D.moments['laobu-point'].file === '../images/station/moments/laobu-point.jpg'
+    && fs.existsSync(path.join(dir, D.moments['laobu-point'].file))
+    && D.moments['laobu-point'].at == null && D.moments['laobu-point'].w == null,
+    'B126 §7.4.1-16：laobu-point 条目＝仅 file（图片在库；无 at／w——几何唯一来源＝figures）');
+  P('§7.7-12 完备性：36 组合全分类（覆盖卡 7／变体 5／对象时刻 13／无对应 11）／未登记 0／死行 0／T72 真注册在案 逐条通过');
 }
-
+/* --- 20-6 B126 扩图批到货注册（T57~T72 · 16 条）＋ T73 figures 回填 --- */
+{
+  /* ① 注册集＝到货集 16/16（id 全注册、file 规范、图片在库——实盘） */
+  const NEW16 = ['power-restore', 'safe-open', 'panel-weld', 'broadcast', 'locker-emergency', 'chip-extract', 'gear-locker',
+    'spec-pickup', 'core-interfaces', 'manifest-clue', 'steam-dash', 'firstaid-open', 'robot-rescue', 'pods-check', 'sangni-ambush', 'laobu-point'];
+  const badReg = NEW16.filter(id => !D.moments[id] || D.moments[id].file !== '../images/station/moments/' + id + '.jpg'
+    || !fs.existsSync(path.join(dir, D.moments[id].file)));
+  eq(badReg.join(','), '', 'B126 §7.7-9①：注册集＝到货集 16/16（id 全注册、file 规范、图片在库——实盘）');
+  /* ② 逐条：锚点／宽度／呈现＝§7.4.1 表内初值（横构图 7 张 card:true；竖构图 8 张柔边椭圆）；laobu-point 仅 file */
+  const SPEC = {
+    'power-restore': [[1370, 500], 0.30, true], 'safe-open': [[770, 400], 0.18, false], 'panel-weld': [[1505, 820], 0.30, true],
+    'broadcast': [[450, 620], 0.28, true], 'locker-emergency': [[560, 640], 0.18, false], 'chip-extract': [[300, 720], 0.18, false],
+    'gear-locker': [[1150, 640], 0.18, false], 'spec-pickup': [[560, 870], 0.18, false], 'core-interfaces': [[880, 800], 0.30, true],
+    'manifest-clue': [[640, 600], 0.18, false], 'steam-dash': [[940, 620], 0.30, true], 'firstaid-open': [[1240, 400], 0.18, false],
+    'robot-rescue': [[1430, 720], 0.18, false], 'pods-check': [[1425, 470], 0.30, true], 'sangni-ambush': [[880, 830], 0.30, true] };
+  const specBad = [];
+  Object.keys(SPEC).forEach(id => {
+    const m = D.moments[id], s = SPEC[id];
+    if (!m || JSON.stringify(m.at) !== JSON.stringify(s[0]) || m.w !== s[1] || !!m.card !== s[2]) specBad.push(id);
+  });
+  eq(specBad.join(','), '', 'B126 §7.4.1：15 条锚点／宽度／呈现逐条＝登记表初值（横构图 7 张 card:true；竖构图 8 张柔边椭圆）');
+  ok(D.moments['laobu-point'].at == null && D.moments['laobu-point'].w == null,
+    'B126 §7.4.1-16：laobu-point＝覆盖卡（仅 file；无 at／w——几何唯一来源＝room-lab.figures.laobu）');
+  /* ③ 挂条件 3 处（挂前空集／命中后出；firstaid-open 命中行完整替换） */
+  const momN = (loc, extra) => { const s = C.newState('normal'); s.loc = loc; if (extra) Object.assign(s, extra); return C.momentsOf(s, D.nodes[loc]).join(','); };
+  eq([momN('9'), momN('9', { chDone: { '开过保险柜': true } })].join('｜'), '｜safe-open',
+    'B126 §7.4.1-2：safe-open@9 挂 mIf（chDone 开过保险柜）——未开柜不出图（与锁门状态一致；@45 默认集）');
+  eq([momN('4'), momN('4', { chDone: { '急救箱开过': true } })].join('｜'), 'tietou-armwrestle｜tietou-armwrestle,firstaid-open',
+    'B126 §7.4.1-12：firstaid-open@4 挂 mIf——命中行完整替换（默认集保留＋追加；不自降级为两张同时常显）');
+  eq([momN('17'), momN('17', { learned: { '逃生舱检查过': true } })].join('｜'), '｜pods-check',
+    'B126 §7.4.1-14：pods-check@17 挂 mIf（knows 逃生舱检查过——与 T79 变体同条件）');
+  /* ④ 场景声明 2 处（否则 sceneOfNode＝null：枚举缺场景、读档不落位） */
+  eq([C.sceneOfNode('39'), C.sceneOfNode('29')].join(','), 'exterior,room-reactor',
+    'B126 §7.4.1：39→exterior（站外后继）／29→room-reactor（被制服）显式声明');
+  /* ⑤ robot-rescue 注册 37、16 本体不注册（防双现）；对象时刻＝节点默认集抽查（19／39 同图） */
+  eq(momN('16'), '', 'B126 §7.4.1-13：16 本体不注册（防双现——L2 渲染时变体已生效）');
+  ok(momN('37').indexOf('robot-rescue') >= 0, 'B126 §7.4.1-13：robot-rescue@37 注册（与 helper-join 同节点、锚点错开）');
+  eq([momN('36'), momN('2'), momN('8'), momN('12'), momN('13'), momN('11'), momN('19'), momN('25'), momN('29'), momN('30'), momN('39'), momN('45')].join('｜'),
+    'power-restore｜locker-emergency｜broadcast,manifest-clue｜core-interfaces,spec-pickup｜steam-dash｜win-airlock-array,gear-locker｜panel-weld｜laobu-point｜sangni-ambush｜chip-extract｜panel-weld｜safe-open',
+    'B126 §7.4.1：对象时刻＝节点默认集（12 节点抽查——含 19／39 同图、N8 双图错开锚点）');
+  /* ⑥ N2 注册生效（B112 判据随浮现集）：locker-emergency 注册后 ⇒ 当前位置标记抑制 */
+  const sN2 = C.newState('normal'); sN2.loc = '2'; sN2.scene = 'room-sleep';
+  eq(C.currentMarkerHidden(sN2), true, 'B126：N2（locker-emergency 注册后）⇒ 浮现集非空 ⇒ 当前位置标记抑制');
+  /* ⑦ T73 回填：medbay-awake 的 figures＝苏醒姿（N24 覆盖卡按变体判——无同角色双现） */
+  const sN24 = C.newState('normal'); sN24.loc = '24'; sN24.visited['24'] = true;
+  ok(!!C.sceneEntry(sN24, 'room-medbay').variant, 'B126/T73：pinsAll24 ⇒ 变体 medbay-awake 生效（苏醒姿 L1）');
+  eq(JSON.stringify(C.figuresOf('room-medbay', sN24).yilanna), JSON.stringify([695, 190, 230, 245]),
+    'B126/T73 §7.3 回填：变体 figures.yilanna＝苏醒姿轮廓框（T73 到货同批标定；整表替换）');
+  const plan24 = C.momentLayout('yilanna-awake', 'room-medbay', 0, 1, sN24);
+  eq([C.coverState('yilanna-awake', 'room-medbay', sN24), plan24 && plan24.cover].join(','), 'cover,true',
+    'B126/T73：N24 覆盖卡按变体 figures 出卡（不回落卧姿框——同角色双现风险窗口压零）');
+  eq(C.momentsOf(sN24, D.nodes['24']).join(','), 'yilanna-awake', 'B126/T73：N24 浮现集恰一张（伊莲娜一次——无同角色双现）');
+  const box24 = C.figuresOf('room-medbay', sN24).yilanna;
+  const ex24 = Math.max(12, box24[2] * 0.08), ey24 = Math.max(12, box24[3] * 0.08);
+  ok(Math.abs(plan24.w - (box24[2] + 2 * ex24)) < 1e-9 && Math.abs(plan24.h - (box24[3] + 2 * ey24)) < 1e-9
+    && Math.abs(plan24.x - (box24[0] - ex24 + (box24[2] + 2 * ex24) / 2)) < 1e-9,
+    'B126/T73：卡面＝苏醒姿轮廓框外扩 max(12,8%×边)（卡 ' + [plan24.x, plan24.y, plan24.w, plan24.h].join(',') + '）');
+  /* ⑧ N3 首访不受 T73 影响（variant 未命中 ⇒ 基础 figures；L2＝阿雅） */
+  eq([C.momentsOf(C.newState('normal'), D.nodes['3']).join(','), C.coverState('aya-nurse', 'room-medbay', C.newState('normal'))].join('｜'),
+    'aya-nurse｜cover', 'B126/T73：N3 首访（未苏醒）⇒ L2＝aya-nurse、覆盖卡按基础 figures（零回归）');
+  P('B126：注册集＝到货集 16/16／锚点与呈现逐条／挂条件 3 处／场景声明 2 处／防双现注册点／默认集抽查／T73 回填（N24 无同框双现） 逐条通过');
+}
 
 /* ============ 汇总 ============ */
 console.log('');

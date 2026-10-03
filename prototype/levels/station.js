@@ -50,6 +50,10 @@
  *   （pinsAll 24 ⇒ 不显示 L2——状态由变体 `medbay-awake` 承担，§7.11「与 L2 的收窄」）；
  *   ③ 每房补自指 pin `pins[<本房节点号>]`（B125：17 房无例外——无浮图时承担「你在这里」标记与遮罩开孔；
  *   标记载体、点击＝空操作；坐标为**暂定值**，随 C 键手标校准回填）。
+ * B04 扩图批到货注册轮（B126 · 2026-10-04；口径＝`docs/design-ui-v1.md` §7.4.1 到货登记表）：
+ *   16 张浮现图（T57~T72）到货即注册（注册集＝到货集）；对象时刻＝节点默认集；与背景变体同实体者挂 mIf
+ *   （safe-open@9／firstaid-open@4／pods-check@17）；robot-rescue@37（16 本体不注册——防双现）；
+ *   39→'exterior'／29→'room-reactor' 两处场景声明；T73 `medbay-awake` 的 `figures` 同批标定回填（§7.3）。
  * B03 复检收口轮（2026-10-03）：B78 星币数字（引擎/工具面）；B79 27 号赢家当场兑现；B80 战斗构成行（引擎/工具面）；
  *   B81~B98 逐条文案（照抄件升级＝bible §7 v2.5）；B99 28 号发生场景 scene:'deck2'；真人线 R2 四修：
  *   ① --player 无编号（工具面）/ ② 16·14·17 复访写回 / ③ 24 持卡衔接 / ④ 12③ 自指（门票只收一次）——自写文案见批次档 §5。
@@ -138,10 +142,12 @@
         id: 'room-medbay', name: '晨星号 · 医务室', label: '顶层',
         image: '../images/station/rooms/medbay.jpg', width: 1659, height: 948,
         figures: { aya: [455, 145, 235, 515],          // B120：床边阿雅——目测初值，待标定
-                   yilanna: [690, 255, 195, 180] },    // B120：床上伊莲娜（卧姿可见段；T73 变体出图后按变体 figures 重标）
+                   yilanna: [690, 255, 195, 180] },    // B120：床上伊莲娜（卧姿可见段）＝基础图留守回落值；苏醒态由变体 figures 承担（T73 已标定）
         /* B122（§7.10/§7.11-T73）：站长已醒（pinsAll 24）⇒ L1 背景切「靠床头坐起」版（T73 免验收直入）；
-         * 缺图 ⇒ 运行期回落基础图（零降级）；变体 figures＝T73 出图后按苏醒姿标定并登记在此（§7.3 同框面表第 3 行）。 */
-        variants: [ { cond: { pinsAll: ['24'] }, image: '../images/station/rooms/medbay-awake.jpg', width: 1659, height: 948 } ],
+         * 缺图 ⇒ 运行期回落基础图（零降级）；变体 figures＝苏醒姿轮廓框（B126：T73 到货同批标定回填——
+         * §7.3 同框面表第 3 行「＝变体 medbay-awake 的 figures」；数据以标定值为准，C 键通道保留）。 */
+        variants: [ { cond: { pinsAll: ['24'] }, image: '../images/station/rooms/medbay-awake.jpg', width: 1659, height: 948,
+                      figures: { yilanna: [695, 190, 230, 245] } } ],
         pins: { '18': [1330, 860],    // 出口＝右下门内地面（目测：门洞地面中线）
                 '24': [870, 470],     // 房内＝病床床头（阿雅换冰袋处——「把医疗包交给阿雅」→ 24 号委托）
                 '3': [980, 700] }     // B125 自指 pin（暂定·目测）：病床与药品柜之间地面——无浮图时承担「你在这里」标记＋遮罩开孔
@@ -383,7 +389,28 @@
       'pod-standoff':         { file: '../images/station/moments/pod-standoff.jpg', at: [900, 820], w: 0.32, card: true }, // T43 · 40（默认；群像横构图——圆角卡）｜B119 重标：escapepod 图内舱前地板
       /* —— 窗景图（2 张；尺寸＝窗区 × fit）—— */
       'win-observation-jupiter': { file: '../images/station/moments/win-observation-jupiter.jpg', at: [815, 277], win: [1255, 385], fit: 1.06 },  // T51 · 5｜B119 重标：observation 图内弧形窗区（中心＋窗区尺寸）
-      'win-airlock-array':       { file: '../images/station/moments/win-airlock-array.jpg', at: [890, 250], win: [110, 110], fit: 1.06 }   // T52 · 11｜B119 重标：airlock 图内舱门舷窗（窗区＝舷窗玻璃圆面；T14 已入库）
+      'win-airlock-array':       { file: '../images/station/moments/win-airlock-array.jpg', at: [890, 250], win: [110, 110], fit: 1.06 },  // T52 · 11｜B119 重标：airlock 图内舱门舷窗（窗区＝舷窗玻璃圆面；T14 已入库）
+      /* —— 扩图批 T57~T72（B126 · 2026-10-04 到货 16/16；口径＝`docs/design-ui-v1.md` §7.4.1 到货登记表）——
+       * 注册集＝到货集；锚点＝表内建议初值（原图像素；w＝图宽÷场景宽），待 C 键标定（数据以标定值为准）；
+       * 呈现：横构图场景类＝`card:true`（T57/T59/T60/T65/T67/T70/T71），竖构图对象/角色张＝柔边椭圆；
+       * `laobu-point`（T72）＝覆盖卡，仅 file（几何唯一来源＝room-lab.figures.laobu，无 at／w）；
+       * 挂条件（§7.4.1 注册触发口径）：safe-open@9／firstaid-open@4／pods-check@17 挂 mIf；robot-rescue@37（16 本体不注册）。 */
+      'power-restore':      { file: '../images/station/moments/power-restore.jpg', at: [1370, 500], w: 0.30, card: true },   // T57 · 36｜闸门 pin '36' 下沿 → 暂定 [1370,500]
+      'safe-open':          { file: '../images/station/moments/safe-open.jpg', at: [770, 400], w: 0.18 },                    // T58 · 9·mIf／45｜保险柜 pin '45' 前下方
+      'panel-weld':         { file: '../images/station/moments/panel-weld.jpg', at: [1505, 820], w: 0.30, card: true },      // T59 · 19／39｜面板 pin '19' 一带
+      'broadcast':          { file: '../images/station/moments/broadcast.jpg', at: [450, 620], w: 0.28, card: true },        // T60 · 8｜控制台 pin '8' 下沿
+      'locker-emergency':   { file: '../images/station/moments/locker-emergency.jpg', at: [560, 640], w: 0.18 },             // T61 · 2｜暂沿自指 pin '2'
+      'chip-extract':       { file: '../images/station/moments/chip-extract.jpg', at: [300, 720], w: 0.18 },                 // T62 · 30｜工具柜 pin '30' 下沿
+      'gear-locker':        { file: '../images/station/moments/gear-locker.jpg', at: [1150, 640], w: 0.18 },                 // T63 · 11｜安保柜位（成图标定）
+      'spec-pickup':        { file: '../images/station/moments/spec-pickup.jpg', at: [560, 870], w: 0.18 },                  // T64 · 12③｜暂沿自指 pin '12'
+      'core-interfaces':    { file: '../images/station/moments/core-interfaces.jpg', at: [880, 800], w: 0.30, card: true },  // T65 · 12（首访默认）｜接口环 pin '34' 一带
+      'manifest-clue':      { file: '../images/station/moments/manifest-clue.jpg', at: [640, 600], w: 0.18 },                // T66 · 8｜控制台旁单据位（与 broadcast 错开）
+      'steam-dash':         { file: '../images/station/moments/steam-dash.jpg', at: [940, 620], w: 0.30, card: true },       // T67 · 13③｜总阀 pin '13' 一带
+      'firstaid-open':      { file: '../images/station/moments/firstaid-open.jpg', at: [1240, 400], w: 0.18 },               // T68 · 4·mIf｜急救箱位（墙角；避开铁头轮廓框）
+      'robot-rescue':       { file: '../images/station/moments/robot-rescue.jpg', at: [1430, 720], w: 0.18 },                // T69 · 37｜货架下拖动位 pin '37' 下沿
+      'pods-check':         { file: '../images/station/moments/pods-check.jpg', at: [1425, 470], w: 0.30, card: true },      // T70 · 17·mIf｜检查表板 pin '17' 下沿
+      'sangni-ambush':      { file: '../images/station/moments/sangni-ambush.jpg', at: [880, 830], w: 0.30, card: true },    // T71 · 29｜堆芯前阴影位（29 显式声明 scene）
+      'laobu-point':        { file: '../images/station/moments/laobu-point.jpg' }                                            // T72 · 25｜覆盖卡（几何＝room-lab.figures.laobu；无 at／w）
     },
 
     /* 帮助（玩法说明）：B04 整组换新稿＝11 条（`docs/design-ui-v1.md` §8.1 照抄区——氧气＝条＋数值、
@@ -437,6 +464,7 @@
 
       '2': { n: '睡眠舱', scene: 'room-sleep',   // B119：内景接线（T16 sleep.jpg 已入库）
         t: '你摸黑爬回自己的铺位。柜门卡得死紧，你咬着牙把它拽开，才摸到里面的应急包：工牌、手电，还有一支满气的氧气瓶——接上以后，氧气表涨了一小截。',
+        moments: ['locker-emergency'],   // B126（§7.4.1-5）：拽开卡死的柜门、应急包微光（T61；开局教学时刻）
         en: { once: true, gain: ['手电', '工牌', '氧气瓶'], oxygen: 10 },   // 氧气瓶 +15 ∕ 翻找 −5 = 净 +10
         c: [ { l: '回中央大厅。', to: '18' } ] },
 
@@ -469,6 +497,9 @@
         t: '安保队长铁头正举着两只哑铃，汗珠砸在地板上——站里的安全门，钥匙都在他手里。\n"断电？我以为是跳闸！"他放下哑铃，咧嘴一笑，"小身板，敢不敢掰手腕？"\n他忽然朝门口喊了一嗓子："仓库的门禁，是得盯紧点！"\n墙上的急救箱扣得死紧，一个人弄不下来。',
         chars: ['tietou'],
         moments: ['tietou-armwrestle'],   // B111（§7.4）：T18 未到货期间由浮现图 T41 补位（与 26 同图；零新图）
+        /* B126（§7.4.1-12）：急救箱开过（撬箱/请铁头/27① 共享标记）⇒ 追加 firstaid-open（T68）——挂 mIf
+         * （命中行完整替换：默认集保留＋追加）。 */
+        mIf: [ { cond: { chDone: '急救箱开过' }, moments: ['tietou-armwrestle', 'firstaid-open'] } ],
         /* B03 探索化：不再有进入效果；撬箱两路（③自撬 −5 ／ ④请铁头 0）共享 once 标记 */
         c: [
           { l: '⚔ 跟他掰手腕。（力气活——费力气，也费氧气。）', cond: { noKnows: '铁头已开门' }, to: '26' },
@@ -549,6 +580,7 @@
 
       '8': { n: '通讯舱', scene: 'room-comms',   // B119：内景接线（T21 comms.jpg 已入库）
         t: '通讯舱的屏幕上只有一行红字：「求救信号已发出——预计 6 小时后接通。」\n你心里一沉：6 小时？氧气撑不了那么久。\n控制台角落，一张货单被翻得乱七八糟——有人用笔改过上面的字。',
+        moments: ['broadcast', 'manifest-clue'],   // B126（§7.4.1-4/-10）：全站广播（T60）＋被改过的货单特写（T66；锚点与 broadcast 错开）
         c: [
           /* ① 隐形式（持账本才出现，§9.7-7）；② 查单＝once＋线索回执（B72） */
           { l: '把货单和账本对一对。', cond: { item: '桑尼的账本' }, once: true,
@@ -562,6 +594,9 @@
 
       '9': { n: '站长室', scene: 'room-captain',   // B119：内景接线（T11 captain.jpg 已入库——首轮五间）
         t: '站长室的门锁着。你隔着门上的小窗往里看：桌上留着半杯凉咖啡，墙角的保险柜指示灯一闪一闪。\n门边的读卡器还通着电——说不定，谁的工牌都能试一下。',
+        /* B126（§7.4.1-2）：柜门弹开＋授权卡＋便条（T58）——挂 mIf（chDone 开过保险柜）：未开柜时
+         * 「柜门弹开」与锁门状态相抵触；@45 默认＝仅开柜后可达。 */
+        mIf: [ { cond: { chDone: '开过保险柜' }, moments: ['safe-open'] } ],
         c: [
           /* ① 可尝试：成事（密码＋工牌/铁头）＋失败条×2（互斥；§9.7-9；B65：fx −10） */
           { l: '想办法进门，转动密码盘，打开保险柜。',
@@ -605,7 +640,7 @@
 
       '11': { n: '气闸舱', scene: 'room-airlock',   // B119：内景接线（T14 airlock.jpg 已入库——首轮五间）
         t: '墙上的安保柜没锁——里面有一双磁力靴和一支电击棒。\n透过舷窗，站外的太阳能板阵列正在木星的阴影里一闪一闪。',
-        moments: ['win-airlock-array'],   // B04（§7.5）：舷窗阵列窗景（T52；原位对齐——窗区几何待 T14 验收测量）
+        moments: ['win-airlock-array', 'gear-locker'],   // B04（§7.5）：舷窗阵列窗景（T52）；B126（§7.4.1-7）：安保柜打开·磁力靴＋电击棒（T63）
         c: [
           { l: '打开安保柜，把磁力靴和电击棒拿上。', once: '取了磁力靴', fx: { gain: ['磁力靴', '电击棒'] }, to: '11' },
           /* ② 可尝试双条目（§9.7-15） */
@@ -620,6 +655,8 @@
 
       '12': { n: '反应堆舱', scene: 'room-reactor',   // B119：内景接线（T12 reactor.jpg 已入库——首轮五间）
         t: '冷下来的堆芯像一颗熄灭的太阳，每一口呼吸都带着凉气（每次进入 −10 点氧气）。\n三个接口空着，接口旁的铭牌刻着各自要接的东西：控制芯片、冷却剂、站长授权卡。\n墙角的地上，飘着半页打印纸。',
+        /* B126（§7.4.1-9/-8）：冷堆芯近景＋三个空接口（T65；首访默认）＋手电光束捡纸（T64；对象时刻＝节点默认集）。 */
+        moments: ['core-interfaces', 'spec-pickup'],
         en: { oxygen: -10 },
         c: [
           { l: '你刚踏进来，身后的舱门"咔哒"一声锁上了……', cond: { knows: '收了桑尼的贿赂' }, to: '29' },
@@ -643,6 +680,7 @@
 
       '13': { n: '冷却塔', scene: 'room-cooling',   // B119：内景接线（T22 cooling.jpg 已入库——P2b 并批）
         t: '白色蒸汽从管道的缝里滋滋地冒出来（每次进入 −5 点氧气）。总阀就在蒸汽正中间；蒸汽对面，像是有一排挂架——看不清上面放着什么；再往里，只有盘根错节的热管——挤不过去。',
+        moments: ['steam-dash'],   // B126（§7.4.1-11）：白汽涌屏、捂口鼻冲过（T67；横构图圆角卡）
         en: { oxygen: -5 },
         c: [
           /* ① ② 各为可尝试双条目（§9.7-20/21） */
@@ -739,6 +777,8 @@
         /* B03 复检收口（§1 ③：复访写回自写句，授权原文入报告后回填圣经 §7）：检查表查过 ⇒ 不再写「还空着」。 */
         tIf: [ { cond: { knows: '逃生舱检查过' },
           t: '三枚金色胶囊安静地悬在发射轨道上；检查表上，三个格子都打上了勾。墙边的应急柜里，绳索和一面应急盾码得整整齐齐。' } ],
+        /* B126（§7.4.1-14）：检查表打勾＋三枚胶囊（T70）——挂 mIf（knows 逃生舱检查过，与 T79 变体同条件）。 */
+        mIf: [ { cond: { knows: '逃生舱检查过' }, moments: ['pods-check'] } ],
         c: [
           { l: '按检查表，把三枚逃生舱挨个检查一遍。', cond: { noItem: '逃生舱钥匙' }, once: true,
             fx: { gain: ['逃生舱钥匙'], learn: '逃生舱检查过' }, to: '21' },
@@ -774,6 +814,7 @@
 
       '19': { n: '太阳能板阵列（舱外）', scene: 'exterior',   // B119：气闸舱内景需要「出舱」pin（19）⇒ 显式声明站外场景（否则该编号多点命中）
         t: '木星在脚下慢慢地转。一片面板被太空碎片砸出一个大洞，边缘还冒着细碎的火花（每次出舱 −15 点氧气）。\n修好它，站里的电力才有来源。',
+        moments: ['panel-weld'],   // B126（§7.4.1-3）：破洞面板＋弧光（T59；圆角卡——小帮手代焊版同图）
         en: { oxygen: -15 },
         c: [
           /* ① 可尝试双条目（§9.7-34）；② 隐形式＋命名标记（§9.7-35） */
@@ -875,6 +916,7 @@
       '25': { n: '老布的委托', scene: 'room-lab',   // B119：房内后继事件——显式声明（读档/直进也落回实验室内景）
         t: '"箱子是红漆的，上面贴着一张写着「闲人勿动」的纸。"老布把检修口的铁盖指给你看，\n"维修区满地零件，我的宝贝就埋在里头——对了，那儿有台卡住的小机器人；你要是顺手，也替我瞧它一眼。"\n他拍了拍脑门："哦对——站里的门禁，钥匙都在安保队长铁头那儿。你要是被门拦住了，就提我：他还欠我三盒零件没还呢！"',
         chars: ['laobu'],   // B04（§7.6）：在场表补登记（老布把检修口的铁盖指给你看）
+        moments: ['laobu-point'],   // B126（§7.4.1-16）：老布仰头指检修口（T72，2026-10-04 到货）——覆盖卡，无 at／w（几何＝room-lab.figures.laobu）
         /* B71：委托去线索化——不再 learn（保留 once 锚点）；4②/16③ 前置改 pinsAll 25 */
         en: { once: true },
         c: [
@@ -929,13 +971,15 @@
         /* 持账本版（先匹配者为准） */
         tIf: [ { cond: { item: '桑尼的账本' }, t: '银河蹲在你脚边舔爪子，看都不看那本本子——它觉得这买卖很划算。' } ] },
 
-      '29': { n: '被制服',
+      '29': { n: '被制服', scene: 'room-reactor',   // B126（§7.4.1-15）：须显式声明（否则 sceneOfNode＝null——枚举缺场景、读档不落位）
         t: '桑尼从阴影里走出来，你身后传来无人机嗡嗡的声音。\n"我提醒过你的，"他叹了口气，"别往反应堆跑。"眼前一黑——你被人拖走了。',
         chars: ['sangni'],
+        moments: ['sangni-ambush'],   // B126（§7.4.1-15）：桑尼从阴影走出＋无人机红点（T71；失败节点配图——全发裁定）
         fail: true },
 
       '30': { n: '自己拆芯片', scene: 'room-lab',   // B119：房内后继事件——显式声明（无 pin；读档/直进也落回实验室内景）
         t: '工具柜的后面，就是爬道出口藏身的死角。柜子最上层，一枚亮晶晶的控制芯片装在小袋子里——你屏住呼吸，踮起脚把它取了下来。',
+        moments: ['chip-extract'],   // B126（§7.4.1-6）：工具柜里拆下芯片（T62；“自取”路线画面）
         en: { once: true, gain: ['控制芯片'] },
         c: [
           { l: '把芯片收好，顺着维修爬道滑回维修区（16）。', to: '16' },
@@ -985,6 +1029,7 @@
 
       '36': { n: '合闸', scene: 'room-solarctl',   // B119：房内后继事件——显式声明（与 pins '36' 同口径）
         t: '闸门推上去的一瞬间，整座站"活"了过来：灯一盏一盏亮起，走廊里的风声、水泵声、还有人哼歌的声音，全回来了。\n广播里，一个平稳的声音："电力恢复，各系统陆续上线——{me}，剩下的交给你了。"',
+        moments: ['power-restore'],   // B126（§7.4.1-1）：整站灯亮起、暖光回涌（T57；圆角卡——全关世界状态分界）
         en: { once: true, learn: '全站复电' },
         c: [
           { l: '回底层大厅。', to: '21' },
@@ -995,7 +1040,7 @@
 
       '37': { n: '收编维修机器人', scene: 'room-maintenance',   // B119：房内后继事件——显式声明（与 pins '37' 同口径）
         t: '维修机器人绕着你转了两圈，然后"哔"地一下站到你脚边——是你把它从被压住的地方解放出来的，它认准了你：它决定跟着你了。\n"哔——"它响亮地应了一声；从今天起，它就叫"小帮手"。\n有它在，打架的时候你多一分底气。',
-        moments: ['helper-join'],   // B04（§7.4）：小帮手站在你脚边（T55）
+        moments: ['helper-join', 'robot-rescue'],   // B04（§7.4）：小帮手站在你脚边（T55）；B126（§7.4.1-13）：拖出机器人的前史（T69）——16 本体不注册（防双现）；两图锚点错开
         en: { once: true, learn: '机器人小帮手' },   // 后续战斗 +1 武力（meta.atkFromClues）
         c: [
           { l: '带着它回底层大厅。', to: '21' },
@@ -1012,8 +1057,9 @@
           { l: '回底层大厅。', to: '21' }
         ] },
 
-      '39': { n: '修好太阳能板',
+      '39': { n: '修好太阳能板', scene: 'exterior',   // B126（§7.4.1-3）：须显式声明（站外后继——否则 sceneOfNode＝null：枚举缺场景、读档不落位）
         t: '弧光在木星的光里一闪一闪。面板补好了，电流顺着缆线往站里跑。\n站里的灯，应该亮起来了。',
+        moments: ['panel-weld'],   // B126（§7.4.1-3）：与 19 同图（焊好成功；对象时刻＝节点默认集）
         en: { once: true, learn: '太阳能板已修好', oxygen: -5 },   // 焊接作业 −5 氧（R05）
         c: [
           { l: '再看一眼新面板。', to: '19' },
@@ -1082,6 +1128,7 @@
 
       '45': { n: '保险柜', scene: 'room-captain',   // B119：房内后继事件——显式声明（与 pins '45' 同口径）
         t: '密码盘"咔"地转到最后一位——柜门弹开了。\n厚绒布上躺着一张备用的站长授权卡；旁边还压着一张折起来的便条，落款是伊莲娜。',
+        moments: ['safe-open'],   // B126（§7.4.1-2）：柜门弹开＋授权卡＋便条（T58；@9 同图挂 mIf）
         en: { once: true, gain: ['站长授权卡', '站长的便条'] },
         c: [
           { l: '把东西收好，回中层大厅。', to: '20' },
