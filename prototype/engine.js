@@ -65,6 +65,16 @@
  *       几何唯一来源＝figures（覆盖图去 at／w）；换态不换位；z 序在其它浮现图之上（不越到编号层之上）；
  *       未标定／缺图 ⇒ 该张不渲染＋一行告警；C 键校准扩展两点定框（figures 标定通道，屏上给数值行）。
  *
+ * B122／B123／B124／B125 改动（2026-10-04 表现体系与文案口径轮；口径＝design-ui-v1.md §7.10/§7.11/§6.3/§1.1/§7.3、
+ *   design-station-v1.md §4.1；能力登记＝design-station-v1.md §7-E26）：
+ *   E26 背景状态变体（Core.sceneEntry）：scenes[].variants=[{cond,image,width,height,figures?}] 先匹配者为准、
+ *       命中行完整替换基础条目字段（图／宽高／figures）；全不命中＝基础条目；变体图缺图 ⇒ 运行期回落基础图＋一行告警；
+ *       覆盖卡按生效 figures 判（变体感知）；几何随 plan 就地刷新（复用元素：同 plan 零改动、变则跟上——不重建不闪）；
+ *       无独立状态位——条件驱动，进房/读档按 st 重算即落位
+ *   B123 到达提示（Core.arriveText）：房间（room-*）＝「到达：<房间名>」（无 🛗）；其余场景＝「🛗 到达：<场景标>」
+ *   B124 覆盖确认同源（Core.coverAsk）：卡片侧与局内重开同一句（单一来源，不得各写一份）
+ *   B125 每房自指 pin：pins[<本房节点号>]＝标记载体（点击＝空操作）；无浮图时承担「你在这里」标记与遮罩开孔（数据面）
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
@@ -136,6 +146,25 @@
     sceneOf(st) {
       const sid = st && st.scene;
       return (sid && D.scenes[sid]) ? sid : Core.defaultScene();
+    },
+    /* 场景标：label 优先；缺省＝name「·」后段（既有口径；B123 起口径单源在此） */
+    sceneLabel(sid) {
+      const sc = (D && D.scenes[sid]) || null;
+      if (!sc) return '';
+      if (sc.label) return sc.label;
+      const parts = String(sc.name || '').split('·');
+      return (parts[parts.length - 1] || sc.id).trim();
+    },
+    /* 到达提示（B123 · 2026-10-04 裁定 · §6.3）：房间（room-*）＝「到达：<房间名>」（无 🛗；
+     * 房间名＝name「·」后段）；其余场景（大厅/走廊/站外）＝保留现形「🛗 到达：<场景标>」。 */
+    arriveText(sid) {
+      const sc = (D && D.scenes[sid]) || null;
+      if (!sc) return '';
+      if (/^room-/.test(sid)) {
+        const parts = String(sc.name || '').split('·');
+        return '到达：' + ((parts[parts.length - 1] || sc.id).trim());
+      }
+      return '🛗 到达：' + Core.sceneLabel(sid);
     },
 
     /* ---- 通用资源（v0.2）：资源直接住在 state 的同名字段上（coins / oxygen / …） ---- */
@@ -311,6 +340,9 @@
       const n = (lv && lv.nodes && st.loc) ? lv.nodes[st.loc] : null;
       return !!(n && (n.win || n.fail));
     },
+    /* B124（§1.1/D65）：开新局覆盖确认＝**唯一采用句**——卡片侧（`cardInfo.coverAsk`）与局内重开（`restart`）
+     * 同源这一份（不得各写一份）。 */
+    coverAsk() { return '开始新局会覆盖本关的旧存档（通关记录保留）。确定开始？'; },
     /* 关卡卡片三态与记录块（渲染与机检同源——DOM 与测试用同一份判定）：
      * buttons＝[{key,label,main,confirm}]；无档「开始」／未结束「继续＋重新开始」／已结束「重玩」；
      * 新局覆盖已有存档前统一一句确认（confirm）；「继续」不受难度选择影响（存档自带难度）。 */
@@ -333,7 +365,7 @@
         recordLine: record.length ? ('🏆 通关记录：' + record.join('、')) : '',
         failLine: (ended && !won) ? '上局结束：未通关' : '',        // 失败终止：只报一句（失败不写记录）
         note: '进度存在这台设备的浏览器里（各人各份）',
-        coverAsk: '开始新局会覆盖本关的旧存档（通关记录保留）。确定开始？'
+        coverAsk: Core.coverAsk()          // B124：与局内重开同一句（单一来源）
       };
     },
 
@@ -451,22 +483,40 @@
 
     /* ---- §7 浮现图（两层制 L2）---- */
     momentDef(id) { return (D && D.moments && D.moments[id]) || null; },
+    /* ---- B122（§7.10 背景状态变体）：场景**生效条目**＝变体首匹配（先匹配者为准）＋缺省回落基础条目；
+     * image／width／height／figures 单源（命中行完整替换对应字段）；全不命中 ⇒ 基础条目（现状）；
+     * st 缺省（纯数据面/未开局）＝基础条目。figures 解析＝命中变体**给出** figures 时整表替换
+     * （`{}`＝该状态无同框面）否则基础 figures；未注册的变体＝不存在（无补丁路径）。 ---- */
+    sceneEntry(st, sid) {
+      const id = sid || (st ? Core.sceneOf(st) : null);
+      const sc = (D && D.scenes[id]) || null;
+      if (!sc) return null;
+      const hit = ((st && sc.variants) || []).find(v => Core.condOk(st, v.cond)) || null;
+      return {
+        id: id, scene: sc, variant: hit,
+        image: (hit && hit.image != null) ? hit.image : sc.image,
+        width: (hit && hit.width != null) ? hit.width : sc.width,
+        height: (hit && hit.height != null) ? hit.height : sc.height,
+        figures: (hit && hit.figures != null) ? hit.figures : (sc.figures || null)
+      };
+    },
     /* ---- B120（§7.3 同框全覆盖）：覆盖卡判定与几何（纯面；DOM 层与测试同源调用）----
-     * 同框＝角色图 L2（id 首段 ∈ characters）指向角色 C，且 C ∈ 本场景 L1 可见角色（scenes[].figures）；
+     * 同框＝角色图 L2（id 首段 ∈ characters）指向角色 C，且 C ∈ 本场景 L1 可见角色（**生效** figures——
+     * B122：变体命中 ⇒ 按变体后的 L1 判，§7.10 协作②）；
      * 渲染判据＝数据（新图/新场景自动纳入）；例外可 cover:false 显式关（默认不写，初始为空）。 */
     charIdOf(id) { const p = String(id).split('-')[0]; return (D && D.characters && D.characters[p]) ? p : null; },
-    figuresOf(sid) { const sc = (D && D.scenes[sid]) || null; return (sc && sc.figures) || null; },   /* §7.10 变体接入点（另一轮） */
-    coverBox(id, sid) {
-      const cid = Core.charIdOf(id), figs = Core.figuresOf(sid);
+    figuresOf(sid, st) { const e = Core.sceneEntry(st, sid); return (e && e.figures) || null; },
+    coverBox(id, sid, st) {
+      const cid = Core.charIdOf(id), figs = Core.figuresOf(sid, st);
       return (cid && figs && figs[cid]) ? figs[cid] : null;
     },
     /* 覆盖判定单点：'cover'＝同框且已标定 ⇒ 覆盖卡；'uncalibrated'＝角色图**未给任何几何**
      * （无 at／w／win——几何唯一来源＝figures）而 figures 未标定 ⇒ 该张不渲染（DOM 层出一行告警）；
      * 'none'＝走既有锚点／对称摆放（§7.3：w 默认 0.22、未给锚点时左右对称——二者均不属“待标定”）。 */
-    coverState(id, sid) {
+    coverState(id, sid, st) {
       const def = Core.momentDef(id), cid = Core.charIdOf(id);
       if (!def || !cid || def.cover === false) return 'none';
-      if (Core.coverBox(id, sid)) return 'cover';
+      if (Core.coverBox(id, sid, st)) return 'cover';
       return (!def.at && !def.w && !def.win) ? 'uncalibrated' : 'none';
     },
     /* 覆盖卡几何（§7.3 全覆盖判据）：锚＝轮廓框中心；卡面＝轮廓框每侧外扩 max(12 原像素, 该边×8%) */
@@ -491,12 +541,12 @@
     /* 注册表条目 → 场景像素布局：锚点＝原图像素（角色图＝底边中点、窗景＝窗区中心）；
      * 尺寸：角色图宽＝场景宽 × w（默认 0.22）；窗景＝窗区 × fit（默认 1.06）。
      * idx/total 只服务「未给锚点」的兜底摆放（左右对称：中心 ±0.32×场景宽、底边对齐）。 */
-    momentLayout(id, sid, idx, total) {
+    momentLayout(id, sid, idx, total, st) {
       const def = Core.momentDef(id);
       const sc = (D && D.scenes[sid]) || null;
       if (!def || !sc || !def.file) return null;
-      const cstate = Core.coverState(id, sid);
-      if (cstate === 'cover') return Core.coverPlan(id, Core.coverBox(id, sid));   // B120：覆盖卡（几何＝figures）
+      const cstate = Core.coverState(id, sid, st);
+      if (cstate === 'cover') return Core.coverPlan(id, Core.coverBox(id, sid, st));   // B120：覆盖卡（几何＝生效 figures；B122 变体感知）
       if (cstate === 'uncalibrated') return null;                                  // B120：未标定轮廓框 ⇒ 不渲染
       const card = !!def.card, lighten = !!def.lighten;
       if (def.win) {
@@ -1023,37 +1073,52 @@
   }
 
   /* ---------- 场景（v1.2 双区域 → v0.2 多场景通用） ---------- */
-  function sceneLabel(sid) {
-    const sc = D.scenes[sid];
-    if (!sc) return '';
-    if (sc.label) return sc.label;
-    const parts = String(sc.name || '').split('·');
-    return (parts[parts.length - 1] || sc.id).trim();
-  }
-  /* 同步当前场景：背景图 / 遮罩尺寸 / 舞台比例 / 场景角标；变化时复位视图并提示一次 */
+  function sceneLabel(sid) { return Core.sceneLabel(sid); }   // B123：口径单源＝Core.sceneLabel（到达提示与角标同源）
+  /* 同步当前场景：背景图 / 遮罩尺寸 / 舞台比例 / 场景角标；变化时复位视图并提示一次。
+   * B122（§7.10）：图／宽高走 Core.sceneEntry（变体首匹配、逐帧求值——条件变化同帧生效，场景不变也重算）；
+   *   变体图运行期加载失败 ⇒ 回落基础图渲染＋控制台一行告警（不空白、不破图）——同一失败图不重复重试。
+   * B123（§6.3）：到达提示＝Core.arriveText（房间＝「到达：<房间名>」无 🛗；其余＝现形）。 */
   function applyScene() {
     const sid = st ? Core.sceneOf(st) : Core.defaultScene();
-    if (!sid || sid === curScene) return;
-    const first = curScene === null;
-    curScene = sid;
+    if (!sid) return;
     const sc = D.scenes[sid];
+    const entry = Core.sceneEntry(st, sid);          // §7.10 单源：全不命中＝基础条目（现状）
+    const first = curScene === null;
+    if (sid !== curScene) {
+      curScene = sid;
+      momentLive = {};               // B04（§7.3）：换场景 ⇒ 浮现层清空重渲染（不跨节点/场景驻留）
+      $('momentLayer').innerHTML = '';
+      resetView();
+      if (calib) calibRedraw();      // B120：校准模式中换场景 ⇒ 重画标定层（既有 figures 虚线框）
+      imgFailReset();
+      if (!first && st) toast(Core.arriveText(sid));   // B123：房间＝到达：<房间名>；其余＝现形
+    }
     const img = $('sceneImg');
-    img.src = sc.image;              // 图片路径只来自关卡数据（levels/*.js）
     img.alt = sc.name + ' 场景图';
-    momentLive = {};                 // B04（§7.3）：换场景 ⇒ 浮现层清空重渲染（不跨节点/场景驻留）
-    $('momentLayer').innerHTML = '';
-    $('dimSvg').setAttribute('viewBox', '0 0 ' + sc.width + ' ' + sc.height);
+    if (img.dataset.src !== entry.image && img.dataset.fail !== entry.image) {   // 同图不重设（避免重复加载/闪烁）
+      img.dataset.src = entry.image;
+      img.src = entry.image;           // 路径只来自关卡数据（levels/*.js）
+    }
+    /* 变体图缺图兜底（§7.10）：加载失败 ⇒ 回落基础图渲染＋一行告警；基础图失败＝不重复触发（照旧交浏览器） */
+    img.onerror = () => {
+      const cur = img.dataset.src;
+      if (!cur || cur === sc.image) return;
+      img.dataset.fail = cur;          // 记下失败图：同一图不重复重试（条件恢复/重进房时由 imgFailReset 清）
+      console.warn('背景状态变体缺图（回落基础图）：' + cur);
+      img.dataset.src = sc.image;
+      img.src = sc.image;
+    };
+    $('dimSvg').setAttribute('viewBox', '0 0 ' + entry.width + ' ' + entry.height);
     [$('maskRect'), $('dimRect')].forEach(r => {
-      r.setAttribute('width', sc.width);
-      r.setAttribute('height', sc.height);
+      r.setAttribute('width', entry.width);
+      r.setAttribute('height', entry.height);
     });
-    $('stage').style.setProperty('--scene-w', sc.width);
-    $('stage').style.setProperty('--scene-h', sc.height);
-    $('sceneTag').textContent = sceneLabel(sid);
-    resetView();
-    if (calib) calibRedraw();          // B120：校准模式中换场景 ⇒ 重画标定层（既有 figures 虚线框）
-    if (!first && st) toast('🛗 到达：' + sceneLabel(sid));
+    $('stage').style.setProperty('--scene-w', entry.width);
+    $('stage').style.setProperty('--scene-h', entry.height);
+    $('sceneTag').textContent = Core.sceneLabel(sid);
   }
+  /* 换场景＝重试一次变体图（清失败记忆：T73~T79 直入目录后，重进房间即生效） */
+  function imgFailReset() { const img = $('sceneImg'); img.dataset.fail = ''; }
 
   /* ---------- 关卡选择页（v0.2；B115＋B117＝§1.1 重订） ---------- */
   /* B117（§1.1 老板 2026-10-04 裁定）：读档功能恢复——卡片三态：无存档「开始」／未结束「继续＋重新开始」／
@@ -1218,7 +1283,7 @@
     renderAll();
   }
   function restart() {
-    if (!confirm('重新开始？本关进度将清空。')) return;
+    if (!confirm(Core.coverAsk())) return;   // B124（§1.1）：与卡片侧同一采用句（单一来源）
     st = Core.newState(st ? st.diff : 'normal', st ? st.me : Core.playerName(store));
     curScene = null;
     hudPrev = null;
@@ -1495,15 +1560,25 @@
 
   /* ---------- B04（§7）：浮现层（L2）——节点 moments/mIf 求值 → 场景叠层；缺图不渲染、不留位 ---------- */
   let momentLive = {};   // id → 元素（同场景内续存的元素；退场时淡出后移除，出现时不重复淡入）
-  function createMomentEl(id, def, plan, sc, i) {
-    const d = document.createElement('div');
-    d.className = 'moment' + (plan.win ? ' win' : '') + (plan.card ? ' card' : '') + (plan.cover ? ' cover' : '') + (plan.lighten ? ' lighten' : '');
-    d.dataset.moment = id;
-    d.dataset.scene = Core.sceneOf(st);
+  /* B122：浮现图几何／类名按 plan 落位；plan 变了 ⇒ 就地刷新（复用元素、不重建、不闪）——
+   * 覆盖卡几何随「生效 figures」（变体换表时同帧跟上）；同一 plan ⇒ 一个字节不动（B120「换态不换位」）。 */
+  function momentClassOf(plan) {
+    return 'moment' + (plan.win ? ' win' : '') + (plan.card ? ' card' : '') + (plan.cover ? ' cover' : '') + (plan.lighten ? ' lighten' : '');
+  }
+  function momentKey(plan) { return [momentClassOf(plan), plan.x, plan.y, plan.w, plan.h || 0].join('|'); }
+  function applyMomentGeom(d, plan, sc) {
+    d.className = momentClassOf(plan);
     d.style.left = (plan.x / sc.width * 100) + '%';            // 锚点＝原图像素（与 pins 同口径）
     d.style.top = (plan.y / sc.height * 100) + '%';
     d.style.width = (plan.w / sc.width * 100) + '%';
-    if (plan.h) d.style.height = (plan.h / sc.height * 100) + '%';
+    d.style.height = plan.h ? (plan.h / sc.height * 100) + '%' : '';
+    d.dataset.plan = momentKey(plan);
+  }
+  function createMomentEl(id, def, plan, sc, i) {
+    const d = document.createElement('div');
+    applyMomentGeom(d, plan, sc);
+    d.dataset.moment = id;
+    d.dataset.scene = Core.sceneOf(st);
     const img = document.createElement('img');
     img.className = 'momentImg';
     img.alt = '';
@@ -1525,9 +1600,9 @@
     const next = {};
     ids.forEach((id, i) => {
       const def = Core.momentDef(id);
-      const plan = Core.momentLayout(id, sid, i, ids.length);
+      const plan = Core.momentLayout(id, sid, i, ids.length, st);   // B122：覆盖几何按生效 figures（变体感知）
       if (!def || !plan) {                                     // id 未注册 ⇒ 忽略该条
-        if (def && Core.coverState(id, sid) === 'uncalibrated') {
+        if (def && Core.coverState(id, sid, st) === 'uncalibrated') {
           console.warn('浮现图未标定轮廓框（已跳过）：' + id);   // B120（§7.3）：figures 缺 ⇒ 不渲染＋一行告警
         }
         return;
@@ -1535,6 +1610,7 @@
       let d = momentLive[id];
       if (d && d.dataset.scene !== sid) { d.remove(); d = null; }
       if (!d) { d = createMomentEl(id, def, plan, sc, i); layer.appendChild(d); }
+      else if (d.dataset.plan !== momentKey(plan)) applyMomentGeom(d, plan, sc);   // B122：几何随 plan 刷新（有变才改）
       next[id] = d;
     });
     Object.keys(momentLive).forEach(id => {                    // 退场：淡出 0.25s 后移除（§7.3）

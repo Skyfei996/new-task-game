@@ -619,4 +619,68 @@ VERDICT: pass
 - 代码评审（advisor·code，2 轮）：第 1 轮 **pass**（0🔴／2🟡 可选／2🔵）；采纳并已修 2 项——① `coverState` 判据收紧（`!def.at && !def.w && !def.win`——角色图「有 w 无 at」不再误判待标定，走既有对称摆放；同步加探针断言）② test §18-11 文案与出处校正（yilanna 一条＝基图暂值）。第 2 轮逐条复验：**pass**、无新增问题。
 - 终态：**clean**（三闸＋两冒烟复跑全绿；无遗留必须修项；2 项父侧报告项：增量基准、B122 协调项）。
 
+### 追加 · B122 背景状态变体＋B123/B124/B125＋§7.7-12（表现体系实现轮 · eng-coder · 2026-10-04）
+
+**状态行**：实施完成（三闸 569／2177／420 ＋ DOM 冒烟 43/0（临时脚本·用后已删）＋ 示例关与站关 CLI 冒烟；内部偏离审计 1 轮＋代码评审 2 轮，终态 **pass**、0🔴）
+
+#### 5.1 交付摘要
+
+- **B122 背景状态变体**（口径＝`design-ui-v1.md` §7.10/§7.11）：`engine.js` 新增 `Core.sceneEntry(st,sid)`——按数组序取首个 `cond` 命中者、命中行完整替换 `image/width/height/figures`、全不命中＝基础条目、`st` 缺省＝基础条目；`figuresOf`／`coverBox`／`coverState`／`momentLayout` 增尾参 `st`（旧调用不传＝基础值，向后兼容）；`applyScene` 改走 `sceneEntry`（图／宽高／viewBox／舞台变量逐帧求值——条件变化同帧生效），变体图 `onerror` ⇒ 回落基础图＋一行告警（`dataset.fail` 记失败图、换场景 `imgFailReset` 清 ⇒ 重进房重试一次）；覆盖几何随 plan 就地刷新（复用元素、同 plan 零改动）。
+- **7 条注册**（数据面唯一新增，条件逐字＝§7.11 行 1~7）：T73 `medbay-awake`（`pinsAll['24']`）／T74 `maintenance-free`（`knows'机器人小帮手'`）／T75 `observation-catgone`（`chDone'跟胖胖打过招呼'`）／T76 `warehouse-clear`（`any[收贿, pinsAll31, pinsAll32]`）／T77 `gym-firstaid-open`（`chDone'急救箱开过'`）／T78 `captain-safeopen`（`chDone'开过保险柜'`）／T79 `escapepod-checked`（`knows'逃生舱检查过'`）；图路径＝`../images/station/rooms/<资产 id>.jpg`、宽高＝基础图同值（1659×948／1792×1121 两档）；T75 带 `figures: {}`（该状态无同框面——不回落基础表，防误判覆盖卡）。
+- **与 L2 的收窄**（§7.11 末）：节点 3 `mIf` 的 pinsAll24 分支改**空集**（状态由变体承担）；苏醒时刻本身（N24）保留 `yilanna-awake`。
+- **B123 到达提示**：`Core.arriveText` 口径单源——房间（`room-*`）＝「到达：<房间名>」**无 🛗**；其余＝「🛗 到达：<场景标>」；`sceneLabel` 上收 Core（角标与 toast 同源）。
+- **B124 重开确认同句**：`Core.coverAsk()` 单源——卡片侧（`cardInfo.coverAsk`）与 `restart()` 同一句；engine 源码内采用句恰 **1** 处。
+- **B125 每房自指 pin**：17 房 `pins[<本房节点号>]` **全覆盖（无例外）**＝标记载体/点击＝空操作；无浮图时承担「你在这里」标记与遮罩开孔（N14 回归样本：持监控回放 ⇒ 浮现集空 ⇒ 标记回来，载体＝room-server 自指 pin `'14'`）。
+- **§7.7-12 完备性机检**：全场景×全 L2 枚举 **20** 条组合全分类（覆盖卡 6／变体 1／对象时刻 3／无对应 10），未登记 0、死行 0；三条零双现判据逐条；含 T72 `laobu-point` 合成注册「图到自动纳入」证据。
+- **测试面**：`test.station.mjs` 新增 §20 五块（变体五条机检／到达提示／重开同句／自指 pin／完备性）；既有断言同步（§18-7 N3 空集与覆盖卡 8→7 组、§18-11 计数 4 项、§19-2 自指 pin 豁免＋每房自指 pin、§19-4 补 24 号组合、文件头补一轮说明）。
+
+#### 5.2 改动文件（3 个，与 spawn 文件域一致）
+
+| 文件 | 改动后行数 | 改动 |
+|---|---|---|
+| `prototype/engine.js` | 2162 | Core 新增 `sceneLabel/arriveText/coverAsk/sceneEntry`；`figuresOf/coverBox/coverState/momentLayout` 变体感知（尾参 st）；`applyScene` 重写（逐帧求值＋到达文案＋缺图兜底）；`restart()` 用 `Core.coverAsk()`；浮现层 `momentClassOf/momentKey/applyMomentGeom`（几何随 plan 刷新）；文件头补本轮口径块 |
+| `prototype/levels/station.js` | 1122 | 7 房 `scenes['room-*'].variants`；17 房自指 pin；节点 3 `mIf` 改空集；段注释与文件头同步（自指 pin／变体口径） |
+| `prototype/test.station.mjs` | 3301 | 新增 §20（五块）；ROOM_PINS 补 14 条自指 pin；§18-7／§18-11／§19-2／§19-4 同步；文件头补一轮说明 |
+
+#### 5.3 决策透明表（本轮关键口径决策）
+
+| 决策 | 取值 | 理由／披露 |
+|---|---|---|
+| 自指 pin 覆盖面＝**17 房**（非任务书所引「6 房（2/7/9/12/15/16）」） | 每房 `pins[<本房节点号>]`，无例外 | 设计 v1.8 上抛③明写「6 房＝症状子集，统一口径（每房）已全部覆盖」；B125＝17 房 |
+| `medbay-awake` 不写 `variant.figures` | 变体命中时回落基础表（卧姿框 [690,255,195,180]） | T73 未出图、苏醒姿框无法标定；设计 §7.3 第 3 行自排「T73 出图后标定」——**到货同批必须补**（评审 🟡2） |
+| `observation-catgone` 写 `figures: {}` | 该状态无同框面（无猫） | §7.10 协作②明写；不替则回落基础表＝把已离场的猫当可覆盖对象 ⇒ 误判覆盖卡（审计 D1 需修项） |
+| 变体图未到＝**注册先行** | 7 条先注册；运行期缺图 ⇒ 回落基础图＋一行告警 | 父侧任务书「7 条注册＋兜底」；§7.10「缺图兜底」明列「文件缺失」为回落触发；T73~T79 到货即生效（数据零改） |
+| 覆盖几何随 plan 就地刷新 | 复用元素、`momentKey` 变则改（同 plan 零改动） | 评审 🔵6（潜伏项）：变体换 `figures` 时卡面须跟新轮廓框；同 plan 不动保 B120「换态不换位」 |
+| 测试 §20-5 登记表写死今日 20 组合 | 未登记 0 / 死行 0 双断言 | 与设计轮实跑同口径（20/6/1/3/10）；**§7.9 扩图批注册落地时须同批扩表** |
+
+#### 5.4 验证证据（命令＋读数）
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 引擎核心 | `node prototype/test.core.mjs` | 通过 **569** / 失败 0 |
+| 站关自测 | `node prototype/test.station.mjs` | 通过 **2177** / 失败 0（基线 2092；+85＝§20 五块＋既有面同步） |
+| CLI 自测 | `node prototype/test.play.mjs` | 通过 **420** / 失败 0（含 A 路线真走一遍到结局 41 与 `--player` 玩家模式——站关主线与玩家面在闸内） |
+| DOM 冒烟（临时） | `node .playtest/b04-122-smoke.mjs`（用后已删） | **43 通过 / 0 失败**：读档变体渲染（`src`＝observation-catgone.jpg）／同条件收窄 L2（猫退场、窗景照旧）／变体图 onerror ⇒ `src` 回落基础图＋一行告警＋不重复告警＋无占位框／换场景重试变体图／到达提示（房间无 🛗、大厅现形）／17 房自指 pin 与遮罩开孔（560,560）＋点击空操作／重开与卡片同句（确认串逐字）／覆盖几何随变体 figures 就地刷新（复用元素，左/上/宽 三个百分比实算对拍） |
+| CLI 冒烟（示例关） | `node tools/play.mjs new dalim` ＋ `auto --steps 15 --seed 7` | 首屏 1 · 停车场（三选项）；auto 正常收尾「第 15 步／已探索 8 处」（与既有基线一致） |
+| CLI 冒烟（站关＋玩家面） | `node tools/play.mjs new station` ＋ 两条 `choose` ＋ `--player` 三屏 | 1 · 食堂（scene room-galley）→ 中央大厅 → 睡眠舱；`--player` 无编号/无场景 id 泄漏、氧气档位行照旧 |
+| 语法 | `node --check`（引擎/关卡）＋ lint | 全 OK |
+| 不变量 | `git status` | 改动面＝上表 3 文件；未碰 `docs/**`、`art/**`、`tools/**`、`images/**`；示例关（dalim）零变化（无 variants、无 room-* 场景、到达提示全走现形分支——套件断言） |
+
+#### 5.5 内部偏离审计与代码评审（轮次 · 发现 · 终态）
+
+- **偏离审计（explore · 1 轮）**：四类问题中「越界改动／静默简化／文档漂移」＝0；**需修 1 条**（D1：`observation-catgone` 未给 `figures: {}`——§7.10 协作②明写的「无同框面」退化）＋提示 4 条（any 分支探针缺口／临时冒烟去留／段注释落后／示例关到达面断言缺）。
+- **fix round 1（审计后）**：① T75 变体补 `figures: {}`；② 段注释同步（自指 pin／变体口径）；③ 测试补 any 三支探针、示例关到达提示逐场景断言（dalim 切关核后回切）；④ `station.js` 头注补本轮块。
+- **代码评审（advisor · 2 轮）**：轮 1 全量＝**pass**、0🔴，2🟡＋3🔵（🟡：§7.9 扩图批 3 张已到货未注册；医务室变体 figures 排期／🔵：行数基准漂移、兜底为源码契约、复用元素不刷新几何）；**fix round 2**＝按 🔵 实现「覆盖几何随 plan 就地刷新」（engine.js `momentClassOf/momentKey/applyMomentGeom`＋复用分支），补源码契约断言，并把行为面写进冒烟第⑦块；轮 2 复核＝**pass**（上轮 6 项中 #6 已修、其余 5 项均为 🟡 协调/🟡 记录/🔵 建议级、无 must-fix；确认新刷新分支与其退场定时器路径交互无新缺陷）。
+- **终态**：`clean`（三闸＋冒烟复跑全绿；0🔴、0 must-fix 遗留；剩留项均为父侧协调/记录面，逐条在案）。
+
+#### 5.6 未做 / 披露
+
+1. **自指 pin 与既有房内 pin 坐标全是目测暂定值**（无成图逐张核对）——待 C 键两点定框手标回填（设计已明示）。
+2. **注册先行 ⇒ 每次进房一行告警**：T73~T79 七张变体图未入库，条件命中后进房会走「回落基础图」分支（控制台一行告警、画面照常）；图直入目录后重进房即生效，数据零改。
+3. **`medbay-awake` 的 `figures` 与 T66 排期**：T73 出图同批必须补苏醒姿框，否则 N24 覆盖卡按卧姿出卡（同角色双现风险）；机检通道已就位（§20-1②/§20-5）。
+4. **DOM 行为证据为临时脚本**（用后已删，读数在 5.4）；常驻套件对兜底/到达/重开/刷新四处为「源码契约」型断言——评审 🔵5 建议保留最小 DOM 桩用例（未做，属工具面另轮）。
+5. **设计档 §11 行数基准漂移**：engine 1994→**2162**（预估 ≤2009）／station 1062→**1122**（≤1079）／test 3053→**3301**（≤3083）——数值面，请父侧 §6 收口按实跑刷新。
+6. **§7.9 扩图批到货未注册（面外·父侧协调）**：`images/station/moments/` 现存 26 张，注册表 20 条 ⇒ 7 张已到货未注册（`broadcast`／`chip-extract`／`gear-locker`／`locker-emergency`／`panel-weld`／`power-restore`／`safe-open`，实测均未在 `station.js` 出现）；注册属 §7.7-9 实现轮，本轮未动 `images/**`。**联动**：§20-5 登记表写死 20 组合，注册轮落地须同批扩表。另 `win-observation-jupiter.jpg`（T51，待 T19）已注册但文件未到——设计明示的缺图兜底，非缺陷。
+7. **未改**：`docs/**`（设计档行数与文档态、批次档他段）、`art/**`、`tools/**`、`images/**`、`prototype/lab.js`／`lab-docs.js`／`index.html`／CSS（覆盖卡中心锚点的 CSS 变换未在评审面内，评审侧标 `unverified`）。
+
 ## §6 验证与收口（父代理）
