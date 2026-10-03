@@ -425,8 +425,8 @@ eq(st.coins, 1, '……扣款后正好剩 1 枚');
 
 /* ⑧ payReason：DOM 按钮禁用与核心判定共用的唯一入口 */
 eq(C.payReason({ coins: 3 }, 2), '', 'payReason：可以买 → 空字符串');
-eq(C.payReason({ coins: 2 }, 2), '买完就剩 0 枚——身无分文会闯关失败，不能买', 'payReason：恰好花光');
-eq(C.payReason({ coins: 1 }, 2), '萨瓦币不够（需要 2 枚）', 'payReason：钱不够');
+eq(C.payReason({ coins: 2 }, 2), '买完就剩 0 枚萨瓦币——身无分文会闯关失败，不能买', 'payReason：恰好花光（B77：金额带币种名）');
+eq(C.payReason({ coins: 1 }, 2), '萨瓦币不够（需要 2 枚萨瓦币）', 'payReason：钱不够（B77：金额带币种名）');
 
 /* ---------- 12. 人物表 / 人物触发点（v1.3） ---------- */
 eq(Object.keys(D.characters).length, 8, '人物表 8 位');

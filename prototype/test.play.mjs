@@ -177,18 +177,26 @@ seq.forEach(s => console.log('  ' + s));
   play(['new', 'station']);
   play(['choose', '1']);            // 1 → 18
   play(['choose', '4']);            // 18 → 4（健身房）
-  const before = playJson(['state']).data;
-  eq(before.node, '4', '（前置）在健身房 4 号');
-  const bad = playJson(['choose', '2']);   // 「请他帮忙打开仓库」需要「老布的委托」——现在是灰的
-  ok(bad.code !== 0, 'choose 一个灰显选项 → 退出码非 0');
-  ok(!!bad.data && bad.data.ok === false && /不能执行/.test(bad.data.error || ''), '--json 里带清晰的错误信息');
-  ok(/老布的委托/.test(bad.data.error || ''), '错误里说明了缺什么（老布的委托）');
-  const after = playJson(['state']).data;
-  eq(after.node, '4', '不可执行的 choose 不换节点（仍在 4）');
-  eq(after.state.steps, before.state.steps, '不可执行的 choose 不推进步数');
-  eq(JSON.stringify(after.state), JSON.stringify(before.state), '不可执行的 choose 不改任何状态');
-  const human = play(['choose', '2']);
-  ok(human.code !== 0 && human.err.indexOf('✗') >= 0, '人类模式下错误走 stderr（✗ 前缀）');
+   const before = playJson(['state']).data;
+   eq(before.node, '4', '（前置）在健身房 4 号');
+   /* B03：本关无灰显——4② 未去 25 时显示的是一条「可点、原地反馈」的同类条（做完才隐） */
+   const vis4 = before.choices.map(c => c.label);
+   ok(vis4.some(l => l.indexOf('请他帮忙打开仓库') >= 0), 'B03：4② 以「可尝试」形式在列（不是灰显、不是消失）');
+   ok(!before.choices.some(c => c.ok === false), 'B03：4 号选项列表里没有不可点项（灰显面已废）');
+   const try2 = playJson(['choose', '2']);            // 试一下「请铁头帮忙开门」——没成 → 原地反馈
+   eq(try2.code, 0, 'B03：选「请他帮忙打开仓库」→ 退出码 0（可尝试）');
+   eq(playJson(['state']).data.node, '4', 'B03：没成 → 留在原地（4 号）');
+   ok(!!try2.data && (try2.data.events || []).length === 0 && !!try2.data.say, 'B03：没成 → 零状态事件＋一条旁白反馈');
+   const before2 = playJson(['state']).data;
+   const bad = playJson(['choose', '99']);            // 越界：错误路径
+   ok(bad.code !== 0, 'choose 越界序号 → 退出码非 0');
+   ok(!!bad.data && bad.data.ok === false && /超出范围/.test(bad.data.error || ''), '--json 里带清晰的错误信息（超出范围）');
+   const after = playJson(['state']).data;
+   eq(after.node, '4', '不可执行的 choose 不换节点（仍在 4）');
+   eq(after.state.steps, before2.state.steps, '不可执行的 choose 不推进步数');
+   eq(JSON.stringify(after.state), JSON.stringify(before2.state), '不可执行的 choose 不改任何状态');
+   const human = play(['choose', '99']);
+   ok(human.code !== 0 && human.err.indexOf('✗') >= 0, '人类模式下错误走 stderr（✗ 前缀）');
   const range = playJson(['choose', '99']);
   ok(range.code !== 0 && /超出范围/.test(range.data.error || ''), '序号越界也报清晰错误（超出范围）');
   const junk = play(['choose', 'abc']);
@@ -258,20 +266,24 @@ seq.forEach(s => console.log('  ' + s));
   const before = JSON.stringify(st);
   C.visibleChoices(st);
   eq(JSON.stringify(st), before, 'visibleChoices 不改状态（只读）');
-  /* 灰显项：ok=false 且 why 与 lockReason 同源 */
-  const st4 = C.newState('normal');
-  C.go(st4, '4');
-  const list4 = C.visibleChoices(st4);
-  eq(list4.length, 5, '健身房：5 个选项（其中 2 个灰显）');
-  eq(list4[1].ok, false, '灰显项#1 ok=false（请他帮忙：缺老布的委托）');
-  eq(list4[3].ok, false, '灰显项#2 ok=false（请铁头搭手：缺铁头已开门）');
-  eq(list4[1].why, C.lockReason(C.currentLevel().nodes['4'].c[1]), '灰显理由 = Core.lockReason（同一套文案）');
-  eq(list4[3].why, C.lockReason(C.currentLevel().nodes['4'].c[3]), '灰显理由 = Core.lockReason（同一套文案）');
-  eq(list4[0].ok && list4[2].ok && list4[4].ok, true, '其他选项 ok=true');
-  ok(list4.every((x, k) => x.i === k + 1), 'i 从 1 连续编号');
-  ok(list4.every(x => x.ci >= 0 && x.ci < C.currentLevel().nodes['4'].c.length), 'ci 是 node.c 的下标');
-  /* 站位错位检查：ci 与该显示项对应的原始选项一致 */
-  eq(C.currentLevel().nodes['4'].c[list4[1].ci].l.indexOf('请他帮忙打开仓库') >= 0, true, '灰显项 ci 指向正确的原始选项');
+   /* B03：可见性两态——4 号首访显示「可尝试」条（成事条未达前提时由反馈条接管）；全场无灰显 */
+   const st4 = C.newState('normal');
+   C.go(st4, '4');
+   const list4 = C.visibleChoices(st4);
+   eq(list4.length, 5, 'B03：健身房首访：5 个可见项（全部可点；②/④ 的成事条隐、反馈条现）');
+   ok(list4.every(x => x.ok === true), 'B03：可见项全部 ok=true（本关无灰显项）');
+   const c4 = C.currentLevel().nodes['4'].c;
+   const i42S = c4.findIndex(x => (x.l || '').indexOf('请他帮忙打开仓库') >= 0 && x.once);   // B03 前置：② 的成事条存在
+   const i42F = c4.findIndex(x => (x.l || '').indexOf('请他帮忙打开仓库') >= 0 && x.say);
+   ok(!list4.some(x => x.ci === i42S) && list4.some(x => x.ci === i42F), 'B03：未去 25 ⇒ ② 成事条隐、反馈条现（可尝试）');
+   const st4b = C.newState('normal'); st4b.loc = '4'; st4b.visited['25'] = true;
+   const list4b = C.visibleChoices(st4b);
+   ok(list4b.some(x => x.ci === i42S) && !list4b.some(x => x.ci === i42F), 'B03：去过 25 ⇒ ② 成事条现、反馈条隐（两态）');
+   eq(list4[0].why, '', 'B03：可点项的 why 为空串（机械理由面不再用于灰显）');
+   ok(list4.every((x, k) => x.i === k + 1), 'i 从 1 连续编号');
+   ok(list4.every(x => x.ci >= 0 && x.ci < C.currentLevel().nodes['4'].c.length), 'ci 是 node.c 的下标');
+   /* 站位错位检查：ci 与显示项对应的原始选项一致 */
+   eq(C.currentLevel().nodes['4'].c[list4[0].ci].l.indexOf('掰手腕') >= 0, true, '首项 ci 指向「掰手腕」原始选项');
   /* 结局 / 失败 / 破产：没有选项 */
   const stEnd = C.newState('normal'); C.go(stEnd, '41');
   eq(C.visibleChoices(stEnd).length, 0, '结局节点没有选项');
@@ -369,18 +381,19 @@ seq.forEach(s => console.log('  ' + s));
   eq(n.code, 0, '--player new station 退出码 0');
   const expOxy = tierOxy(resDef('oxygen').start.normal + enOxy);
   const expCoin = tierCoin(resDef('coins').start.normal);
-  ok(n.out.indexOf('💨 ' + oxyTxt + ' ' + expOxy) >= 0, '玩家版氧气档位按定值算（' + expOxy + '）');
+  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + expOxy).test(n.out), '玩家版氧气：文本条＋档位（10 格；档位 ' + expOxy + '）');
   ok(n.out.indexOf('🪙 ' + coinTxt + ' ' + expCoin) >= 0, '玩家版星币档位按定值算（' + expCoin + '）');
   ok(!/💨\s*\d/.test(n.out) && !/🪙\s*\d/.test(n.out), '玩家版不显示资源数字');
   ok(n.out.indexOf('⚔ 武力') < 0, '玩家版不显示武力面板');
   ok(n.out.indexOf('第 0 步') < 0 && n.out.indexOf('已探索') < 0, '玩家版不显示步数 / 已探索计数');
-  ok(n.out.indexOf('　→ ') < 0, '玩家版不显示去向编号（→ N 名称）');
+  ok(!/→ \d/.test(n.out), '玩家版不显示去向编号（→ N 名称）');
   ok(n.out.indexOf('（你的武力 ') < 0, '玩家版不显示机械战斗格式');
+  ok(n.out.indexOf('→ 买：buy ') >= 0, 'B03 工具面：玩家版商店带一行可照抄的「买」动作（buy <道具名>）');
 
   /* 困难开局：档位跟着数值走 */
   const h = P('new', 'station', '--hard');
   const hardExp = tierOxy(resDef('oxygen').start.hard + enOxy);
-  ok(h.out.indexOf('💨 ' + oxyTxt + ' ' + hardExp) >= 0, '困难开局档位按数值算（困难 ' + resDef('oxygen').start.hard + ' − ' + (-enOxy) + ' → ' + hardExp + '）');
+  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + hardExp).test(h.out), '困难开局：文本条＋档位按数值算（困难 ' + resDef('oxygen').start.hard + ' − ' + (-enOxy) + ' → ' + hardExp + '）');
 
   /* 独立会话：玩家存 player-session.json，开发存 session.json；互不打扰 */
   ok(fs.existsSync(path.join(T, '.playtest', 'player-session.json')), '玩家会话存 player-session.json');
@@ -395,26 +408,24 @@ seq.forEach(s => console.log('  ' + s));
   const pb2 = P('buy', '合成料理');
   eq(pb2.code, 0, '--player buy 退出码 0');
   ok(!/💨\s*\d/.test(pb2.out) && !/🪙\s*\d/.test(pb2.out), '--player buy 后的整屏仍是玩家版（无资源数字）');
-  ok(pb2.out.indexOf('　→ ') < 0, '--player buy 后的整屏不显示去向编号');
+  ok(pb2.out.indexOf('　→ 买：buy ') >= 0, '--player buy 后的整屏带买家动作提示（B03 工具面）');
+  ok(!/→ \d/.test(pb2.out), '--player buy 后的整屏不显示去向编号');
 
-  /* 灰显理由：玩家向措辞（lockText / lockHint 兜底），不是机械理由（lockReason） */
+  /* B03：本关无灰显——4 号首访列表里既无 🔒 也无「（灰：」；缺前提的条目整条不出现 */
   const T2 = fs.mkdtempSync(path.join(os.tmpdir(), 'playtest-player2-'));
   const P2 = (...args) => play(['--player', ...args], T2);
   P2('new', 'station'); P2('choose', '1'); P2('choose', '4');     // 1 → 18 → 4（健身房）
   const p4 = P2('state');
   const st4 = C2.newState('normal'); st4.loc = '4';
-  const locked = C2.visibleChoices(st4).find(e => !e.ok);
-  ok(!!locked, '（前置）4 号健身房有一个灰显选项');
-  if (locked) {
-    const ch4 = D2.nodes['4'].c[locked.ci];
-    ok(p4.out.indexOf('（灰：' + C2.lockHint(ch4) + '）') >= 0, '玩家版灰显理由用玩家向措辞：' + C2.lockHint(ch4));
-    if (C2.lockHint(ch4) !== C2.lockReason(ch4)) {
-      ok(p4.out.indexOf(C2.lockReason(ch4)) < 0, '玩家版不显示机械理由：' + C2.lockReason(ch4));
-    }
-    /* 错误路径也不透机械理由（审计发现过：原来会给「需要：…」/含数字的 payReason） */
-    const lockErr = P2('choose', String(locked.i));
-    ok(lockErr.code !== 0 && lockErr.err.indexOf('不能执行') >= 0, '--player 选灰显项 → 报错且不改状态');
-    ok(lockErr.err.indexOf(C2.lockHint(ch4)) >= 0 && lockErr.err.indexOf('需要：') < 0, '玩家版错误里是玩家向理由，不含机械理由');
+  ok(C2.visibleChoices(st4).every(e => e.ok), '（前置）B03：4 号首访没有不可点项');
+  ok(p4.out.indexOf('🔒') < 0 && p4.out.indexOf('（灰：') < 0, 'B03：玩家版整屏无 🔒／（灰： 标记');
+  ok(p4.out.indexOf('请他帮忙打开仓库') >= 0, 'B03：未达前提的 4② 以「可尝试」形式上屏（场景说原因）');
+  {
+    /* 越界序号：错误路径与状态不变 */
+    const n4 = C2.visibleChoices(st4).length;
+    const lockErr = P2('choose', String(n4 + 1));
+    ok(lockErr.code !== 0 && /不能执行|超出范围/.test(lockErr.err), '--player 选不存在的项 → 报错且不改状态');
+    ok(lockErr.err.indexOf('需要：') < 0, '玩家版错误里不含机械理由（需要：…）');
   }
 
   /* 战斗例外：4 →（掰手腕）26 号，只有一场战斗；玩家版保留与网页版同款的对照 */

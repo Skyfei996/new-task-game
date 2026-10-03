@@ -325,6 +325,20 @@ body {
 }
 @keyframes resLow { 50% { box-shadow: 0 0 0 4px rgba(230, 57, 70, .25); } }
 
+/* ---------- B03 氧气条：分段填充、无数字；条色随档（≥50% 正常／20~50% 警示／<20% 危险） ---------- */
+#resList .res.bar { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; }
+#resList .res.bar .barCells { display: inline-flex; gap: 2px; }
+#resList .res.bar .barCells i {
+  display: inline-block; width: 9px; height: 12px; border-radius: 2px;
+  background: rgba(255, 255, 255, .10);
+}
+#resList .res.bar.ok .barCells i.on { background: #5ad7a0; }
+#resList .res.bar.warn .barCells i.on { background: #ffd166; }
+#resList .res.bar.danger { animation: resLow 1.6s ease-in-out infinite; }   /* 危险档：呼吸感 */
+#resList .res.bar.danger .barCells i.on { background: #ff6b6b; }
+#resList .res.bar.hit { animation: barHit .55s ease-out; }                  /* 扣氧／回氧：闪一下 */
+@keyframes barHit { 0% { box-shadow: 0 0 0 5px rgba(255, 255, 255, .28); } 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); } }
+
 /* ---------- 关卡选择页 ---------- */
 .card.wide { max-width: 820px; }
 .playerRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 8px; }

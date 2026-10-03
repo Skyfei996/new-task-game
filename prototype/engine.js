@@ -340,9 +340,10 @@
     payReason(st, price, resId) {
       const r = Core.resDef(resId || Core.mainResId()) || { id: 'coins', name: '萨瓦币', unit: '枚', zeroWarn: '花光就闯关失败' };
       const have = Core.resOf(st, r.id);
-      if (have < price) return (r.name || r.id) + '不够（需要 ' + price + ' ' + (r.unit || '') + '）';
+      /* B77 渲染字面：资源名随金额一起给全（「5 枚星币」——与既有「＋2 枚星币」同构） */
+      if (have < price) return (r.name || r.id) + '不够（需要 ' + price + ' ' + (r.unit || '') + (r.name || '') + '）';
       if (Core.resNoFail(r)) return '';           // E1：该资源花光不判失败 → 可以花到 0
-      if (have - price < 1) return '买完就剩 0 ' + (r.unit || '') + '——' + (r.zeroWarn || '花光就闯关失败') + '，不能买';
+      if (have - price < 1) return '买完就剩 0 ' + (r.unit || '') + (r.name || '') + '——' + (r.zeroWarn || '花光就闯关失败') + '，不能买';
       return '';
     },
 
@@ -417,6 +418,16 @@
       syncScene(st, nodeId);
       const log = Core.enter(st, nodeId);
       Core.checkFail(st, log);                           // 进入时把资源扣光 → 立刻走失败结算
+      return log;
+    },
+    /* 选项执行后的移动收口（B03）：`back`＝返回上一处；`to`＝本节点自指＝**原地**——没有移动，
+     * 因此不重跑 `en` 的「每次进入」结算（12/13/19 的失败条 `to` 自指，重算会把失败反馈变成惩罚；
+     * 失败反馈必须零代价（设计档 §9.7.3）。原地仍做一次失败检查，与旧 `go(同节点)` 的收口一致。 */
+    move(st, res) {
+      if (res.back) return Core.goBack(st);
+      if (res.to && res.to !== st.loc) return Core.go(st, res.to);
+      const log = [];
+      Core.checkFail(st, log);
       return log;
     },
     goBack(st) {
@@ -605,7 +616,8 @@
       if (why) { log.push('买不了：' + why); return log; }
       const rid = Core.mainResId();
       st[rid] -= price; st.items.push(itemId);
-      log.push('购买「' + itemId + '」（-' + price + ' ' + ((Core.resDef(rid) || {}).unit || '') + '）');
+      const rd = Core.resDef(rid) || {};
+      log.push('购买「' + itemId + '」（-' + price + ' ' + (rd.unit || '') + (rd.name || '') + '）');   // B77：金额带币种名
       return log;
     },
     sell(st, itemId, log) {
@@ -615,7 +627,8 @@
       st.items.splice(st.items.indexOf(itemId), 1);
       const rid = Core.mainResId();
       st[rid] += 1;
-      log.push('卖出「' + itemId + '」（+1 ' + ((Core.resDef(rid) || {}).unit || '') + '）');
+      const rd = Core.resDef(rid) || {};
+      log.push('卖出「' + itemId + '」（+1 ' + (rd.unit || '') + (rd.name || '') + '）');   // B77：金额带币种名
       return log;
     },
     buySticker(st, n, log) {   // 大里姆 34 号：买腕带（走同一条购买守卫）
@@ -624,7 +637,8 @@
       if (why) { log.push('买不了腕带：' + why); return log; }
       const rid = Core.mainResId();
       st[rid] -= n; st.wristband = n;
-      log.push('买了一条 ' + n + ' ' + ((Core.resDef(rid) || {}).unit || '') + ((Core.resDef(rid) || {}).name || '') + '的腕带（-' + n + ' ' + ((Core.resDef(rid) || {}).unit || '') + '）');
+      const rd = Core.resDef(rid) || {};
+      log.push('买了一条 ' + n + ' ' + (rd.unit || '') + (rd.name || '') + '的腕带（-' + n + ' ' + (rd.unit || '') + (rd.name || '') + '）');   // B77：金额带币种名
       return log;
     }
   };
@@ -846,6 +860,7 @@
     if (store) Core.savePlayer(store, name);
     st = Core.newState(diff, name);
     curScene = null;
+    hudPrev = null;                      // 新局：不把上一局的值当变化来闪
     foldLoc = null;                      // 换关卡 = 折叠状态归零（foldLoc 在下方声明，执行时早已初始化）
     $('overlay').classList.add('hidden');
     startRun();
@@ -856,6 +871,7 @@
     st = Core.normalizeState(s);
     if (store && st.me) Core.savePlayer(store, st.me);
     curScene = null;
+    hudPrev = null;                      // 读档：不把读入的值当变化来闪
     foldLoc = null;
     save();
     $('overlay').classList.add('hidden');
@@ -865,6 +881,7 @@
     if (!confirm('重新开始？本关进度将清空。')) return;
     st = Core.newState(st ? st.diff : 'normal', st ? st.me : Core.playerName(store));
     curScene = null;
+    hudPrev = null;
     foldLoc = null;
     startRun();          // E2：重开本关 = 新局 → 有 prologue 也先弹一次（读档不重放）
   }
@@ -889,12 +906,49 @@
     const s0 = (r.start && (r.start.normal || 0)) || 0;
     return Math.max(1, Math.round(s0 * 0.2));
   }
+  /* ---------- HUD 资源（B03：氧气＝分段填充条、无数字；其余资源＝计数） ---------- */
+  /* bar:true 的资源按「余量读数」口径呈现（设计档 §8.3）：分段填充条、无数字；
+   * 档位色 = ≥50% 正常（ok）／20~50% 警示（warn）／<20% 危险（danger·呼吸感）；基准 = 普通开局值。
+   * hudPrev = 上一次渲染时的资源值：值有变 → 条退／涨＋闪（扣氧／回氧即时可见）。 */
+  const BAR_SEGMENTS = 10;
+  let hudPrev = null;
+  function barTier(r, v) {
+    const base = (r.start && r.start.normal) || 100;
+    const k = base > 0 ? v / base : 0;
+    return k >= 0.5 ? 'ok' : k >= 0.2 ? 'warn' : 'danger';
+  }
   function renderHUD() {
     const box = $('resList');
     box.innerHTML = '';
+    const prev = hudPrev, next = {};
     Core.resources().forEach(r => {
       const v = Core.resOf(st, r.id);
       const low = v <= lowThreshold(r);
+      next[r.id] = v;
+      if (r.bar) {                     // B03 氧气条：分段填充、无数字
+        const base = (r.start && r.start.normal) || 100;
+        const filled = Math.max(0, Math.min(BAR_SEGMENTS, Math.round(base > 0 ? v / base * BAR_SEGMENTS : 0)));
+        const hit = prev && prev[r.id] != null && prev[r.id] !== v;
+        const s = document.createElement('span');
+        s.className = 'stat res bar ' + barTier(r, v) + (hit ? ' hit' : '');
+        s.dataset.res = r.id;
+        s.title = (r.name || r.id);
+        const ic = document.createElement('span');
+        ic.className = 'barIcon';
+        ic.textContent = r.icon || '';
+        const cells = document.createElement('span');
+        cells.className = 'barCells';
+        for (let i = 0; i < BAR_SEGMENTS; i++) {
+          const c = document.createElement('i');
+          c.className = i < filled ? 'on' : 'off';
+          cells.appendChild(c);
+        }
+        s.appendChild(ic);
+        s.appendChild(cells);
+        box.appendChild(s);
+        if (hit) setTimeout(() => s.classList.remove('hit'), 700);   // 闪一下（扣／回氧均即时可见）
+        return;
+      }
       const s = document.createElement('span');
       s.className = 'stat res' + (low ? ' low' : '');
       s.dataset.res = r.id;
@@ -902,6 +956,7 @@
       s.textContent = (r.icon || '') + ' ' + v;
       box.appendChild(s);
     });
+    hudPrev = next;
     $('atkEl').textContent = '⚔ 武力值 ' + Core.atkOf(st);
   }
 
@@ -1109,13 +1164,14 @@
           const why = Core.payReason(st, n);
           const b = document.createElement('button');
           b.className = 'priceBtn';
-          b.textContent = n + ' ' + (resDef(Core.mainResId()).unit || '');
+          const r0 = resDef(Core.mainResId());
+          b.textContent = n + ' ' + (r0.unit || '') + (r0.name || '');   // B77：金额带币种名
           b.disabled = !!why;
           b.title = why;
           if (why) {
             const tag = document.createElement('span');
             tag.className = 'pwTag';
-            tag.textContent = Core.resOf(st, Core.mainResId()) < n ? '钱不够' : '要留 1 ' + (resDef(Core.mainResId()).unit || '');
+            tag.textContent = Core.resOf(st, Core.mainResId()) < n ? '钱不够' : '要留 1 ' + (r0.unit || '') + (r0.name || '');
             b.appendChild(tag);
             if (Core.resOf(st, Core.mainResId()) >= n) floorStop = true;
           }
@@ -1135,7 +1191,7 @@
         if (floorStop) {
           const hint = document.createElement('div');
           hint.className = 'priceWhy';
-          hint.textContent = '❗ 付款后必须至少留 1 ' + (resDef(Core.mainResId()).unit || '') + '——花光就闯关失败。';
+          hint.textContent = '❗ 付款后必须至少留 1 ' + (resDef(Core.mainResId()).unit || '') + (resDef(Core.mainResId()).name || '') + '——花光就闯关失败。';   // B77：金额带币种名
           wrap.appendChild(hint);
         }
         box.appendChild(wrap);
@@ -1160,7 +1216,7 @@
         row.className = 'shopRow';
         row.innerHTML = '<span class="sIcon">' + (meta.icon || '❔') + '</span>' +
           '<span class="sName">' + it + (meta.atk ? ' <em>武力+' + meta.atk + '</em>' : '') + '</span>' +
-          '<span class="sPrice">' + node.shop.price + ' ' + (resDef(Core.mainResId()).unit || '') + '</span>';
+          '<span class="sPrice">' + node.shop.price + ' ' + (resDef(Core.mainResId()).unit || '') + (resDef(Core.mainResId()).name || '') + '</span>';   // B77：商店行带币种名
         const b = document.createElement('button');
         b.textContent = owned ? '已拥有' : '购买';
         b.disabled = owned || !!why;
@@ -1199,7 +1255,7 @@
         row.className = 'shopRow';
         row.innerHTML = '<span class="sIcon">' + (meta.icon || '❔') + '</span><span class="sName">' + it + '</span>';
         const b = document.createElement('button');
-        b.textContent = '卖出 +1 ' + (resDef(Core.mainResId()).unit || '');
+        b.textContent = '卖出 +1 ' + (resDef(Core.mainResId()).unit || '') + (resDef(Core.mainResId()).name || '');   // B77：金额带币种名
         b.onclick = () => { Core.sell(st, it).forEach(toast); save(); renderAll(); };
         row.appendChild(b);
         wrap.appendChild(row);
@@ -1214,8 +1270,7 @@
     (res.log || []).forEach(toast);
     if (res.say) toast(res.say, { hold: 6000 });   // E7：旁白（与效果日志并列，不走 log 通道所以不会重复）
     let log = [];
-    if (res.back) log = Core.goBack(st);
-    else if (res.to) log = Core.go(st, res.to);
+    log = Core.move(st, res);              // B03：原地（to 自指）不重跑 en；返回上一处走 goBack
     log.forEach(toast);
     const flash = Core.takeFlash(st);
     save(); renderAll();
