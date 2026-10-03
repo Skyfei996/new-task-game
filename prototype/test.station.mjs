@@ -9,6 +9,8 @@
 //         17③·40④ 灰字两缺项 / 名称统一（维修爬道·焊接枪）/ 普通难度短线 80
 //       / B04 老板试玩验收轮（B110~B115）：B111 4 号浮图（T41）/ B112 当前位置标记抑制 /
 //         B114 站外切 T04＋19 号 pin 实测校准 / B115 选关页（难度单选＋唯一「开始」）
+//       / B04 三裁轮（B117／B119 · 2026-10-04）：B119 内景接线（注册一致性／pins／进出往返／锚点／回归五条机检）
+//         ＋ B117 存档三态与通关记录（storage 桩六条）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -32,6 +34,18 @@ ok(C.selectLevel('station'), '可以选中《空间站大停摆》');
 eq(C.currentLevelId(), 'station', '当前关卡 = station');
 ok(C.selectLevel('dalim') && C.selectLevel('station'), '两关之间可以来回切换');
 const D = globalThis.GAME_DATA;   // selectLevel 已把当前关卡同步给 GAME_DATA
+
+/* B119（内景接线）：场景降到「房间」粒度——楼层判定统一走这两个助手。
+ * floorOfScene：room-* 场景按 label（顶层/中层/底层）折算成所属层图；其它场景原样返回。
+ * sceneOfId：节点当前场景＝node.scene 优先（引擎同源：Core.sceneOfNode），其次图上的 pin。 */
+const FLOOR_OF_LABEL = { '顶层': 'deck1', '中层': 'deck2', '底层': 'deck3', '站外': 'exterior' };
+function floorOfScene(sid, L) {
+  const lv = L || D;
+  const sc = sid && lv.scenes[sid];
+  if (sc && /^room-/.test(sid)) return FLOOR_OF_LABEL[sc.label] || sid;
+  return sid;
+}
+function floorOfId(id) { return floorOfScene(C.sceneOfNode(id)); }
 
 /* ============ 1. 元信息 / 资源 ============ */
 eq(D.meta.title, '空间站大停摆', '标题');
@@ -89,16 +103,28 @@ eq(stH.oxygen, 30, '困难开局氧气 30');
 eq(stN.me, '林小晨', '默认玩家名 = 林小晨');
 ok(!stN.bankrupt && stN.zeroRes === null, '开局没有失败标记');
 
-/* ============ 2. 场景与编号坐标（四场景 pins） ============ */
+/* ============ 2. 场景与编号坐标（四楼层场景＋七间内景） ============ */
 const PINS = {
   deck1: { '1': [358, 404], '2': [1021, 235], '3': [1452, 404], '4': [412, 729], '5': [1416, 751], '18': [896, 504] },
   deck2: { '6': [340, 336], '7': [950, 224], '8': [1523, 336], '9': [340, 695], '10': [860, 740], '11': [1416, 673], '20': [896, 471] },
   deck3: { '12': [466, 269], '13': [950, 247], '14': [1452, 359], '15': [305, 594], '16': [788, 807], '17': [1308, 717], '21': [896, 504] },
   exterior: { '19': [1505, 778] }
 };
-eq(Object.keys(D.scenes).join(','), 'deck1,deck2,deck3,exterior', '四个场景');
+/* B119（内景 pins）：出口 pin＝本层大厅＋房内交互点（暂定值·目测取值，待手标校准回填；口径＝design-station-v1.md §4.1） */
+const ROOM_PINS = {
+  'room-galley': { '18': [1330, 690] },
+  'room-sleep': { '18': [830, 850] },
+  'room-medbay': { '18': [1330, 860], '24': [870, 470] },
+  'room-gym': { '18': [1022, 285], '26': [1240, 520] },
+  'room-observation': { '18': [830, 890], '28': [1185, 600] },
+  'room-lab': { '20': [830, 880], '25': [780, 55], '30': [300, 640] },
+  'room-comms': { '20': [850, 760], '8': [450, 520] }
+};
+eq(Object.keys(D.scenes).join(','),
+  'deck1,deck2,deck3,exterior,room-galley,room-sleep,room-medbay,room-gym,room-observation,room-lab,room-comms',
+  '四楼层场景＋七间已入库内景（B119）');
 const allPins = new Set();
-Object.entries(PINS).forEach(([sid, pins]) => {
+Object.entries(Object.assign({}, PINS, ROOM_PINS)).forEach(([sid, pins]) => {
   const sc = D.scenes[sid];
   ok(!!sc, '场景存在：' + sid);
   eq(Object.keys(sc.pins).sort().join(','), Object.keys(pins).sort().join(','), sid + ' 的编号集合与规格一致');
@@ -110,7 +136,9 @@ Object.entries(PINS).forEach(([sid, pins]) => {
     ok(p[0] >= 0 && p[0] < sc.width && p[1] >= 0 && p[1] < sc.height, `编号 ${id} 坐标在图内（未越界）`);
   });
 });
-eq(allPins.size, 21, '四场景编号合计 21 个（无重复）');
+eq([...allPins].sort((a, b) => Number(a) - Number(b)).join(','),
+  '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,24,25,26,28,30',
+  '全部场景编号合计 26 个＝21 个地点＋5 个房内交互点事件（B119：24/25/26/28/30；每仍对应既有节点）');
 eq(allPins.has('19'), true, '站外场景有 19 号（太阳能板阵列）');
 /* 19 号 pin（B114）：按 T04 成图（`images/station/eva-v1.jpg`）实测校准——右侧下片太阳能板阵列「面板蓝」像素
  * （b>90 且 b−r>40 且 b−g>12）在 x∈[1240,1791]×y∈[520,1010] 的质心实测 (1509,778)（窗口放宽到 x≥1150 ⇒ (1502,778)；
@@ -191,7 +219,7 @@ Object.entries(D.characters).forEach(([cid, ch]) => {
   ok(near, `人物 ${cid} 的钉位贴着对应房间的编号点`);
   const refs = Object.keys(D.nodes).filter(id => (D.nodes[id].chars || []).indexOf(cid) >= 0);
   ok(refs.length > 0, `人物 ${cid} 至少关联一个任务点（${refs.join('/')}）`);
-  ok(refs.some(id => C.sceneOfNode(id) === ch.spot.scene), `人物 ${cid} 至少有一个关联点就在它的钉位场景里（光环会亮）`);
+  ok(refs.some(id => floorOfId(id) === floorOfScene(ch.spot.scene)), `人物 ${cid} 至少有一个关联点就在它的钉位楼层里（B119：楼层口径）`);
 });
 Object.entries(D.nodes).forEach(([id, node]) => {
   (node.chars || []).forEach(cid => ok(!!D.characters[cid], `节点 ${id} 的 chars 引用「${cid}」在人物表中`));
@@ -1056,7 +1084,7 @@ function cabinetShortcut(withMedical, diff) {
     'B03：17③ 双失败条文案＝检查表空着／大家不知情（§9.7-33）');
   ok(f40[1].say.indexOf('还没检完') >= 0 && f40[2].say.indexOf('还不知道要走') >= 0,
     'B03：40④ 双失败条文案＝还没检完／大家不知情（§9.7-43）');
-  ok(C.sceneOfNode('8') !== C.sceneOfNode('17'), '前置分布在两个场景（8 号 / 17 号）→ 不再同屋自解锁');
+  ok(floorOfId('8') !== floorOfId('17'), '前置分布在两个楼层（8 号中层 / 17 号底层）→ 不再同屋自解锁');
   eq(JSON.stringify(c17.cond), JSON.stringify(c40.cond), '17/40 前置完全一致（检查过 + 已广播）');
   /* 满足后可达 43 */
   s = C.newState('normal'); s.loc = '17';
@@ -1347,9 +1375,13 @@ function lintL1(L) {
     Object.entries(L.nodes).forEach(([id, n]) => {
       if ((n.chars || []).indexOf(cid) < 0) return;
       seen[cid] = true;
-      if (locScene[id]) {                                   // 地点节点：同场景 + 距该节点 pin ≤150px
-        if (ch.spot.scene !== locScene[id]) { bad.push(`角色多地同现：${cid}（spot=${ch.spot.scene}）出现在 ${id}（${locScene[id]}）`); return; }
-        const pin = L.scenes[ch.spot.scene].pins[id];
+      if (locScene[id]) {                                   // 地点节点：同楼层 + 距该节点 pin ≤150px
+        /* B119：内景接线后按楼层归一（房间 → 所在层；characters[].spot 仍在层图上，距离按层图 pin 量） */
+        if (floorOfScene(ch.spot.scene, L) !== floorOfScene(locScene[id], L)) {
+          bad.push(`角色多地同现：${cid}（spot=${ch.spot.scene}）出现在 ${id}（${locScene[id]}）`); return;
+        }
+        const pin = L.scenes[ch.spot.scene].pins[id];        // 只印在房内的节点（如 24）在层图上无 pin ⇒ 不量距离
+        if (!pin) return;
         const d = Math.hypot(pin[0] - ch.spot.x, pin[1] - ch.spot.y);
         if (d > L1_SPOT_TOL) bad.push(`角色多地同现：${cid} 距 ${id} 号 pin ${Math.round(d)}px > ${L1_SPOT_TOL}px`);
       } else if ((L1_EVENT_CHARS[id] || []).indexOf(cid) < 0) {   // 事件节点：须登记在在场表
@@ -1627,7 +1659,12 @@ function domAtoms(c, s) {   // 把成事条 cond 里的“未完成”谓词翻�
 /* --- L3 跨层跳跃（白名单外） --- */
 function lintL3(L) {
   const bad = [], locScene = localSceneMap(L);
-  const deckOf = id => locScene[id] || L3_EVENT_DECK[L3_EVENT_SCENE[id]] || null;
+  /* B119：内景接线后「场景」降到房间粒度——跨层判定按楼层归一（room-* → 所在层）；
+   * 且「地点/事件」按编号域判定（1~21＝地点；22+＝事件）——不再看「有没有 pin」：
+   * 事件节点接线后也有房内 pin（25/26/30…），按老口径会被误判成地点（→ 误报跨层）。 */
+  const isLoc = id => { const n = Number(id); return n >= 1 && n <= 21; };
+  const sceneOfIdL = id => (L.nodes[id] && L.nodes[id].scene) || locScene[id] || null;
+  const deckOf = id => floorOfScene(sceneOfIdL(id), L) || L3_EVENT_DECK[L3_EVENT_SCENE[id]] || null;
   Object.keys(L.nodes).forEach(id => {         // 事件登记完整性
     if (locScene[id] || L3_EXEMPT.indexOf(id) >= 0) return;
     if (!L3_EVENT_SCENE[id]) bad.push(`事件节点 ${id} 未登记发生场景（§9.4）`);
@@ -1649,7 +1686,7 @@ function lintL3(L) {
         /* B99：通道词可落在源选项／源正文／目标正文（站关 28 的场景表定在 S2，而「搭电梯下到中层」
          * 写在 28 的正文里——玩家一进 28 就读到，通道交代并未缺失） */
         const text = (ch.l || '') + ' ' + (ch.say || '') + ' ' + (n.t || '') + ' ' + ((L.nodes[t] && L.nodes[t].t) || '');
-        if (locScene[id] && locScene[t]) {     // 地点 → 地点：白名单节点对 + 文案含通道词
+        if (isLoc(id) && isLoc(t)) {            // 地点 → 地点：白名单节点对 + 文案含通道词
           const pair = L3_WHITELIST.some(([a, b]) => (a === id && b === t) || (b === id && a === t));
           if (!pair) bad.push(`跨层跳跃（白名单外）：${id}(${src}) → ${t}(${dst})「${ch.l}」`);
           else if (!L3_CHANNEL.test(text)) bad.push(`跨层去向缺通道词：${id} → ${t}「${ch.l}」`);
@@ -2293,12 +2330,13 @@ console.log('———— B03 复检收口轮：B78 星币数字 / B79 27 号兑
 {
   eq(D.nodes['28'].scene, 'deck2', 'B99：28 号声明发生场景 scene:deck2（§9.4 事件发生场景表 S2）');
   const s = C.newState('normal');
-  C.go(s, '5'); eq(s.scene, 'deck1', 'B99：5 号照旧取 pin 场景（deck1）');
-  C.go(s, '28'); eq(s.scene, 'deck2', 'B99：进 28 ⇒ 显示楼层切到中层（原为顶层——R2 ④-4 楼层自相矛盾）');
-  C.go(s, '10'); eq(s.scene, 'deck2', 'B99：28 → 仓库（同层 deck2）');
+  C.go(s, '5'); eq(s.scene, 'room-observation', 'B119：5 号已接线 ⇒ 进房切内景（T19 observation.jpg）');
+  C.go(s, '18'); eq(s.scene, 'deck1', 'B119：回顶层大厅 ⇒ 切回层图（出口 pin 同路径）');
+  C.go(s, '5'); C.go(s, '28'); eq(s.scene, 'deck2', 'B99：进 28 ⇒ 显示楼层切到中层（原为顶层——R2 ④-4 楼层自相矛盾）');
+  C.go(s, '10'); eq(s.scene, 'deck2', 'B99：28 → 仓库（未接线房间——同层 deck2）');
   const s2 = C.newState('normal'); C.go(s2, '21');
   eq(s2.scene, 'deck3', 'B99：scene 字段不影响其它节点（21 = deck3）');
-  P('B99：事件节点显式发生场景——28 显示楼层＝中层（不再自相矛盾）');
+  P('B99/B119：事件节点显式发生场景（28＝中层）＋ 内景进出切图（5 ⇄ 18）');
 }
 
 /* --- 17-5 R2 ①：编号面（数据侧锚点保留＋呈现侧过滤在工具面） --- */
@@ -2648,21 +2686,203 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   P('当前位置标记抑制：N5／N14 抑制 ＋ N18／N20／N21 回归 ＋ 条件重算（N14 退场即恢复） 逐条通过');
 }
 
-/* --- 18-10 B115 选关页（难度单选默认普通＋唯一「开始」；「继续上次进度」退场） --- */
+/* --- 18-10 B115/B117 选关页（难度单选默认普通；按钮三态；「继续上次进度」退场） --- */
 {
   const engCode = engSrc.replace(/\/\*[\s\S]*?\*\//g, '');   // 去块注释：只查「代码面零残留」（注释里对旧面的历史记述不算残留）
   const uiCode = uiCssSrc.replace(/\/\*[\s\S]*?\*\//g, '');
   ok(engSrc.indexOf("r.type = 'radio'") >= 0 && engSrc.indexOf("r.checked = (d === 'normal')") >= 0,
     'B115：难度＝单选控件、默认选中普通（源码契约；行为由 DOM 冒烟演示验证）');
-  ok(engSrc.indexOf("bStart.textContent = '开始'") >= 0 && engSrc.indexOf('startGame(id, picked.diff)') >= 0,
-    'B115：唯一「开始」＝以所选难度开新局（startGame(id, 所选档)）');
+  ok(engSrc.indexOf('Core.cardInfo(store, id)') >= 0 && engSrc.indexOf('startGame(id, picked.diff)') >= 0,
+    'B117：卡片按钮由 Core.cardInfo 三态驱动；开新局＝以所选难度（startGame(id, 所选档)；「继续」不经它）');
   ok(engCode.indexOf('lcResume') < 0 && engCode.indexOf('levelProgress') < 0 && engCode.indexOf('继续上次进度') < 0,
     'B115：「继续上次进度」连同其渲染（levelProgress）退场——代码面零残留');
-  ok(uiCssSrc.indexOf('.lcDiffOpt') >= 0 && uiCssSrc.indexOf('.lcBtns .lcStart') >= 0 && uiCode.indexOf('lcResume') < 0,
-    'B115：单选/「开始」样式在案（style-ui.css）、lcResume 样式已撤（代码面）');
-  P('选关页：单选默认普通／唯一「开始」／「继续」零残留 逐条通过');
+  ok(uiCssSrc.indexOf('.lcDiffOpt') >= 0 && uiCssSrc.indexOf('.lcBtns .lcMain') >= 0 && uiCssSrc.indexOf('.lcBtns .lcAlt') >= 0 && uiCode.indexOf('lcResume') < 0,
+    'B115/B117：单选与三态按钮（主/次）样式在案（style-ui.css）、lcResume 样式已撤（代码面）');
+  P('选关页：单选默认普通／三态按钮（cardInfo 驱动）／「继续」零残留 逐条通过');
 }
 
+
+/* ============ 19. B119 内景接线 ＋ B117 存档三态／通关记录（2026-10-04 三裁轮） ============ */
+console.log('');
+console.log('———— B119 内景接线（注册一致性 / pins / 进出往返 / 锚点 / 回归）＋ B117 三态与通关记录 ————');
+
+/* --- 19-1 B119① 注册一致性（图在库／宽高＝成图实测／节点 scene 覆盖 ↔ 场景一一对应） --- */
+{
+  const ROOMS = ['room-galley', 'room-sleep', 'room-medbay', 'room-gym', 'room-observation', 'room-lab', 'room-comms'];
+  const bound = Object.keys(D.nodes).filter(id => /^room-/.test(D.nodes[id].scene || ''));
+  eq(bound.sort((a, b) => Number(a) - Number(b)).join(','), '1,2,3,4,5,7,8', 'B119①：已接线房间节点＝1/2/3/4/5/7/8（七间已入库批）');
+  const bad = [];
+  ROOMS.forEach(sid => {
+    const sc = D.scenes[sid];
+    if (!sc) { bad.push(sid + '：未注册'); return; }
+    if (sc.image.indexOf('../images/station/rooms/') !== 0) bad.push(sid + '：图路径前缀非 rooms/');
+    const p = path.join(dir, sc.image);
+    if (!fs.existsSync(p)) bad.push(sid + '：图不存在');
+    const sz = fs.existsSync(p) ? jpegSize(p) : null;
+    if (!(sc.width > 0 && sc.height > 0)) bad.push(sid + '：宽高非法');
+    if (sz && (sz.w !== sc.width || sz.h !== sc.height)) bad.push(sid + '：宽高 ≠ 成图实测');
+    const hosts = bound.filter(id => D.nodes[id].scene === sid);
+    if (hosts.length !== 1) bad.push(sid + '：绑定节点数 ' + hosts.length);
+    if (!FLOOR_OF_LABEL[sc.label]) bad.push(sid + '：label 非楼层（' + sc.label + '）');
+  });
+  eq(bad.join(' ｜ '), '', 'B119①：七间内景——路径前缀／文件在／宽高＝成图实测／节点一一对应／label＝楼层');
+  ok(!LEVELS.dalim.moments && Object.keys(LEVELS.dalim.scenes).every(sid => !/^room-/.test(sid)),
+    'B119⑤：示例关（dalim）无内景接线——零变化');
+}
+
+/* --- 19-2 B119②③ pins：界内／出口 pin＝本层大厅／点击路径 pinChoiceIndex ≥ 0 --- */
+{
+  const HALL = { '顶层': '18', '中层': '20', '底层': '21' };
+  const PROBES = [{}, { items: ['医疗包'] }, { learned: { '维修爬道路线': true } }];
+  const bad = [], unpick = [];
+  Object.keys(D.scenes).filter(sid => /^room-/.test(sid)).forEach(sid => {
+    const sc = D.scenes[sid];
+    const host = Object.keys(D.nodes).find(id => D.nodes[id].scene === sid);
+    const hall = HALL[sc.label];
+    if (!sc.pins[hall]) bad.push(sid + '：缺出口 pin ' + hall);
+    Object.entries(sc.pins).forEach(([pid, xy]) => {
+      if (!(xy[0] > 0 && xy[0] < sc.width && xy[1] > 0 && xy[1] < sc.height)) bad.push(sid + '：pin ' + pid + ' 越界');
+      const hit = PROBES.some(extra => {
+        const s = C.newState('normal'); s.loc = host; s.scene = sid; Object.assign(s, extra);
+        return C.pinChoiceIndex(s, pid) >= 0;
+      });
+      if (!hit) unpick.push(sid + '/' + pid);
+    });
+  });
+  eq(bad.join(' ｜ '), '', 'B119②：内景 pin 全部界内且每房有本层大厅出口 pin（18/20/21）');
+  eq(unpick.join(' ｜ '), '', 'B119③：每个房内 pin 有可点路径（pinChoiceIndex ≥ 0——与点选项同一路径）');
+}
+
+/* --- 19-3 B119③ 行为：进房切内景／回大厅切层图（Core 直测，无 DOM）＋未接线房间零降级 --- */
+{
+  const ROOM = { '1': ['room-galley', '18'], '2': ['room-sleep', '18'], '3': ['room-medbay', '18'],
+    '4': ['room-gym', '18'], '5': ['room-observation', '18'], '7': ['room-lab', '20'], '8': ['room-comms', '20'] };
+  const bad = [];
+  Object.entries(ROOM).forEach(([id, [sid, hall]]) => {
+    const s = C.newState('normal');
+    C.go(s, hall);
+    const deck = s.scene;
+    C.go(s, id);                                   // 点门 pin／选项 → 进房
+    if (s.scene !== sid) bad.push('进 ' + id + '：' + s.scene + ' ≠ ' + sid);
+    if (C.sceneOf(s) !== sid) bad.push('进 ' + id + '：sceneOf 未跟随');
+    C.go(s, hall);                                 // 出口 → 回大厅
+    if (s.scene !== deck) bad.push('出 ' + id + '：' + s.scene + ' ≠ ' + deck);
+  });
+  eq(bad.join(' ｜ '), '', 'B119③：七间进出往返——进房切内景、回大厅切回本层图（syncScene／sceneOf 同源）');
+  const s2 = C.newState('normal'); C.go(s2, '20'); const d2 = s2.scene; C.go(s2, '6');
+  eq(s2.scene, d2, 'B119⑤：未接线房间（6 指挥舱）不换图——维持本层 deck（零降级）');
+  const s3 = C.newState('normal'); C.go(s3, '21'); const d3 = s3.scene; C.go(s3, '12');
+  eq(s3.scene, d3, 'B119⑤：未接线房间（12 反应堆舱）同上');
+}
+
+/* --- 19-4 B119④ 锚点：房间相关浮现图锚点落在本房图界内（含分支/窗景） --- */
+{
+  const STALE = { 'pangpang-hail': [478, 554], 'aya-nurse': [1332, 554], 'yilanna-awake': [1572, 554],
+    'yinhe-idle': [1416, 871], 'tietou-armwrestle': [552, 879], 'tietou-open': [552, 879], 'win-observation-jupiter': [1420, 480] };
+  const PROBES = [{}, { visited: { '24': true } }, { chDone: { '跟胖胖打过招呼': true } }, { items: ['桑尼的账本'] }];
+  const PAIRS = Object.keys(D.scenes).filter(sid => /^room-/.test(sid))
+    .map(sid => [sid, Object.keys(D.nodes).find(id => D.nodes[id].scene === sid)]);
+  PAIRS.push(['room-gym', '26'], ['room-gym', '27']);   // 房内事件（26／27 在健身房；27 无 pin——沿用当前场景）
+  const bad = [], seen = new Set();
+  PAIRS.forEach(([sid, host]) => {
+    const sc = D.scenes[sid];
+    PROBES.forEach(extra => {
+      const s = C.newState('normal'); s.loc = host; Object.assign(s, extra);
+      C.momentsOf(s, D.nodes[host]).forEach(mid => {
+        seen.add(mid);
+        const plan = C.momentLayout(mid, sid);
+        const half = plan && plan.h ? plan.h / 2 : 0;
+        const inside = !!plan && plan.x > 0 && plan.x < sc.width && plan.y > 0 && plan.y < sc.height
+          && (!plan.h || (plan.y - half > 0 && plan.y + half < sc.height));
+        if (!inside) bad.push(sid + '：' + mid);
+      });
+    });
+  });
+  eq(bad.join(' ｜ '), '', 'B119④：各房浮现图锚点（含 mIf 分支与窗景矩形）落在本房图界内');
+  const stale = Object.keys(STALE).filter(id => JSON.stringify(D.moments[id].at) === JSON.stringify(STALE[id]));
+  eq(stale.join(','), '', 'B119④：房间相关浮现图锚点已按 room 图重标（deck 期旧值作废重标）');
+  eq([...seen].sort().join(','), 'aya-nurse,pangpang-hail,tietou-armwrestle,tietou-open,win-observation-jupiter,yilanna-awake,yinhe-idle',
+    'B119④：覆盖七张房间相关图（1／3／4／5／24／26／27 触发面）');
+  P('内景锚点：七张图逐张落在本房图界内＋旧值重标 逐条通过');
+}
+
+/* --- 19-5 B119⑤ 回归：读档场景归一／未接线节点输出与改前一致 --- */
+{
+  const mk = (loc, scene) => {
+    const s = C.newState('normal'); s.loc = loc; s.visited[loc] = true;
+    if (scene) s.scene = scene;
+    return s;
+  };
+  eq(C.normalizeState(mk('1', 'deck1')).scene, 'room-galley', 'B119⑤：旧档（scene 停在 deck1）读到 1 号 ⇒ 归一为内景');
+  eq(C.normalizeState(mk('5', 'deck1')).scene, 'room-observation', 'B119⑤：同一口径覆盖 5 号');
+  eq(C.normalizeState(mk('6', 'deck2')).scene, 'deck2', 'B119⑤：未接线房间（6）读档 ⇒ 场景不变（层图）');
+  eq(C.normalizeState(mk('22', 'room-galley')).scene, 'deck1', 'B119⑤：无 pin 走廊事件（22）⇒ 按声明重算回楼层（不被出发房间带走）');
+  eq(C.normalizeState(mk('10')).scene, 'deck2', 'B119⑤：无 scene 字段的旧档 ⇒ 由 pin 推出层图');
+  eq(C.normalizeState(mk('24')).scene, 'room-medbay', 'B119⑤：房内事件（24）⇒ 由注册场景推出内景');
+  const s = C.newState('normal'); C.go(s, '19');
+  eq(s.scene, 'exterior', 'B119⑤：站外 19 照旧（未接线节点输出不变）');
+  eq(JSON.stringify(D.scenes.exterior.pins['19']), '[1505,778]', 'B119⑤：deck/exterior 既有 pins 未动（19 号实测值保留——§2 另有逐条断言）');
+}
+
+/* --- 19-6 B117 卡片三态与通关记录（storage 桩；渲染与机检同源＝Core.cardInfo） --- */
+{
+  const info0 = C.cardInfo(fakeStore(), 'station');
+  eq(info0.save, null, 'B117①：无存档 ⇒ save 为空');
+  eq(info0.buttons.map(b => b.label).join(','), '开始', 'B117①：无存档 ⇒ 唯一按钮「开始」');
+  eq(info0.buttons.map(b => b.confirm).join(','), 'false', 'B117①：无存档 ⇒ 无覆盖确认（直接开新局）');
+  ok(!/继续|重玩|继续上次进度/.test([info0.buttons.map(b => b.label).join(''), info0.recordLine, info0.failLine, info0.note].join('｜')),
+    'B117①：无存档卡片文案不含「继续」「重玩」「继续上次进度」');
+  /* ② 未结束存档：继续＋重新开始；点「继续」＝载入该存档 */
+  const st2 = fakeStore();
+  const save2 = C.newState('normal', '小豆'); save2.loc = '5'; save2.coins = 7; save2.items = ['手电', '工牌']; save2.scene = 'room-observation';
+  C.saveTo(st2, 'station', save2);
+  const info2 = C.cardInfo(st2, 'station');
+  eq(info2.buttons.map(b => b.label).join(','), '继续,重新开始', 'B117②：未结束存档 ⇒ 「继续」＋「重新开始」、无「开始」');
+  eq(info2.buttons.map(b => b.confirm).join(','), 'false,true', 'B117④：覆盖确认只挂新局（「继续」不要，「重新开始」要）');
+  const back2 = C.normalizeState(C.loadFrom(st2, 'station'));
+  eq([back2.loc, back2.coins, back2.items.join('+'), back2.scene, back2.me].join('｜'), '5｜7｜手电+工牌｜room-observation｜小豆',
+    'B117②：点「继续」⇒ 载入该存档（节点／资源／道具／场景／玩家名一致）');
+  /* ③ 已结束（通关／失败各一）：不出现「继续」、记录块在、有「重玩」 */
+  const st3 = fakeStore();
+  const save3 = C.newState('normal'); save3.loc = '41';
+  C.saveTo(st3, 'station', save3);
+  C.addRecord(st3, 'station', C.endShortName(D.nodes['41']));
+  const info3 = C.cardInfo(st3, 'station');
+  eq(info3.buttons.map(b => b.label).join(','), '重玩', 'B117③：已结束（通关）⇒ 唯一「重玩」、无「继续」');
+  eq(info3.buttons.map(b => b.confirm).join(','), 'true', 'B117④：「重玩」＝覆盖确认');
+  eq(info3.recordLine, '🏆 通关记录：结局 · 圆满', 'B117③：记录块＝「🏆 通关记录：结局 · 圆满」');
+  eq(info3.failLine, '', 'B117③：通关结束 ⇒ 无「上局结束」行');
+  const st4 = fakeStore();
+  const save4 = C.newState('normal'); save4.loc = '44';
+  C.saveTo(st4, 'station', save4);
+  const info4 = C.cardInfo(st4, 'station');
+  eq(info4.buttons.map(b => b.label).join(','), '重玩', 'B117③：已结束（失败）⇒ 唯一「重玩」');
+  eq(info4.failLine, '上局结束：未通关', 'B117③：失败终止 ⇒ 「上局结束：未通关」另起一行');
+  eq(info4.recordLine, '', 'B117⑤：失败不写记录（记录块空）');
+  /* 结束判定＝win／fail 节点或 bankrupt：29 号（剧情失败）与破产态同样算结束 */
+  const st5 = fakeStore(); const save5 = C.newState('normal'); save5.loc = '29'; C.saveTo(st5, 'station', save5);
+  eq(C.cardInfo(st5, 'station').buttons[0].label, '重玩', 'B117③：29 号失败节点 ⇒ 已结束');
+  const st6 = fakeStore(); const save6 = C.newState('normal'); save6.loc = '12'; save6.bankrupt = true; save6.zeroRes = 'oxygen';
+  C.saveTo(st6, 'station', save6);
+  eq(C.cardInfo(st6, 'station').buttons[0].label, '重玩', 'B117③：bankrupt ⇒ 已结束');
+  eq(C.cardInfo(st6, 'station').failLine, '上局结束：未通关', 'B117③：破产态同样报「上局结束：未通关」');
+  /* ④ 覆盖确认文案（逐字）＋脚注（DOM 侧行为由冒烟演示；文案与开关在本层锁死） */
+  eq(info3.coverAsk, '开始新局会覆盖本关的旧存档（通关记录保留）。确定开始？', 'B117④：覆盖确认文案逐字（§1.1）');
+  eq(info0.note, '进度存在这台设备的浏览器里（各人各份）', 'B117：卡片脚注＝本机存档口径（各人各份）');
+  /* ⑤ 记录持久：开新局覆盖存档 ⇒ 记录仍在；多结局按达成先后追加、去重 */
+  const recBefore = C.recordOf(st3, 'station').join('、');
+  C.saveTo(st3, 'station', C.newState('normal'));            // 开新局＝覆盖本关存档
+  eq(C.recordOf(st3, 'station').join('、'), recBefore, 'B117⑤：开新局覆盖存档 ⇒ 通关记录仍在（独立键）');
+  C.addRecord(st3, 'station', C.endShortName(D.nodes['42']));
+  C.addRecord(st3, 'station', C.endShortName(D.nodes['41']));
+  eq(C.recordOf(st3, 'station').join('、'), '结局 · 圆满、结局 · 取舍', 'B117⑤：多结局按达成先后追加＋重复不重记');
+  eq(C.recordOf(fakeStore(), 'station').join('、'), '', 'B117⑤：无记录 ⇒ 空（不显示记录块）');
+  /* ⑥ 键与本地口径：存档键·既有／记录键·新增；引擎无网络请求 */
+  eq(C.recKey('station'), 'mygame2.rec.station.v1', 'B117⑥：记录键＝mygame2.rec.<关>.v1（独立键）');
+  eq(C.saveKey('station'), 'mygame2.save.station.v1', 'B117⑥：存档键＝既有 mygame2.save.<关>.v1');
+  ok(!/\bfetch\s*\(|XMLHttpRequest|sendBeacon/.test(engSrc), 'B117⑥：引擎无网络请求——存档与记录只在 localStorage');
+  P('B117：三态①③／继续载入一致②／覆盖确认与文案④／记录持久⑤／键与本地口径⑥ 逐条通过');
+}
 
 /* ============ 汇总 ============ */
 console.log('');

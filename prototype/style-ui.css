@@ -114,7 +114,7 @@
 }
 /* 校准提示框（开发面）：场景区多了物品栏行，抬到行上方——不再压住物品栏条目 */
 #calibBox { bottom: 52px; }
-/* ---------- ⑦ 选关页：难度单选（默认普通）＋唯一「开始」（B115 · §1.1） ----------
+/* ---------- ⑦ 选关页：难度单选＋卡片三态按钮（B115／B117 · §1.1） ----------
    新面入本档（§11 体积档注「style.css 保持、新面入 style-ui.css」）；`.lcResume` 旧面已随「继续上次进度」撤下。 */
 .lcDiff { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; flex-wrap: wrap; }
 .lcDiffOpt {
@@ -124,7 +124,12 @@
 .lcDiffOpt:hover { border-color: var(--accent); }
 .lcDiffOpt input { accent-color: var(--accent); margin: 0; }
 .lcDiffOpt input:checked + span { color: var(--ink); font-weight: 700; }   /* 选中态：文字加粗（不只靠颜色，色盲友好） */
-.lcBtns .lcStart { flex: 0 0 auto; padding: 9px 28px; background: #23405c; border-color: var(--accent); }   /* 唯一主按钮：与单选控件拉开层级（§1.1「唯一按钮／主按钮」） */
+.lcBtns .lcMain { flex: 0 0 auto; padding: 9px 28px; background: #23405c; border-color: var(--accent); }   /* 主按钮：开始／继续／重玩（三态各一） */
+.lcBtns .lcAlt { flex: 0 0 auto; padding: 9px 16px; font-weight: 600; opacity: .92; }                      /* 次按钮：重新开始 */
+/* 记录块（通关史·金＝关键进展；失败终止行降为说明色）＋存档脚注（各人各份） */
+.lcRecord { margin-top: 4px; font-size: 13px; line-height: 1.6; color: var(--msg-key); }
+.lcRecord.lcFailEnd { color: var(--dim); }
+.lcSaveNote { margin-top: 2px; font-size: 11.5px; color: var(--dim); }
 
 @media (max-width: 900px) {
   #stage { width: min(100%, calc((52vh - 58px) * var(--scene-w, 1) / var(--scene-h, 1))); }

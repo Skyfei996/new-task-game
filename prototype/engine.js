@@ -53,6 +53,12 @@
  *   E19 氧气读数＝条＋数值（renderHUD：resOf 原值＋同帧更新；数值与条同色）
  *   E20 结局名去字母（Core.endDisplayName：数据面 endTag/n 不动，仅渲染层）
  *
+ * B117／B119 改动（2026-10-04 老板三裁；口径＝design-ui-v1.md §1.1 与 design-station-v1.md §4.1）：
+ *   E23 存档读档入口＋通关记录：卡片三态（无档「开始」／未结束「继续＋重新开始」／已结束「重玩」）；
+ *       记录＝独立本机键 mygame2.rec.<level>.v1（只记 win、失败不写、开新局不丢）；覆盖＝一句确认
+ *   E24 内景场景接线：房间节点 scene: 'room-*'（syncScene 既有优先序）＋场景表注册；未注册房间＝维持原场景（零降级）；
+ *       读档按 st.loc 重算场景（旧档 scene 停在 deck 也能落在内景）；sceneOfNode：节点显式声明优先于 pin 推断
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
@@ -104,6 +110,10 @@
     /* 同一编号点出现在多张图的 pins 里（如电梯井）→ 无固定场景，返回 null（保持当前场景不换图） */
     sceneOfNode(id) {
       if (!D) return null;
+      /* B119：节点显式声明（房间/事件场景，B99 同款字段）优先于「图上的 pin 推断」——
+       * 内景接线后大厅编号（18/20）出现在本层各房图上，靠 pin 推断会变成多点命中（null）。 */
+      const n = D.nodes && D.nodes[id];
+      if (n && n.scene && D.scenes[n.scene]) return n.scene;
       let hit = null;
       for (const sid of Object.keys(D.scenes)) {
         if (!D.scenes[sid].pins[id]) continue;
@@ -197,10 +207,14 @@
       });
       return st;
     },
-    /* 读档兜底（旧存档没有 scene / zeroRes / me；资源钳在 ≥0，为 0 即判失败） */
+    /* 读档兜底（旧存档没有 scene / zeroRes / me；资源钳在 ≥0，为 0 即判失败）
+     * B119（§4.1 读档归一）：场景按 st.loc 重算（node.scene ＞ pin 推断）——旧档 scene 停在 deck 时，
+     *   读到房间节点也能落回内景；loc 无场景信息（无 pin 事件）则保留原值。 */
     normalizeState(st) {
       if (!st) return st;
-      if (!st.scene) st.scene = Core.sceneOfNode(st.loc) || Core.defaultScene();
+      const sid = Core.sceneOfNode(st.loc);
+      if (sid) st.scene = sid;
+      if (!st.scene) st.scene = Core.defaultScene();
       ['items'].forEach(k => { if (!Array.isArray(st[k])) st[k] = []; });
       ['visited', 'done', 'learned', 'chDone'].forEach(k => { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; });
       if (!Array.isArray(st.hist)) st.hist = [];
@@ -260,6 +274,60 @@
     },
     savePlayer(store, name) {
       try { store.setItem(PLAYER_KEY, JSON.stringify({ name: Core.cleanName(name) })); return true; } catch (e) { return false; }
+    },
+
+    /* ---- B117（§1.1 · D54~D57）：读档入口＋通关记录（本机存储：关卡存档键·既有 ＋ 记录键·新增） ----
+     * 记录＝独立键（开新局覆盖存档不影响它）；只记通关（win 节点）——失败不写、也不清空已有记录。 */
+    recKey(id) { return 'mygame2.rec.' + id + '.v1'; },
+    /* 结局短名（渲染层去字母——数据面 n/endTag 不动，B109）：'结局 A · 圆满' → '结局 · 圆满' */
+    endShortName(node) { return Core.endDisplayName(String((node && node.n) || '')); },
+    recordOf(store, id) {
+      try {
+        const raw = store && store.getItem(Core.recKey(id));
+        const a = raw ? JSON.parse(raw) : null;
+        return Array.isArray(a) ? a.filter(x => typeof x === 'string' && x) : [];
+      } catch (e) { return []; }
+    },
+    /* 追加一条通关记录（按达成先后、去重）；失败不写——调用方只在 win 节点调 */
+    addRecord(store, id, name) {
+      const list = Core.recordOf(store, id);
+      if (!store || !name || list.indexOf(name) >= 0) return list;
+      list.push(name);
+      try { store.setItem(Core.recKey(id), JSON.stringify(list)); } catch (e) { /* 本机存储不可用：记录不落地，不影响玩 */ }
+      return list;
+    },
+    /* 结束判定（D55）：存档节点为 win／fail 节点（41/42/43／44／29）或 bankrupt ⇒ 该局已结束（不出现「继续」） */
+    runEnded(st, id) {
+      if (!st) return false;
+      if (st.bankrupt) return true;
+      const lv = LEVELS[id || levelId] || D || null;
+      const n = (lv && lv.nodes && st.loc) ? lv.nodes[st.loc] : null;
+      return !!(n && (n.win || n.fail));
+    },
+    /* 关卡卡片三态与记录块（渲染与机检同源——DOM 与测试用同一份判定）：
+     * buttons＝[{key,label,main,confirm}]；无档「开始」／未结束「继续＋重新开始」／已结束「重玩」；
+     * 新局覆盖已有存档前统一一句确认（confirm）；「继续」不受难度选择影响（存档自带难度）。 */
+    cardInfo(store, id) {
+      const lv = LEVELS[id];
+      if (!lv) return null;
+      const save = Core.loadFrom(store, id);
+      const ended = Core.runEnded(save, id);
+      const endNode = (save && lv.nodes) ? (lv.nodes[save.loc] || null) : null;
+      const won = !!(ended && endNode && endNode.win);
+      const record = Core.recordOf(store, id);
+      const buttons = !save
+        ? [{ key: 'start', label: '开始', main: true, confirm: false }]
+        : (ended
+          ? [{ key: 'replay', label: '重玩', main: true, confirm: true }]
+          : [{ key: 'resume', label: '继续', main: true, confirm: false },
+             { key: 'restart', label: '重新开始', main: false, confirm: true }]);
+      return {
+        save: save, ended: ended, won: won, record: record, buttons: buttons,
+        recordLine: record.length ? ('🏆 通关记录：' + record.join('、')) : '',
+        failLine: (ended && !won) ? '上局结束：未通关' : '',        // 失败终止：只报一句（失败不写记录）
+        note: '进度存在这台设备的浏览器里（各人各份）',
+        coverAsk: '开始新局会覆盖本关的旧存档（通关记录保留）。确定开始？'
+      };
     },
 
     /* ---- 条件 ---- */
@@ -799,7 +867,13 @@
   let curScene = null;     // 当前已应用的场景 id（判断是否需要换图）
   let curLevelId = null;   // 当前关卡 id（存档键用）
 
-  const save = () => { if (store && st) Core.saveTo(store, curLevelId, st); };
+  /* B117（§1.1/D56）：存档写入——顺带记通关（win 节点）；记录＝独立键，失败不写、开新局不丢 */
+  const save = () => {
+    if (!store || !st) return;
+    Core.saveTo(store, curLevelId, st);
+    const n = (D && D.nodes && st.loc) ? D.nodes[st.loc] : null;
+    if (n && n.win) Core.addRecord(store, curLevelId, Core.endShortName(n));
+  };
   const nm = txt => Core.fillName(txt, st);                      // {me} 占位符 → 玩家名
   const resDef = id => Core.resDef(id) || {};
   const esc = s => String(s == null ? '' : s)                    // 关卡数据的文本进 innerHTML 前先转义
@@ -941,10 +1015,11 @@
     if (!first && st) toast('🛗 到达：' + sceneLabel(sid));
   }
 
-  /* ---------- 关卡选择页（v0.2；B115＝§1.1 重订） ---------- */
-  /* B115（§1.1 老板 2026-10-03）：难度＝单选（默认普通）＋唯一「开始」；「继续上次进度」连同其渲染（levelProgress）撤下。
-   * 存档口径不变（引擎按关卡自动存档）；本页撤下载入入口 —— 「开始」＝开新局（覆盖本关旧存档）。
-   * 注：读档路径 resumeGame 保留（存档保留；如需恢复「继续」入口由老板另裁——§14-13）。 */
+  /* ---------- 关卡选择页（v0.2；B115＋B117＝§1.1 重订） ---------- */
+  /* B117（§1.1 老板 2026-10-04 裁定）：读档功能恢复——卡片三态：无存档「开始」／未结束「继续＋重新开始」／
+   * 已结束（通关／失败终止）「重玩」（不出现「继续」）；记录块（通关记录·独立键＋上局失败终止行）；
+   * 覆盖＝开新局前统一一句确认（取消＝不动存档）；脚注＝本机存档口径。判定与文案同源＝Core.cardInfo。
+   * B115（2026-10-03）：难度＝单选（默认普通）；「继续上次进度」不出现（入口名＝「继续」）。 */
   function levelCard(id, lv) {
     const meta = lv.meta || {};
     const card = document.createElement('div');
@@ -1008,13 +1083,40 @@
       diffRow.appendChild(lab);
     });
     btns.appendChild(diffRow);
-    /* 唯一按钮「开始」：以所选难度开新局（startGame(id, 所选档)） */
-    const bStart = document.createElement('button');
-    bStart.className = 'lcStart';
-    bStart.textContent = '开始';
-    bStart.onclick = () => startGame(id, picked.diff);
-    btns.appendChild(bStart);
+    /* B117（§1.1）：按钮按卡片三态渲染（无档「开始」／未结束「继续＋重新开始」／已结束「重玩」）——
+     * 「继续」＝载入该存档（resumeGame，不受难度选择影响）；开新局覆盖已有存档前统一一句确认（取消＝不动存档）。 */
+    const info = Core.cardInfo(store, id);
+    (info ? info.buttons : []).forEach(b => {
+      const el = document.createElement('button');
+      el.className = b.main ? 'lcMain' : 'lcAlt';
+      el.textContent = b.label;
+      el.onclick = () => {
+        if (b.key === 'resume') { resumeGame(id, info.save); return; }
+        if (b.confirm && !confirm(info.coverAsk)) return;   // D57：取消＝不动存档
+        startGame(id, picked.diff);
+      };
+      btns.appendChild(el);
+    });
     body.appendChild(btns);
+    /* 记录块（通关史·独立键；失败终止另起一行）＋ 存档脚注（§1.1） */
+    if (info && info.recordLine) {
+      const d = document.createElement('div');
+      d.className = 'lcRecord';
+      d.textContent = info.recordLine;
+      body.appendChild(d);
+    }
+    if (info && info.failLine) {
+      const d = document.createElement('div');
+      d.className = 'lcRecord lcFailEnd';
+      d.textContent = info.failLine;
+      body.appendChild(d);
+    }
+    if (info) {
+      const d = document.createElement('div');
+      d.className = 'lcSaveNote';
+      d.textContent = info.note;
+      body.appendChild(d);
+    }
     card.appendChild(body);
     return card;
   }

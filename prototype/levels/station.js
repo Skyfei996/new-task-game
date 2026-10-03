@@ -13,6 +13,8 @@
  *   deck3 底层核心区（12 反应堆舱·13 冷却塔·14 服务器机房·15 太阳能控制室·16 维修区·17 应急逃生舱·21 中央大厅）
  *   exterior 站外（19 太阳能板阵列）——场景图＝T04 成图 images/station/eva-v1.jpg（2026-10-03 入库并切换；
  *   实测 1792×1121）；19 号 pin＝按成图实测校准（下侧太阳能板阵列蓝区质心；B114）
+ *   room-* 内景（B119 · 2026-10-04）：已入库 7 间（T15~T21）＝1/2/3/4/5/7/8 号房的进房切图目标；
+ *   未到货房间不注册 ⇒ 进房不切图（维持本层 deck 图，零降级）；口径＝`design-station-v1.md` §4.1。
  *
  * 45 点网络（docs/design-station-nodes.md §5）落点说明：
  *   1~21 地点 / 22~40 事件 / 41~43 三个结局 / 45 保险柜事件 = 本文件 nodes 里的节点；
@@ -34,6 +36,10 @@
  *   浮现图注册表 `moments` ＋ 19 节点 `moments`/`mIf`（两层制 L2，§7.3/§7.4/§7.5）、`chars` 补登记 6 处（§7.6）、
  *   `characters[].img`（图鉴/人物条真头像，缺图回落 emoji）、`help` 全文换新稿（§8.1 照抄）；
  *   光环位按关卡停用判据＝本关是否有 `moments`（站关撤下、示例关 dalim 沿用——引擎面，不在本文件）。
+ * B04 内景接线（B119 · 2026-10-04；口径＝`design-station-v1.md` §4.1）：已入库 7 间注册 `scenes['room-*']`
+ *   ＋房节点 `scene` 绑定（既有字段，零引擎新字段）；每房 pins＝出口 pin（本层大厅）＋房内交互点（1~3，见各房注释）；
+ *   大厅 18/20 与 22 号显式声明楼层场景（出口 pin 令大厅编号多点命中，显式声明保住「回大厅切层图」）；
+ *   房间相关浮现图锚点同批重标（对 room 图）。
  * B03 复检收口轮（2026-10-03）：B78 星币数字（引擎/工具面）；B79 27 号赢家当场兑现；B80 战斗构成行（引擎/工具面）；
  *   B81~B98 逐条文案（照抄件升级＝bible §7 v2.5）；B99 28 号发生场景 scene:'deck2'；真人线 R2 四修：
  *   ① --player 无编号（工具面）/ ② 16·14·17 复访写回 / ③ 24 持卡衔接 / ④ 12③ 自指（门票只收一次）——自写文案见批次档 §5。
@@ -88,6 +94,54 @@
         id: 'exterior', name: '晨星号 · 站外（太阳能板阵列）', label: '站外',
         image: '../images/station/eva-v1.jpg', width: 1792, height: 1121,
         pins: { '19': [1505, 778] }
+      },
+
+      /* —— 内景（B119 · 口径＝`design-station-v1.md` §4.1；注册前置＝图已入库 `images/station/rooms/`）——
+       * id＝`room-<name>`（name＝交付文件名段）；label＝**所属层**（左上角标仍显示楼层）；
+       * width/height＝成图实测原像素（JPEG 头实测，与入库图逐字一致）。
+       * pins＝出口 pin（本层大厅 18/20/21，锚在图中舱门/出口构件）＋房内交互点（该房可见选项的可达目标、
+       *   图上有对应构件者；纯文本/自指选项不标 pin——不造图不新增语义）。
+       * 坐标为**暂定值**：按成图目测取值（依据逐条注在行内），待老板试玩回报／C 键手标校准后回填。 */
+      'room-galley': {
+        id: 'room-galley', name: '晨星号 · 食堂', label: '顶层',
+        image: '../images/station/rooms/galley.jpg', width: 1659, height: 948,
+        pins: { '18': [1330, 690] }   // 出口＝右下拱门洞（目测：门洞内缘中心——「摸黑去中央大厅」）
+      },
+      'room-sleep': {
+        id: 'room-sleep', name: '晨星号 · 睡眠舱', label: '顶层',
+        image: '../images/station/rooms/sleep.jpg', width: 1660, height: 948,
+        pins: { '18': [830, 850] }    // 出口＝画面下缘门框中线（目测：铺位前通道口——「回中央大厅」）
+      },
+      'room-medbay': {
+        id: 'room-medbay', name: '晨星号 · 医务室', label: '顶层',
+        image: '../images/station/rooms/medbay.jpg', width: 1659, height: 948,
+        pins: { '18': [1330, 860],    // 出口＝右下门内地面（目测：门洞地面中线）
+                '24': [870, 470] }    // 房内＝病床床头（阿雅换冰袋处——「把医疗包交给阿雅」→ 24 号委托）
+      },
+      'room-gym': {
+        id: 'room-gym', name: '晨星号 · 健身房', label: '顶层',
+        image: '../images/station/rooms/gym.jpg', width: 1659, height: 948,
+        pins: { '18': [1022, 285],    // 出口＝正上方双开门（目测：门扇中心）
+                '26': [1240, 520] }   // 房内＝哑铃架（「跟他掰手腕」构件；与 L2 铁头锚点错开以免遮挡）
+      },
+      'room-observation': {
+        id: 'room-observation', name: '晨星号 · 观景厅', label: '顶层',
+        image: '../images/station/rooms/observation.jpg', width: 1659, height: 948,
+        pins: { '18': [830, 890],     // 出口＝画面下缘地面通道（目测：地毯前沿——图中无门构件）
+                '28': [1185, 600] }   // 房内＝沙发上的银河（「追出去」构件——与 L2 同座标＝对齐覆盖）
+      },
+      'room-lab': {
+        id: 'room-lab', name: '晨星号 · 实验室', label: '中层',
+        image: '../images/station/rooms/lab.jpg', width: 1660, height: 948,
+        pins: { '20': [830, 880],     // 出口＝画面下缘门框中线（目测：门槛中点）
+                '25': [780, 55],      // 房内＝天花板检修口（老布「指给你看」的构件——「帮他去找工具箱」→ 25）
+                '30': [300, 640] }    // 房内＝左侧实验台下的工具柜（「打开工具柜，自己动手」→ 30）
+      },
+      'room-comms': {
+        id: 'room-comms', name: '晨星号 · 通讯舱', label: '中层',
+        image: '../images/station/rooms/comms.jpg', width: 1660, height: 948,
+        pins: { '20': [850, 760],     // 出口＝下缘拱门（目测：门洞中心）
+                '8': [450, 520] }     // 房内＝控制台（「查货单／全站广播」构件；本节点无浮图 ⇒ 兼作「你在这里」标记）
       }
     },
 
@@ -181,20 +235,21 @@
      *   T40 laobu-lookout／T41 tietou-armwrestle／T42 tangtang-guide／T43 pod-standoff／T44 sangni-smile／
      *   T45 pangpang-hail／T46 aya-nurse／T47 sangni-flip／T48 sangni-cave／T49 tietou-open／T50 guardbot-block／
      *   T51 win-observation-jupiter／T52 win-airlock-array／T53 yinhe-lick／T54 sangni-bribe／T55 helper-join／T56 sil-figure。
-     * 注：at/win 为**临时校准值**（按现役 deck 图给——§14-10）；走廊/内景/舷窗接线后随 pins 一同重校准（C 键流程）。
+     * 注：at/win 为**暂定校准值**——已在房间的图（1/3/4/5/11 相关条目见各行「B119 重标」）按内景图重新取值（B119）；
+     *   仍在 deck 图的条目等走廊/舷窗接线后随 pins 一同重校准（C 键流程）。
      *   图未到货 ⇒ 该张不渲染（无占位、不报错——§7.3 兜底），注册表照常先行登记。 */
     moments: {
       /* —— 角色浮现图（18 张）—— */
-      'pangpang-hail':        { file: '../images/station/moments/pangpang-hail.jpg', at: [478, 554], w: 0.22 },      // T45 · 1（默认）
-      'aya-nurse':            { file: '../images/station/moments/aya-nurse.jpg', at: [1332, 554], w: 0.22 },        // T46 · 3（默认）
-      'yilanna-awake':        { file: '../images/station/moments/yilanna-awake.jpg', at: [1572, 554], w: 0.22 },    // T39 · 24（默认）＋3·pinsAll 24
-      'yinhe-idle':           { file: '../images/station/moments/yinhe-idle.jpg', at: [1416, 871], w: 0.16 },       // T38 · 5（默认）
+      'pangpang-hail':        { file: '../images/station/moments/pangpang-hail.jpg', at: [1000, 400], w: 0.22 },     // T45 · 1（默认）｜B119 重标：galley 图内灶台后胖胖（底边中点）
+      'aya-nurse':            { file: '../images/station/moments/aya-nurse.jpg', at: [600, 660], w: 0.22 },        // T46 · 3（默认）｜B119 重标：medbay 图内床边阿雅（脚底）
+      'yilanna-awake':        { file: '../images/station/moments/yilanna-awake.jpg', at: [860, 500], w: 0.22 },    // T39 · 24（默认）＋3·pinsAll 24｜B119 重标：medbay 病床上伊莲娜
+      'yinhe-idle':           { file: '../images/station/moments/yinhe-idle.jpg', at: [1185, 600], w: 0.16 },       // T38 · 5（默认）｜B119 重标：observation 沙发上零食袋旁的银河
       'tangtang-guide':       { file: '../images/station/moments/tangtang-guide.jpg', at: [470, 486], w: 0.18 },    // T42 · 6＋23（默认）
       'sangni-smile':         { file: '../images/station/moments/sangni-smile.jpg', at: [990, 880], w: 0.22 },      // T44 · 10（默认）
       'guardbot-block':       { file: '../images/station/moments/guardbot-block.jpg', at: [1322, 509], w: 0.20 },   // T50 · 14（默认）
       'sil-figure':           { file: '../images/station/moments/sil-figure.jpg', at: [640, 620], w: 0.20 },        // T56 · 22（默认）
-      'tietou-armwrestle':    { file: '../images/station/moments/tietou-armwrestle.jpg', at: [552, 879], w: 0.22 }, // T41 · 26（默认）
-      'tietou-open':          { file: '../images/station/moments/tietou-open.jpg', at: [552, 879], w: 0.22 },       // T49 · 27（默认）
+      'tietou-armwrestle':    { file: '../images/station/moments/tietou-armwrestle.jpg', at: [890, 700], w: 0.22 }, // T41 · 26（默认）＋4｜B119 重标：gym 图内铁头（脚底）
+      'tietou-open':          { file: '../images/station/moments/tietou-open.jpg', at: [890, 700], w: 0.22 },       // T49 · 27（默认）｜B119 重标：同铁头位（换态不换位）
       'yinhe-ledger':         { file: '../images/station/moments/yinhe-ledger.jpg', at: [1020, 870], w: 0.16 },     // T37 · 28（默认）
       'yinhe-lick':           { file: '../images/station/moments/yinhe-lick.jpg', at: [1020, 870], w: 0.16 },       // T53 · 28·item ≥ 桑尼的账本（换图不换位）
       'sangni-flip':          { file: '../images/station/moments/sangni-flip.jpg', at: [820, 880], w: 0.22, card: true },   // T47 · 31（默认；信息密集——圆角卡）
@@ -204,7 +259,7 @@
       'laobu-lookout':        { file: '../images/station/moments/laobu-lookout.jpg', at: [728, 947], w: 0.22 },     // T40 · 38（默认）
       'pod-standoff':         { file: '../images/station/moments/pod-standoff.jpg', at: [1188, 857], w: 0.32, card: true }, // T43 · 40（默认；群像横构图——圆角卡）
       /* —— 窗景图（2 张；尺寸＝窗区 × fit）—— */
-      'win-observation-jupiter': { file: '../images/station/moments/win-observation-jupiter.jpg', at: [1420, 480], win: [520, 300], fit: 1.06 },  // T51 · 5（依赖 T19 窗区几何）
+      'win-observation-jupiter': { file: '../images/station/moments/win-observation-jupiter.jpg', at: [815, 277], win: [1255, 385], fit: 1.06 },  // T51 · 5｜B119 重标：observation 图内弧形窗区（中心＋窗区尺寸）
       'win-airlock-array':       { file: '../images/station/moments/win-airlock-array.jpg', at: [1456, 533], win: [240, 220], fit: 1.06 }         // T52 · 11（依赖 T14 舷窗测量）
     },
 
@@ -238,7 +293,7 @@
     nodes: {
       /* ================= 第一幕 · 摸黑求生（1~21 地点） ================= */
 
-      '1': { n: '食堂',
+      '1': { n: '食堂', scene: 'room-galley',   // B119：内景接线（T15 galley.jpg 已入库）
         t: '晚餐刚端上桌，灯"啪"地全灭了。黑暗里，你听见"嘶——"的一声长音：空气正在漏走（氧气 −5）。\n厨师胖胖在黑暗里喊："别慌别慌——先别动，汤还热着呢！……谁搭把手，帮我把碗洗了？工钱照给，不白使唤人！"\n更远处的走廊里，好像有人在压着嗓子打电话。',
         chars: ['pangpang'],
         moments: ['pangpang-hail'],   // B04（§7.4）：胖胖在灶台后招手（T45）
@@ -257,12 +312,12 @@
         tIf: [ { cond: { knows: '全站复电' },
           t: '食堂的灯全亮了，锅里"咕嘟咕嘟"冒着热气。\n胖胖擦着灶台回头乐了："来啦？热水管用得很——碗还堆着一池，工钱照给！"' } ] },
 
-      '2': { n: '睡眠舱',
+      '2': { n: '睡眠舱', scene: 'room-sleep',   // B119：内景接线（T16 sleep.jpg 已入库）
         t: '你摸黑爬回自己的铺位。柜门卡得死紧，你咬着牙把它拽开，才摸到里面的应急包：工牌、手电，还有一支满气的氧气瓶——接上以后，氧气表涨了一小截。',
         en: { once: true, gain: ['手电', '工牌', '氧气瓶'], oxygen: 10 },   // 氧气瓶 +15 ∕ 翻找 −5 = 净 +10
         c: [ { l: '回中央大厅。', to: '18' } ] },
 
-      '3': { n: '医务室',
+      '3': { n: '医务室', scene: 'room-medbay',   // B119：内景接线（T17 medbay.jpg 已入库）
         t: '医官阿雅正在给床上的人换冰袋——是站长伊莲娜！她受了伤，一直没醒。\n"她需要医疗包，"阿雅的声音有点急，"健身房墙上的急救箱里有一个——你力气够的话，撬得开。"\n墙角的老氧气站还能用。',
         chars: ['aya', 'yilanna'],
         /* B04（§7.4）：默认＝阿雅换冰袋（T46）；站长已醒（pinsAll 24）⇒ 命中行完整替换默认集（T39） */
@@ -285,7 +340,7 @@
           { cond: { item: '医疗包' }, t: '医官阿雅正在给床上的人换冰袋——是站长伊莲娜！她受了伤，一直没醒。\n"她需要医疗包，"阿雅抬头看见你手里的袋子，"能先给我吗？"\n墙角的老氧气站还能用。' }
         ] },
 
-      '4': { n: '健身房',
+      '4': { n: '健身房', scene: 'room-gym',   // B119：内景接线（T18 gym.jpg 已入库）
         t: '安保队长铁头正举着两只哑铃，汗珠砸在地板上——站里的安全门，钥匙都在他手里。\n"断电？我以为是跳闸！"他放下哑铃，咧嘴一笑，"小身板，敢不敢掰手腕？"\n他忽然朝门口喊了一嗓子："仓库的门禁，是得盯紧点！"\n墙上的急救箱扣得死紧，一个人弄不下来。',
         chars: ['tietou'],
         moments: ['tietou-armwrestle'],   // B111（§7.4）：T18 未到货期间由浮现图 T41 补位（与 26 同图；零新图）
@@ -314,7 +369,7 @@
           { cond: { chDone: '急救箱开过' }, t: '铁头冲你扬了扬下巴："药箱开了？行，够用就好。"\n墙角的急救箱敞着口，空了。' }
         ] },
 
-      '5': { n: '观景厅',
+      '5': { n: '观景厅', scene: 'room-observation',   // B119：内景接线（T19 observation.jpg 已入库）
         t: '观景厅的窗口正对着木星——像一颗巨大的糖果挂在窗外。\n沙发后面窸窸窣窣：站猫银河蹲在一只鼓鼓的零食袋上，尾巴卷成一个小问号。它只吃真鱼，对合成粮闻都不闻——这会儿正瞪着你，爪子按得紧紧的。',
         chars: ['yinhe'],   // 在场表口径沿革：5 号在场者＝银河（B02 起；B04 复核仍为唯一——原注释误记批次，本轮顺手改）
         /* B04（§7.4/§7.5）：默认＝银河蹲零食袋（T38）＋窗景木星（T51）；打过招呼（银河已不在）⇒ 窗景照旧、猫不出现 */
@@ -344,7 +399,7 @@
         tIf: [ { cond: { knows: '全站复电' },
           t: '指挥舱的屏幕上亮起了一片，糖糖的圆眼睛在光里转得飞快。\n"电回来啦！"它"咔"地又投出一张清单，"主系统自检通过——就差反应堆了。三样东西，你凑齐几样啦？"' } ] },
 
-      '7': { n: '实验室',
+      '7': { n: '实验室', scene: 'room-lab',   // B119：内景接线（T20 lab.jpg 已入库）
         t: '总工程师老布围着零件堆转圈，白胡子一翘一翘："我的宝贝工具箱不见了！没有它，螺丝不认识我，电路板也不听我的话——活干不了！"\n"不过嘛，"他指了指天花板的检修口，"那条爬道顺着管子下去，一直通到底层的维修区。要是有人肯从那儿钻进来，自己动手——我也拦不住，对吧？"\n"要肯搭把手也行——帮起忙来，工钱我照付。"\n墙边立着一排工具柜，柜门都锁得严实。',
         chars: ['laobu'],
         c: [
@@ -367,7 +422,7 @@
             t: '老布一眼瞅见你手里的控制芯片，白胡子抖了抖：「哦？」他凑近看了两眼，背着手转开：「嗯，还行——能用。我的宝贝工具箱嘛，反正也跑不了；你先忙你的大事。」' }
         ] },
 
-      '8': { n: '通讯舱',
+      '8': { n: '通讯舱', scene: 'room-comms',   // B119：内景接线（T21 comms.jpg 已入库）
         t: '通讯舱的屏幕上只有一行红字：「求救信号已发出——预计 6 小时后接通。」\n你心里一沉：6 小时？氧气撑不了那么久。\n控制台角落，一张货单被翻得乱七八糟——有人用笔改过上面的字。',
         c: [
           /* ① 隐形式（持账本才出现，§9.7-7）；② 查单＝once＋线索回执（B72） */
@@ -573,7 +628,7 @@
           { l: '回底层大厅。', to: '21' }
         ] },
 
-      '18': { n: '中央大厅（顶层）',
+      '18': { n: '中央大厅（顶层）', scene: 'deck1',   // B119：出口 pin 出现在本层各房内景 ⇒ 显式声明楼层场景（不再靠 pin 唯一命中）
         t: '应急灯亮着，电梯的指示灯一闪一闪。这一层是生活区：食堂、睡眠舱、医务室、健身房、观景厅。\n往下一层是工作区，再往下一层是核心区。',
         c: [
           { l: '穿过走廊，去食堂（1）。', to: '1' },
@@ -613,7 +668,7 @@
         tIf: [ { cond: { knows: '太阳能板已修好' },
           t: '面板补好了，电流顺着缆线往站里跑。木星在脚下慢慢地转。' } ] },
 
-      '20': { n: '中央大厅（中层）',
+      '20': { n: '中央大厅（中层）', scene: 'deck2',   // B119：同上（实验室/通讯舱的出口 pin）
         t: '补给柜的门虚掩着——里面有半罐氧气（一次性）。\n这一层是工作区：指挥舱、实验室、通讯舱、站长室、仓库、气闸舱。',
         en: { once: true, oxygen: 5 },
         c: [
@@ -657,7 +712,7 @@
 
       /* ================= 第二幕 · 事件节点（22~40） ================= */
 
-      '22': { n: '黑暗中的动静',
+      '22': { n: '黑暗中的动静', scene: 'deck1',   // B119：走廊事件——显式声明楼层（不被出发房间的内景带走：本节点无 pin）
         t: '走廊深处，有人压着嗓子打电话："……货在仓库，别让人靠近。按原计划，灯一灭就动手。"\n你屏住呼吸，把这几个词记在了心里。\n应急灯扫过的一瞬，你瞥见他袖口一道臂章："货运"。再看时，人已经没进黑暗里了。',
         moments: ['sil-figure'],   // B04（§7.4）：暗处人影（T56；身份不露）
         en: { once: true, learn: '走私暗号' },
