@@ -7,6 +7,8 @@
 //         4 号探索化 / 机制落点（lockIf 16＋恒灰 10·完成态并 cond 7·去向修正 4·新去向 9·tIf 增补）
 //       / B02-QA 修正轮（B40~B59）：12 号三态×②③④ / 41 证据×广播 8 版 / 43 重启×站长 4 版 /
 //         17③·40④ 灰字两缺项 / 名称统一（维修爬道·焊接枪）/ 普通难度短线 80
+//       / B04 老板试玩验收轮（B110~B115）：B111 4 号浮图（T41）/ B112 当前位置标记抑制 /
+//         B114 站外切 T04＋19 号 pin 实测校准 / B115 选关页（难度单选＋唯一「开始」）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -34,7 +36,7 @@ const D = globalThis.GAME_DATA;   // selectLevel 已把当前关卡同步给 GAM
 /* ============ 1. 元信息 / 资源 ============ */
 eq(D.meta.title, '空间站大停摆', '标题');
 eq(D.meta.level, '你有一个新任务！· 原创 L1', '副标题');
-eq(D.meta.poster, '../images/station/station-map-ai-v1.jpg', '海报图（站外图未到，暂用总览图占位）');
+eq(D.meta.poster, '../images/station/station-map-ai-v1.jpg', '海报图＝L0 总览图用法（站外场景图另配 scenes.exterior）');
 ok(D.meta.tagline.length > 10, '有一句话简介');
 eq(D.start.node, '1', '起点 1 号（食堂）');
 eq(D.meta.safeNode, '18', '安全点 18 号（顶层中央大厅）');
@@ -92,7 +94,7 @@ const PINS = {
   deck1: { '1': [358, 404], '2': [1021, 235], '3': [1452, 404], '4': [412, 729], '5': [1416, 751], '18': [896, 504] },
   deck2: { '6': [340, 336], '7': [950, 224], '8': [1523, 336], '9': [340, 695], '10': [860, 740], '11': [1416, 673], '20': [896, 471] },
   deck3: { '12': [466, 269], '13': [950, 247], '14': [1452, 359], '15': [305, 594], '16': [788, 807], '17': [1308, 717], '21': [896, 504] },
-  exterior: { '19': [760, 700] }
+  exterior: { '19': [1505, 778] }
 };
 eq(Object.keys(D.scenes).join(','), 'deck1,deck2,deck3,exterior', '四个场景');
 const allPins = new Set();
@@ -110,11 +112,14 @@ Object.entries(PINS).forEach(([sid, pins]) => {
 });
 eq(allPins.size, 21, '四场景编号合计 21 个（无重复）');
 eq(allPins.has('19'), true, '站外场景有 19 号（太阳能板阵列）');
-/* 19 号放在画面中部（±15% 中心） */
+/* 19 号 pin（B114）：按 T04 成图（`images/station/eva-v1.jpg`）实测校准——右侧下片太阳能板阵列「面板蓝」像素
+ * （b>90 且 b−r>40 且 b−g>12）在 x∈[1240,1791]×y∈[520,1010] 的质心实测 (1509,778)（窗口放宽到 x≥1150 ⇒ (1502,778)；
+ * 两组差 <10px ⇒ 取中值记 [1505,778]）；旧值 [760,700]（对 1520×1400 占位图）作废。
+ * 板区实测范围：过质心水平线 x∈[1222,1779]，板体 y∈[520,960]——下方两条断言即据此划界。 */
 const ext = D.scenes.exterior;
-const cx = ext.width / 2, cy = ext.height / 2;
-ok(Math.abs(ext.pins['19'][0] - cx) <= ext.width * 0.15 && Math.abs(ext.pins['19'][1] - cy) <= ext.height * 0.15,
-  '19 号钉在站外图的画面中部');
+eq(JSON.stringify(ext.pins['19']), '[1505,778]', 'B114：19 号 pin＝按 T04 成图实测校准值');
+ok(ext.pins['19'][0] >= 1222 && ext.pins['19'][0] <= 1779 && ext.pins['19'][1] >= 520 && ext.pins['19'][1] <= 960,
+  'B114：19 号 pin 落在下片太阳能板阵列板区（实测 x∈[1222,1779]／y∈[520,960]）');
 
 /* 素材校验：声明的宽高必须和真实图片一致（编号按原图像素定位） */
 function jpegSize(file) {
@@ -134,7 +139,7 @@ Object.entries(D.scenes).forEach(([sid, sc]) => {
   const sz = fs.existsSync(p) ? jpegSize(p) : null;
   eq(sz && sz.w + '×' + sz.h, sc.width + '×' + sc.height, `${sid} 场景图实测尺寸 = 数据声明（${sc.width}×${sc.height}）`);
 });
-ok(D.scenes.exterior.image.indexOf('station-map-ai-v1') >= 0, '站外图用的是站体总览图占位（站外素材未到）');
+ok(D.scenes.exterior.image.indexOf('eva-v1') >= 0, 'B114：站外场景图＝T04 成图 eva-v1（占位总览图退出 exterior 位）');
 
 /* ============ 3. 道具（23 件 + 红框 + 武力 + 文本道具） ============ */
 const NEED_ITEMS = ['手电', '工牌', '氧气瓶', '万能扳手', '磁力靴', '焊接枪', '电击棒', '机械手套', '应急盾',
@@ -2526,8 +2531,9 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
     if (extra) Object.assign(s, extra);
     return C.momentsOf(s, D.nodes[loc]);
   };
-  /* 1 浮现集＝数据（抽查 N1／N3／N5／N14／N24／N28／N40） */
+  /* 1 浮现集＝数据（抽查 N1／N3／N4／N5／N14／N24／N28／N40） */
   eq(mom('1').join(','), 'pangpang-hail', 'B04 §7.7-1：N1 默认＝[pangpang-hail]');
+  eq(mom('4').join(','), 'tietou-armwrestle', 'B111 §7.7-1：N4 默认＝[tietou-armwrestle]（＝T41，与 N26 同图、零新图）');
   eq(mom('3').join(','), 'aya-nurse', 'B04 §7.7-1：N3 默认＝[aya-nurse]');
   eq(mom('3', { visited: { '24': true } }).join(','), 'yilanna-awake', 'B04 §7.7-1：N3 pinsAll 24 ⇒ 命中行替换默认集');
   eq(mom('5').join(','), 'yinhe-idle,win-observation-jupiter', 'B04 §7.7-1：N5 默认＝猫＋窗景两张');
@@ -2545,7 +2551,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
     'B04 §7.3：角色图 18 张、宽 w ∈ [0.16,0.32]（' + onlyChar.map(id => D.moments[id].w).join('/') + '）');
   eq(M.filter(id => D.moments[id].win).length, 2, 'B04 §7.5：窗景 2 条（5 观景厅／11 气闸舱）');
   const nodeSet = Object.keys(D.nodes).filter(id => D.nodes[id].moments || D.nodes[id].mIf).sort((a, b) => a - b);
-  eq(nodeSet.join(','), '1,3,5,6,10,11,14,22,23,24,26,27,28,31,32,33,37,38,40', 'B04 §11：节点 moments/mIf 恰 19 个（触发列去重口径）');
+  eq(nodeSet.join(','), '1,3,4,5,6,10,11,14,22,23,24,26,27,28,31,32,33,37,38,40', 'B04 §11＋B111：节点 moments/mIf 恰 20 个（B111 补登 N4）');
   /* 2 层序与不改可点性 */
   const htmlB = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
   ok(htmlB.indexOf('id="momentLayer"') > htmlB.indexOf('id="dimSvg"') && htmlB.indexOf('id="momentLayer"') < htmlB.indexOf('id="pinLayer"'),
@@ -2597,7 +2603,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   });
   eq(dup.join(','), '', 'B04 §7.7-7：任一节点的浮现集里同一角色至多一张（不并置同角色）');
   const OVER = [['1', 'pangpang-hail', null], ['3', 'aya-nurse', null], ['3', 'yilanna-awake', { visited: { '24': true } }],
-    ['5', 'yinhe-idle', null], ['26', 'tietou-armwrestle', null], ['27', 'tietou-open', null]];
+    ['4', 'tietou-armwrestle', null], ['5', 'yinhe-idle', null], ['26', 'tietou-armwrestle', null], ['27', 'tietou-open', null]];
   OVER.forEach(([id, mid, extra]) => {
     ok(mom(id, extra).indexOf(mid) >= 0, 'B04 §7.7-7：同框抽查 N' + id + ' 的 L2 在案（' + mid + '）');
     const m = D.moments[mid];
@@ -2611,15 +2617,50 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
     'B04 §7.6：8 位乘员 img 全部指向 images/station/chars/（缺图回落 emoji）');
   ok(engSrc.indexOf('function guardFaces') >= 0 && engSrc.indexOf('img.onerror = () => {') >= 0,
     'B04：头像缺图回落 emoji（不留破图——源码契约）');
-  P('浮现层：断言 1~7 逐条通过（19 节点／20 条注册表／窗景对拍／层序／缺图兜底／同框 4 组）');
+  P('浮现层：断言 1~7 逐条通过（20 节点／20 条注册表／窗景对拍／层序／缺图兜底／同框 5 组）');
 }
 
-/* --- 18-8 B106 外部数据面（占位图继续服役；切换登记为验收轮后一行） --- */
+/* --- 18-8 B114 站外切换（T04 入库接管；pin 按成图实测；占位退场） --- */
 {
-  ok(D.scenes.exterior.image.indexOf('station-map-ai-v1') >= 0,
-    'B106（父代理 2026-10-03 裁定）：站外仍用总览占位图——T04 数据面切换登记为统一验收轮后一行（含 19 号 pin 重校准）');
-  ok(D.scenes.exterior.image.indexOf('T04') < 0, 'B106：本轮未切 exterior 图路径（未验收/未入库，避免 pin 错位）');
-  P('B106：占位继续服役（裁定在案）；切换项登记验收轮（pin 重校准绑定）');
+  eq(D.scenes.exterior.image, '../images/station/eva-v1.jpg', 'B114：站外场景图＝T04 成图 eva-v1（入库＝父侧执行）');
+  ok(D.scenes.exterior.image.indexOf('station-map-ai-v1') < 0, 'B114：总览占位图不再是站外场景图（退出 exterior 位）');
+  eq(D.scenes.exterior.width + '×' + D.scenes.exterior.height, '1792×1121',
+    'B114：站外宽高＝1792×1121（与成图实测一致——§2 处的 JPEG 实测循环另有校验）');
+  eq(JSON.stringify(D.scenes.exterior.pins['19']), '[1505,778]', 'B114：19 号 pin＝按 T04 成图实测校准（下片阵列蓝区质心，见 §2 注释）');
+  P('B114：站外＝eva-v1（1792×1121）＋ pin 实测值；占位图退场（海报位保留）');
+}
+
+/* --- 18-9 B112 当前位置标记抑制（有浮现图的节点 ⇒ 光环＋编号＋「你在这里」整体不渲染） --- */
+{
+  const hid = (loc, extra) => {
+    const s = C.newState('normal'); s.loc = loc;
+    if (extra) Object.assign(s, extra);
+    return C.currentMarkerHidden(s);
+  };
+  eq([hid('5'), hid('14')].join(','), 'true,true', 'B04 §7.7-8：有浮图节点（N5／N14）⇒ 当前位置标记抑制');
+  eq([hid('18'), hid('20'), hid('21')].join(','), 'false,false,false', 'B04 §7.7-8：无浮图节点（N18／N20／N21）⇒ 标记照旧（回归）');
+  eq([hid('5', { chDone: { '跟胖胖打过招呼': true } }), hid('14', { items: ['监控回放'] })].join(','), 'true,false',
+    'B04 §7.7-8：条件变化逐次重算（N5 猫走窗景在⇒仍抑制；N14 持监控回放⇒浮图退场⇒标记回来）');
+  ok(C.currentMarkerHidden(Object.assign(C.newState('normal'), { loc: '4' })), 'B111/B112：N4 登记浮图（T41）⇒ 其当前位置标记同样抑制');
+  ok(engSrc.indexOf('Core.currentMarkerHidden(st)') >= 0 && /if \(isCur && hideCur\) return;/.test(engSrc),
+    'B04 §7.7-8：renderPins 用判据跳过当前位置标记（光环/编号/「你在这里」同一元素——源码契约）');
+  ok(engSrc.indexOf('add(x, y, 98 * k)') >= 0, 'B112：遮罩开孔不受影响（renderDim 对当前位置照旧开孔——源码契约）');
+  P('当前位置标记抑制：N5／N14 抑制 ＋ N18／N20／N21 回归 ＋ 条件重算（N14 退场即恢复） 逐条通过');
+}
+
+/* --- 18-10 B115 选关页（难度单选默认普通＋唯一「开始」；「继续上次进度」退场） --- */
+{
+  const engCode = engSrc.replace(/\/\*[\s\S]*?\*\//g, '');   // 去块注释：只查「代码面零残留」（注释里对旧面的历史记述不算残留）
+  const uiCode = uiCssSrc.replace(/\/\*[\s\S]*?\*\//g, '');
+  ok(engSrc.indexOf("r.type = 'radio'") >= 0 && engSrc.indexOf("r.checked = (d === 'normal')") >= 0,
+    'B115：难度＝单选控件、默认选中普通（源码契约；行为由 DOM 冒烟演示验证）');
+  ok(engSrc.indexOf("bStart.textContent = '开始'") >= 0 && engSrc.indexOf('startGame(id, picked.diff)') >= 0,
+    'B115：唯一「开始」＝以所选难度开新局（startGame(id, 所选档)）');
+  ok(engCode.indexOf('lcResume') < 0 && engCode.indexOf('levelProgress') < 0 && engCode.indexOf('继续上次进度') < 0,
+    'B115：「继续上次进度」连同其渲染（levelProgress）退场——代码面零残留');
+  ok(uiCssSrc.indexOf('.lcDiffOpt') >= 0 && uiCssSrc.indexOf('.lcBtns .lcStart') >= 0 && uiCode.indexOf('lcResume') < 0,
+    'B115：单选/「开始」样式在案（style-ui.css）、lcResume 样式已撤（代码面）');
+  P('选关页：单选默认普通／唯一「开始」／「继续」零残留 逐条通过');
 }
 
 

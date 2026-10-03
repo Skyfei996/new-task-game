@@ -114,6 +114,18 @@
 }
 /* 校准提示框（开发面）：场景区多了物品栏行，抬到行上方——不再压住物品栏条目 */
 #calibBox { bottom: 52px; }
+/* ---------- ⑦ 选关页：难度单选（默认普通）＋唯一「开始」（B115 · §1.1） ----------
+   新面入本档（§11 体积档注「style.css 保持、新面入 style-ui.css」）；`.lcResume` 旧面已随「继续上次进度」撤下。 */
+.lcDiff { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; flex-wrap: wrap; }
+.lcDiffOpt {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13.5px; color: #cfe0ee;
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card);
+}
+.lcDiffOpt:hover { border-color: var(--accent); }
+.lcDiffOpt input { accent-color: var(--accent); margin: 0; }
+.lcDiffOpt input:checked + span { color: var(--ink); font-weight: 700; }   /* 选中态：文字加粗（不只靠颜色，色盲友好） */
+.lcBtns .lcStart { flex: 0 0 auto; padding: 9px 28px; background: #23405c; border-color: var(--accent); }   /* 唯一主按钮：与单选控件拉开层级（§1.1「唯一按钮／主按钮」） */
+
 @media (max-width: 900px) {
   #stage { width: min(100%, calc((52vh - 58px) * var(--scene-w, 1) / var(--scene-h, 1))); }
   #invRow { padding: 2px 8px 6px; }

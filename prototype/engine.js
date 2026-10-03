@@ -8,7 +8,7 @@
  *
  * v0.2 改动（多关卡架构 + 通用资源 + 卡死保险，配合 levels/*.js）：
  *   ① 关卡注册表：关卡数据住在 prototype/levels/*.js，挂到 G.LEVELS；启动页 = 关卡选择卡片
- *      （海报图 + 标题 + 一句话 + 难度/开局资源 + 「继续上次进度」）
+ *      （海报图 + 标题 + 一句话 + 难度与开局资源 + 难度单选（默认普通）+ 唯一「开始」——B115/§1.1）
  *   ② 存档按关卡独立（mygame2.save.<levelId>.v1）；旧的 mygame2.market.save.v1 作为
  *      「勇闯大里姆」的存档读入（兼容）；玩家名全局存（mygame2.player.v1）
  *   ③ 通用资源：关卡声明 resources:[{id,name,icon,start:{normal,hard},fail:{title,text,node?},noSpendToZero?}]
@@ -407,6 +407,13 @@
         cy = sc.height * 0.86;
       }
       return { id: id, x: cx, y: cy, w: sc.width * (def.w == null ? 0.22 : def.w), h: null, win: false, card: card, lighten: lighten };
+    },
+
+    /* B112（§7.3，老板 2026-10-03 验收）：有浮现图的节点不渲染**当前位置标记**（光环＋编号＋「你在这里」整体撤下）；
+     * 判据＝本节点本次求值的浮现集非空（含窗景；条件变化逐次重算）。可达编号、已探索标记与遮罩开孔不受影响。 */
+    currentMarkerHidden(st) {
+      const n = st && st.loc ? (D && D.nodes[st.loc]) : null;
+      return !!n && Core.momentsOf(st, n).length > 0;
     },
 
     /* ---- §6.2 结局名展示层去字母（数据面 n/endTag 不动；与 --player 的 playerEndName 同规则） ---- */
@@ -934,14 +941,10 @@
     if (!first && st) toast('🛗 到达：' + sceneLabel(sid));
   }
 
-  /* ---------- 关卡选择页（v0.2） ---------- */
-  function levelProgress(id) {
-    const s = store ? Core.loadFrom(store, id) : null;
-    if (!s) return null;
-    const lv = LEVELS[id] || {};
-    const node = (lv.nodes || {})[s.loc];
-    return { loc: s.loc, name: node ? Core.endDisplayName(node.n) : '？', visited: Object.keys(s.visited || {}).length };
-  }
+  /* ---------- 关卡选择页（v0.2；B115＝§1.1 重订） ---------- */
+  /* B115（§1.1 老板 2026-10-03）：难度＝单选（默认普通）＋唯一「开始」；「继续上次进度」连同其渲染（levelProgress）撤下。
+   * 存档口径不变（引擎按关卡自动存档）；本页撤下载入入口 —— 「开始」＝开新局（覆盖本关旧存档）。
+   * 注：读档路径 resumeGame 保留（存档保留；如需恢复「继续」入口由老板另裁——§14-13）。 */
   function levelCard(id, lv) {
     const meta = lv.meta || {};
     const card = document.createElement('div');
@@ -985,24 +988,32 @@
 
     const btns = document.createElement('div');
     btns.className = 'lcBtns';
-    const bn = document.createElement('button');
-    bn.className = 'lcStart';
-    bn.innerHTML = '普通模式<br><small>开始</small>';
-    bn.onclick = () => startGame(id, 'normal');
-    const bh = document.createElement('button');
-    bh.className = 'lcStart';
-    bh.innerHTML = '困难模式<br><small>开始</small>';
-    bh.onclick = () => startGame(id, 'hard');
-    btns.appendChild(bn);
-    btns.appendChild(bh);
-    const prog = levelProgress(id);
-    if (prog) {
-      const br = document.createElement('button');
-      br.className = 'lcResume';
-      br.textContent = '↩ 继续上次进度（停在 ' + prog.loc + ' · ' + prog.name + '，已探索 ' + prog.visited + ' 处）';
-      br.onclick = () => { const s = Core.loadFrom(store, id); if (s) resumeGame(id, s); };
-      btns.appendChild(br);
-    }
+    /* B115（§1.1）：难度单选（默认选中普通）——切换即决定开局难度档 */
+    const diffRow = document.createElement('div');
+    diffRow.className = 'lcDiff';
+    const picked = { diff: 'normal' };
+    [['normal', '普通模式'], ['hard', '困难模式']].forEach(([d, label]) => {
+      const lab = document.createElement('label');
+      lab.className = 'lcDiffOpt';
+      const r = document.createElement('input');
+      r.type = 'radio';
+      r.name = 'lcDiff-' + id;                 // 同一卡片内一组；多卡片互不串
+      r.value = d;
+      r.checked = (d === 'normal');            // 默认选中普通
+      r.onchange = () => { if (r.checked) picked.diff = d; };
+      const tx = document.createElement('span');
+      tx.textContent = label;
+      lab.appendChild(r);
+      lab.appendChild(tx);
+      diffRow.appendChild(lab);
+    });
+    btns.appendChild(diffRow);
+    /* 唯一按钮「开始」：以所选难度开新局（startGame(id, 所选档)） */
+    const bStart = document.createElement('button');
+    bStart.className = 'lcStart';
+    bStart.textContent = '开始';
+    bStart.onclick = () => startGame(id, picked.diff);
+    btns.appendChild(bStart);
     body.appendChild(btns);
     card.appendChild(body);
     return card;
@@ -1181,9 +1192,12 @@
     const layer = $('pinLayer');
     layer.innerHTML = '';
     lastReach = Core.reachablePins(st);
+    const hideCur = Core.currentMarkerHidden(st);   // B112（§7.3）：有浮现图的节点 ⇒ 当前位置标记整体不渲染
     Object.keys(sc.pins).forEach(id => {
       const [x, y] = sc.pins[id];
       const isCur = st.loc === id;
+      /* B112：光环＋编号＋「你在这里」一起撤下（浮现图即「你在这里」的画面证据）；其余编号、遮罩开孔照旧 */
+      if (isCur && hideCur) return;
       const canClick = FREE_MOVE || !!lastReach[id];
       const isVisited = !!st.visited[id];
       const b = document.createElement('button');

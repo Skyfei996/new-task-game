@@ -313,7 +313,7 @@ VERDICT: pass
 - **实现范围**：`docs/design-ui-v1.md` §11 所列文件（engine.js／style.css（+新建 style-ui.css）／index.html／station.js／test.station.mjs／test.play.mjs／tools/play.mjs）＋ **美术未到货期间的兜底**（无图不留位、不影响可玩性）。**不变量**：剧情数据语义与数值不动（文案、条件、预算、断循环）；示例关（dalim）保住其光环位。
 
 ## §5 实施记录（eng-coder）
-**状态行**：实施完成（三闸全绿（569/1801/420）＋两冒烟＋无图有图演示；内部审计 1 轮已修、代码评审 2 轮终态 pass）
+**状态行**：实施完成（B110~B115 追加轮：三闸 569／1817／420＋两冒烟＋DOM 冒烟 40/0；内部审计与代码评审终态 pass（0🔴／2🟡报告项）；上一轮 B101~B109 证据见下）
 
 
 
@@ -353,5 +353,42 @@ VERDICT: pass
 2. **文案快照重导**（`docs/station-copy-v1.md`、`prototype/lab-docs.js`）：属工具面，未做（父侧另轮）。
 3. **锚值／窗区临时校准值**：按现役 deck 图给定，内景图接线后随 pins 重校准（§14-10）。
 4. **同角色同框「对齐覆盖」**：L1 内景图未到，当前以「单一记录值＋不并置同角色」机检代替截图对拍，待验收轮随 pins 定案。
+
+### 追加 · 老板试玩验收轮实现（B110~B115 · eng-coder · 2026-10-03）
+
+**口径**：唯一照抄件＝`docs/design-ui-v1.md` v1.4（§2 B111/B112/B114/B115＋§1.1／§7.3／§7.7-8／§9.1／§10／§11 追加块／§13 D48~D53／§14-12·13）；不变量＝剧情语义与数值不动、`lock/lockIf/lockText` 数据面仍 0。
+
+#### 一、落点（文件 → 做了什么）
+
+| 文件 | 实施内容 |
+|---|---|
+| `prototype/levels/station.js`（940→942 行） | ① 节点 4 `moments: ['tietou-armwrestle']`（B111，＝T41，与 26 号同图、零新图）；② `scenes.exterior`：`image`→`../images/station/eva-v1.jpg`、`width/height`＝1792/1121、pin `'19'`→`[1505,778]`（B114）；③ 陈旧占位注释订正（文件头 `:14`／`poster` `:52`／exterior 块 `:84-86`） |
+| `prototype/engine.js`（1876→1890 行） | ① Core 新增 `currentMarkerHidden(st)`＋`renderPins` 跳过当前位置标记（B112：光环＋编号＋「你在这里」同一元素整体不渲染；可达/已探索/遮罩开孔不受影响）；② `levelCard`＝难度单选（默认普通）＋唯一「开始」、删 `levelProgress`（B115）；③ 文件头注释同步 |
+| `prototype/index.html`（167 行） | `:78` 启动页注释同步（控件由 `levelCard` 动态生成，无静态结构新增） |
+| `prototype/style.css`（413→410 行） | `.lcBtns` 加 `align-items:center`；删 `.lcBtns .lcResume`（B115 撤下）与 `.lcBtns small`（随旧双按钮成为死样式） |
+| `prototype/style-ui.css`（122→133 行） | 新增 `.lcDiff／.lcDiffOpt／.lcBtns .lcStart`（§11 追加表「难度单选控件与『开始』按钮样式」；新面入本档） |
+| `prototype/test.station.mjs`（2629→2670 行） | B114 四处口径同步（PINS 表／19 号 pin 断言／站外图断言／§18-8 改写）；§18-7 增 N4（浮现集、同框、节点数 19→20）；新增 §18-9（B112 断言 8）、§18-10（B115） |
+
+#### 二、验收证据（全绿）
+
+- **三套自测**：`node prototype/test.core.mjs` → 通过 569／失败 0；`node prototype/test.station.mjs` → 通过 **1817**／失败 0（原 1801，＋16）；`node prototype/test.play.mjs` → 通过 420／失败 0。
+- **两冒烟**：① 示例关 `node tools/play.mjs new dalim` 首屏正常（1 · 停车场）＋`auto --steps 15 --seed 7` 正常收尾（第 15 步／已探索 8 处）；② `--player` 主线 38 步走通到结局：末屏 `结局 · 圆满`＋`🎁 通关奖励：晨星号的星图`；checkpoint N19＝`📍 太阳能板阵列（舱外）　【站外】`（站外可读）。
+- **DOM 冒烟**（临时迷你 DOM 跑引擎 DOM 路径，用后即删）：40/0 —— ① 选关卡片：2 个 radio、默认 checked＝normal、卡片内按钮**恰 1 个「开始」**、无「继续上次进度」；点「开始」普通档 ⇒ 星币 20／氧气 95（100 − 食堂漏气 5），困难档 ⇒ 15／25；② 网页主线点击：N4 浮现层＝`tietou-armwrestle` 且 current／hereTag 均为 0（其余编号 1,2,3,5,18 照旧、遮罩孔 2 个）；N5＝`yinhe-idle,win-observation-jupiter` 且抑制；N18／N20／N21 标记回归；N19 站外 `sceneImg.src＝../images/station/eva-v1.jpg`、19 号 pin 在层内（left 83.98%／top 69.40%）；抵达 41 号「结局 · 圆满」无字母。
+- **B114 pin 坐标来源**：对 `images/station/eva-v1.jpg`（1792×1121；与 `art/deliveries/T04-eva-scene-v1.jpg` 同尺寸同字节）按「面板蓝」像素判据（`b>90 ∧ b−r>40 ∧ b−g>12`）在窗口 x∈[1240,1791]×y∈[520,1010] 求质心＝(1509,778)（窗口放宽到 x≥1150 ⇒ (1502,778)；两组差 <10px）⇒ 取中值记录 `[1505,778]`；实测板区＝过质心水平线 x∈[1222,1779]、板体 y∈[520,960]（测试两条断言据此划界）。设计暂定值 [1420,695] 为目测，按 §14-12「偏差以实测为准」取实测值。
+- **不变量**：`git diff` 逐文件核对＝改动面仅上表所列（无其它语义/数值/文案/条件/结局改动）；`test.station.mjs` 既有断言「L2① 静态：全关 lock／lockIf／lockText 均 0」「B03：全关 lock／lockIf／lockText ＝ 0 处」均通过。
+
+#### 三、轮次与终态
+
+- **内部偏离审计**（explore，1 轮）：`issues-found`（0🔴／2🟡／2🔵）——① 注释指针小偏（station.js 把实测口径指向 §18-8）⇒ 已改为指向 §2；② `test.station.mjs` 增量超设计声明 ⇒ 登记（见四·1）；③ 测试面「源码契约」型断言＋pin 实测不可复跑 ⇒ 登记为报告项；④ 未发现未披露越界。
+- **内部代码评审**（advisor·code，1 轮）：**`VERDICT: pass`**（0🔴／2🟡报告项／5🔵）。采纳 1 项 🔵：`.lcStart` 补主按钮强调（背景 #23405c＋accent 描边——§1.1 验收②「主按钮」语义）；其余 🔵 登记（B114 实测不可复跑／B115 行为无自动断言／B112×T51 空窗组合态／`resumeGame` 无调用点＝§14-13 明示保留）。两处 🟡 均为**父侧文档面报告项（非必须修）**。
+
+#### 四、偏差与登记（本轮明示）
+
+1. **增量基准**：`test.station.mjs` 2629→**2670** 行（＋41，设计预估 ≤＋30）——超出部分＝新增 §18-10（B115 机检断言；任务书要求 B111/B112/B114/B115 各给可机检断言，设计测试面只列了 B114／B112／N4）。请 §6 收口时更新基准；其余文件均在声明内（station.js ＋2≤6／engine.js ＋14≤40／style-ui.css ＋11≤25／style.css −3）。
+2. **pin 19 实测值回填**：设计档 §9.1（`:483`）／§14-12（`:620`）仍记暂定 [1420,695]，建议收口回填 `[1505,778]`（父侧文档面）。
+3. **行为证据形态**：DOM 冒烟与 `--player` 驱动为临时脚本（用后已删，`git status` 无残留）；常驻套件对 B112／B115 的行为面为「源码契约＋数据判据」型断言（沿 §18 既有惯例）。
+4. **`lab-docs.js` 快照重导**（设计 §14-4）：不在本轮派发文件清单，未做（工具面，父侧另轮）。
+
+**越界确认**：本轮只改上表 6 个文件＋本段；未改 `docs/**`、`art/**`、`tools/**`、`images/**`（`images/station/eva-v1.jpg` 为父侧入库，本轮未动）。
 
 ## §6 验证与收口（父代理）
