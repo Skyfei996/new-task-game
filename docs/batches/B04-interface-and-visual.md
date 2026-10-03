@@ -113,6 +113,30 @@
 **上抛**：T10/T12 图内缺常态角色（已目检；由浮现图承担，补画＝条件件）｜28 号走廊是否补猫（倾向不返工）｜锚点待内景接线重校准｜staging 同步面扩容（浮现/窗景）。
 
 ## §3 设计评审（评审子代理）
+
+### 轮次 1（评审子代理）
+
+评审范围：docs/design-ui-v1.md（v1.1，全文）＋对照 docs/design-station-v1.md（全文，作显示口径/颜色数字口径一致性对照）。限制：无 AGENTS.md／项目标准档；批次档、art/**、prototype/** 不在本轮文件清单内。
+
+| # | Category | Severity | Issue | Suggestion |
+|---|---|---|---|---|
+| 1 | Document ownership | 🔴 | 同一机制（地图/场景内的角色呈现）在两档里说法相反：docs/design-station-v1.md:21（§1 特色④「8 位乘员人物卡 + 地图光环（沿用现有引擎能力）」）与 docs/design-station-v1.md:30（§2「8 位乘员（人物卡，沿用现有画像+光环系统）」）仍把光环/头像位当现行机制；docs/design-ui-v1.md:65（B101③「场景头像位（切片＋光环＋名牌）撤下」）、docs/design-ui-v1.md:241（§7.1「场景里不出现切片头像/光环/名牌」）、docs/design-ui-v1.md:353（回归项「场景头像位不再渲染」）把同一机制撤下。B101 落点（docs/design-ui-v1.md:64）与 §14 上抛（docs/design-ui-v1.md:505-514）均未列这两处的同步。 | 让两档对「场景区/地图是否出现光环头像位」只有一种现行说法——把 design-station 这两行同步成两层制口径（场景常态＋浮现图，头像位/光环撤下），或在 B101 落点/上抛里登记该同步项。 |
+| 2 | Affected-file size | 🔴 | 按 §11 自报数，prototype/style.css（docs/design-ui-v1.md:460：现状 418 行、预估 ≤+180）改动后可达 ≤598 行，跨过 >500 行硬线且未附拆分方案（>300 行的主动拆分复核也未提）；§11 体积档注（docs/design-ui-v1.md:470）只覆盖 engine.js／test.station.mjs／station.js，不含 style.css，也不含同为 >500 行且本批要改的 tools/play.mjs（docs/design-ui-v1.md:465，819 行）与 prototype/test.play.mjs（docs/design-ui-v1.md:464，610 行）。 | 给 style.css 附拆分方案，或把预估增量收敛到 ≤+82（418+82=500，不跨线）并写明主动拆分复核结论；同时把 play.mjs／test.play.mjs 的 >500 行状态与处置（沿用既有欠账裁定或拆分）补进体积档注。 |
+| 3 | Affected-file annotations | 🟡 | §11 的节点数与自身清单不符：docs/design-ui-v1.md:462 写「节点 `moments`/`mIf`（≤14 节点）」，而按 §7.4 清单 1~18 行（docs/design-ui-v1.md:299-316）与 §7.5 窗景两行（docs/design-ui-v1.md:334-335）的触发列去重为 19 个节点（1/3/5/6/10/11/14/22/23/24/26/27/28/31/32/33/37/38/40）。 | 把该行改为实际节点数（19，或按定稿重数），使受影响文件表与清单表对得上。 |
+| 4 | Document ownership / doc state | 🟡 | docs/design-station-v1.md:519（§10.6-D33）仍写「资源一律数字式…；「无数字」只约束氧气」、被否栏记「氧气也上数字（违「无数字」批复）」，与同档现行口径 docs/design-station-v1.md:254（§8.3 氧气＝条＋数值）相左；本档已在 docs/design-ui-v1.md:510 披露并倾向不回改。 | 在 D33 行加一句指向 §8.3 现行口径的标注（历史记录、被 B04 重订覆盖），使单读 §10.6 的人不会把氧气读数口径判反。 |
+| 5 | Requirements / Clarity | 🟡 | 玩法说明第 8 条（docs/design-ui-v1.md:375）告诉玩家「绿色＝拿到了东西」，但颜色表 gain 类实际覆盖「获得/失去」两种前缀（docs/design-ui-v1.md:141，fx.gain／fx.lose 同为绿）；交出道具时玩家会看到绿色，与帮助说法不符——H2 检查项正是「帮助不落后于界面」。 | 帮助第 8 条改成覆盖两类（例如「绿色＝拿到或交出东西」），或把「失去」从 gain 类拆出另定色/前缀，并同步 H2 的核对对象。 |
+| 6 | Acceptance criteria | 🟡 | fail 分类只做单向断言：docs/design-ui-v1.md:155（§3 断言 2）只验「26 条失败条 ⇒ fail」，无反向断言；形状判据（docs/design-ui-v1.md:143：say ∧ to===当前节点 ∧ ¬fx ∧ ¬once）可能把「零代价、原地、带 say 的成事条目」多报为 fail，而文档给 sayKind 的唯一定义是 'fail'（docs/design-ui-v1.md:143、docs/design-ui-v1.md:489），不能反向排除误报。 | 增加反向断言（形状命中集＝26 条集合、零多报），并把 sayKind 定为通用覆盖（如 'fail'｜'info'，默认不写），使误报可在数据面纠正。 |
+| 7 | Clarity / Acceptance | 🟡 | 同房间同角色的 L1/L2 同框关系未定义：docs/design-ui-v1.md:239 只写「两层互补、不互替」，docs/design-ui-v1.md:238 的已知取舍只列银河离场/机器人收编；但 docs/design-ui-v1.md:248（T17 图内伊莲娜昏睡）＋docs/design-ui-v1.md:304（T39 苏醒态在 3 号·pinsAll 24 命中）会「睡着的她与醒着的她同框」，docs/design-ui-v1.md:250（T19 图内银河）＋docs/design-ui-v1.md:299（T38 在 5 号默认命中）存在同一只猫同框；§7.7（docs/design-ui-v1.md:346-353）无对应断言（docs/design-ui-v1.md:350 只断言 N28 换图不换位）。 | 补一条构图规则（同角色 L2 命中时覆盖/对齐 L1 图内角色区域，或改位，或明确接受并置）并配一条可对照验收（L1 图内角色区域 vs L2 锚点/尺寸）。 |
+| 8 | Requirements / Coordination | 🟡 | ① 裁定「其他角色按同样做法」在 8 位乘员中有 2 位未落常态面：docs/design-ui-v1.md:252-253（6 指挥舱糖糖＝T10 图内无、10 仓库桑尼＝T12 图内无，由浮现图 T42/T44 承担、补画「另议」），docs/design-ui-v1.md:512（§14-8）虽给条件件与「须老板确认」，倾向却是零返工承担——该偏离需要显式裁定，不能只留在上抛倾向里。 | 把它列为批准环节的裁定项（常态图内是否必须出现糖糖/桑尼），并写明两种结果各自的图单后果（T10-v2/T12-v2 是否启用）。 |
+| 9 | Requirements / Document sync | 🟡 | chars 补登记 6 处（docs/design-ui-v1.md:342、docs/design-ui-v1.md:462）全在事件节点（23/24/25/26/27/38），而 L1 lint 要求「事件节点 chars 须登记在【角色在场表】」（docs/design-station-v1.md:454，表在 nodes §9.4）；本档称其为「既有字段、零语义」（docs/design-ui-v1.md:14），§11 未列该表所在档。 | 先确认这 6 处是否已在【角色在场表】；若否，把该表同步列入落点/受影响文件，否则实现轮的 L1 断言会挡。 |
+| 10 | Clarity | 🔵 | 布局图编号错：docs/design-ui-v1.md:29 右栏作「③ 剧情区」，而区块表 docs/design-ui-v1.md:47-48 定义 ③＝物品栏、④＝剧情区（docs/design-ui-v1.md:34 已把物品栏标为 ③）。 | 右栏改「④ 剧情区」，与区块表编号对齐。 |
+| 11 | Clarity / Doc hygiene | 🔵 | 「最小新增」清单三处不一致：docs/design-ui-v1.md:14（§0）只列 moments 注册表＋节点 moments/mIf＋chars 6 处（未列 sayKind、characters[].img）；docs/design-ui-v1.md:478（§12）含 sayKind 不含 characters[].img；docs/design-ui-v1.md:344（§7.6）单独引入 characters[].img。 | 汇总成一份「数据面最小新增」清单（含 sayKind、characters[].img），§0/§12 引用同一份。 |
+| 12 | Clarity | 🔵 | 窗景几何两处约束的参照系/叠加方式未写明：docs/design-ui-v1.md:327（「不覆盖框条，四周留 ≥2% 边距」）与 docs/design-ui-v1.md:263、docs/design-ui-v1.md:330（「尺寸＝窗区×1.06（覆盖窗区、羽化压边）」）指向相反方向。 | 写明二者关系（成图内留边 vs 界面覆盖倍数），或统一成一条几何口径。 |
+
+计数：🔴 2、🟡 7、🔵 3（共 12 条）。范围外备注：批次档（§1/§2）／station-staging／art/**／prototype/** 均不在本轮文件清单，相关引用与「数据既有」断言未能 spot-check（unverified）。
+
+VERDICT: changes-required
+
 ## §4 用户批准（主 agent）
 ## §5 实施记录（eng-coder）
 ## §6 验证与收口（父代理）
