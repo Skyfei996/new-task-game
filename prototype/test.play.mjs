@@ -52,7 +52,7 @@ const ROUTE = [
   ['5', /钻到沙发后面/, '5'], ['5', /追出去/, '28'], ['28', /站猫罐头/, '28'],
   ['28', /先回中层大厅/, '20'], ['20', /坐在补给柜旁边/, '20'],
   ['20', /去实验室/, '7'], ['7', /帮他去找工具箱/, '25'], ['25', /顺着维修爬道滑下去/, '16'],
-  ['16', /把零件堆翻一翻/, '16'], ['16', /钻进/, '7'], ['7', /自己动手/, '30'],
+  ['16', /翻一翻零件堆/, '16'], ['16', /往上爬/, '7'], ['7', /自己动手/, '30'],
   ['30', /把芯片收好/, '16'], ['16', /回底层大厅/, '21'], ['21', /去冷却塔/, '13'], ['13', /用万能扳手拧上总阀/, '21'],
   ['21', /乘电梯去中层/, '20'], ['20', /去气闸舱/, '11'], ['11', /打开安保柜/, '11'], ['11', /穿上磁力靴/, '19'],
   ['19', /用工具把面板焊好/, '39'], ['39', /爬回气闸舱/, '11'], ['11', /回中层大厅/, '20'],
@@ -361,39 +361,41 @@ seq.forEach(s => console.log('  ' + s));
   }
 }
 
-/* ============ ⑧ --player 玩家模式（E10）：隐藏数值/去向/机械理由 · 战斗对照例外 · 独立会话 ============ */
+/* ============ ⑧ --player 玩家模式（E10）：隐藏武力/机械理由/编号 · 星币数字 · 战斗对照＋构成行 · 独立会话 ============ */
 {
   const C2 = loadCore('player');
   C2.selectLevel('station');
   const D2 = C2.currentLevel();
   const resDef = id => D2.resources.find(r => r.id === id);
-  /* 期望档位按设计档 §8.3 的定值自己算（不抄实现） */
+  /* 期望档位按设计档 §8.3 的定值自己算（不抄实现）；星币＝数字式（B78——档位词退役） */
   const tierOxy = v => (v >= 50 ? '还好' : v >= 20 ? '有点闷' : '快喘不上气');
-  const tierCoin = v => (v >= 5 ? '能买点东西' : v >= 1 ? '不多了' : '花光了');
   const enOxy = (((D2.nodes[D2.start.node] || {}).en) || {}).oxygen || 0;   // 1 号进入效果
   const oxyTxt = resDef('oxygen').name, coinTxt = resDef('coins').name;
 
   const T = fs.mkdtempSync(path.join(os.tmpdir(), 'playtest-player-'));
   const P = (...args) => play(['--player', ...args], T);
 
-  /* 首屏：定性档位在；数值/武力/步数/计数/去向编号都不在 */
+  /* 首屏：氧气条＋档位在；星币＝数字；武力/步数/计数/去向编号/节点编号都不在 */
   const n = P('new', 'station');
   eq(n.code, 0, '--player new station 退出码 0');
   const expOxy = tierOxy(resDef('oxygen').start.normal + enOxy);
-  const expCoin = tierCoin(resDef('coins').start.normal);
   ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + expOxy).test(n.out), '玩家版氧气：文本条＋档位（10 格；档位 ' + expOxy + '）');
-  ok(n.out.indexOf('🪙 ' + coinTxt + ' ' + expCoin) >= 0, '玩家版星币档位按定值算（' + expCoin + '）');
-  ok(!/💨\s*\d/.test(n.out) && !/🪙\s*\d/.test(n.out), '玩家版不显示资源数字');
+  ok(n.out.indexOf('🪙 ' + coinTxt + ' ' + resDef('coins').start.normal) >= 0, 'B78：玩家版星币＝数字式（🪙 ' + coinTxt + ' ' + resDef('coins').start.normal + '）');
+  ok(!/💨\s*\d/.test(n.out), '玩家版氧气仍不显示数字（条＋档位）');
+  ok(!/能买点东西|不多了|花光了/.test(n.out), 'B78：星币档位词退役（零残留）');
   ok(n.out.indexOf('⚔ 武力') < 0, '玩家版不显示武力面板');
   ok(n.out.indexOf('第 0 步') < 0 && n.out.indexOf('已探索') < 0, '玩家版不显示步数 / 已探索计数');
   ok(!/→ \d/.test(n.out), '玩家版不显示去向编号（→ N 名称）');
+  ok(!/\d+ · /.test(n.out), 'R2①：玩家版不显示「编号 · 名称」前缀（场景号/节点号不上屏）');
+  ok(!/（\d+）/.test(n.out), 'R2①：选项文案里的地图锚点编号不上屏');
   ok(n.out.indexOf('（你的武力 ') < 0, '玩家版不显示机械战斗格式');
   ok(n.out.indexOf('→ 买：buy ') >= 0, 'B03 工具面：玩家版商店带一行可照抄的「买」动作（buy <道具名>）');
 
-  /* 困难开局：档位跟着数值走 */
+  /* 困难开局：数值跟着算（氧气条档位 / 星币数字） */
   const h = P('new', 'station', '--hard');
   const hardExp = tierOxy(resDef('oxygen').start.hard + enOxy);
   ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + hardExp).test(h.out), '困难开局：文本条＋档位按数值算（困难 ' + resDef('oxygen').start.hard + ' − ' + (-enOxy) + ' → ' + hardExp + '）');
+  ok(h.out.indexOf('🪙 ' + coinTxt + ' ' + resDef('coins').start.hard) >= 0, 'B78：困难开支星币也报数字（' + resDef('coins').start.hard + '）');
 
   /* 独立会话：玩家存 player-session.json，开发存 session.json；互不打扰 */
   ok(fs.existsSync(path.join(T, '.playtest', 'player-session.json')), '玩家会话存 player-session.json');
@@ -404,12 +406,30 @@ seq.forEach(s => console.log('  ' + s));
   eq(ps.code, 0, '--player state 退出码 0');
   ok(ps.out.indexOf('困难') >= 0, '玩家会话还是自己那局（困难；开发会话的推进没串过来）');
   ok(ps.out.indexOf('── 详细状态 ──') >= 0 && ps.out.indexOf('⚔ 武力') < 0, '玩家版 state：有详细块、无武力');
+  const pw = P('where');
+  eq(pw.code, 0, '--player where 退出码 0');
+  ok(pw.out.indexOf('📍 当前位置：') >= 0 && !/📍 当前位置：\d/.test(pw.out) && !/\d+ · /.test(pw.out), 'R2①：玩家版 where 只有名称（不带编号）');
   /* buy 后的整屏也走玩家渲染（防漏传 player 参数——审计发现过的漏洞） */
   const pb2 = P('buy', '合成料理');
   eq(pb2.code, 0, '--player buy 退出码 0');
-  ok(!/💨\s*\d/.test(pb2.out) && !/🪙\s*\d/.test(pb2.out), '--player buy 后的整屏仍是玩家版（无资源数字）');
+  ok(!/💨\s*\d/.test(pb2.out) && pb2.out.indexOf('🪙 ' + coinTxt + ' ') >= 0, '--player buy 后的整屏仍是玩家版（氧气无数字；星币数字）');
+  ok(!/能买点东西|不多了|花光了/.test(pb2.out), 'B78：buy 后整屏也无档位词');
   ok(pb2.out.indexOf('　→ 买：buy ') >= 0, '--player buy 后的整屏带买家动作提示（B03 工具面）');
   ok(!/→ \d/.test(pb2.out), '--player buy 后的整屏不显示去向编号');
+
+  /* B78：钱不够的拒付理由＝数字式（照抄 payReason 定值；不再只有「还差点底气」） */
+  {
+    const stc = C2.newState('normal'); stc.loc = '1'; stc.coins = 2;
+    const sess = { v: 1, level: 'station', state: stc, log: [], steps: 0, createdAt: new Date().toISOString() };
+    fs.mkdirSync(path.join(T, '.playtest'), { recursive: true });
+    fs.writeFileSync(path.join(T, '.playtest', 'player-session.json'), JSON.stringify(sess));
+    const rb = P('buy', '合成料理');
+    ok(rb.code !== 0, 'B78：钱不够 → buy 被拒（退出码非 0）');
+    ok(rb.err.indexOf('星币不够（需要 5 枚星币，还差 3 枚）') >= 0, 'B78：拒付理由＝数字式（需要 N／还差 K）');
+    ok(rb.err.indexOf('底气') < 0, 'B78：「还差点底气」退役（玩家面零残留）');
+    const rs = P('state');
+    ok(rs.out.indexOf('🪙 ' + coinTxt + ' 2') >= 0, 'B78：结余以数字上屏（2）');
+  }
 
   /* B03：本关无灰显——4 号首访列表里既无 🔒 也无「（灰：」；缺前提的条目整条不出现 */
   const T2 = fs.mkdtempSync(path.join(os.tmpdir(), 'playtest-player2-'));
@@ -426,9 +446,57 @@ seq.forEach(s => console.log('  ' + s));
     const lockErr = P2('choose', String(n4 + 1));
     ok(lockErr.code !== 0 && /不能执行|超出范围/.test(lockErr.err), '--player 选不存在的项 → 报错且不改状态');
     ok(lockErr.err.indexOf('需要：') < 0, '玩家版错误里不含机械理由（需要：…）');
+    ok(!/（\d+）/.test(lockErr.err), 'R2①：报错文案里的选项名也不带编号锚点');
+    ok(!/当前位置（\d/.test(lockErr.err), 'R2①：报错里的「当前位置」也不带节点号（收口补：locText 同口径）');
+    /* 非商店/非回收点的报错同样不得漏节点号（QA 真人线会在任意位置试买/试卖） */
+    const buyErr = P2('buy', '合成料理');
+    ok(buyErr.code !== 0 && buyErr.err.indexOf('没有商店') >= 0 && !/当前位置（\d/.test(buyErr.err), 'R2①：无商店报错不带节点号');
+    const sellErr = P2('sell', '焊接枪');
+    ok(sellErr.code !== 0 && sellErr.err.indexOf('没有废料回收点') >= 0 && !/当前位置（\d/.test(sellErr.err), 'R2①：无回收点报错不带节点号');
+    /* 会话缺失的提示按档位输出：--player 档照抄即用（补 --player） */
+    const T6 = fs.mkdtempSync(path.join(os.tmpdir(), 'playtest-player6-'));
+    const noSess = play(['--player', 'state'], T6);
+    ok(noSess.code !== 0 && noSess.err.indexOf('node tools/play.mjs --player new') >= 0, '工具面：--player 会话缺失提示带 --player（照抄即用）');
+    const noSessDev = play(['state'], T6);
+    ok(noSessDev.code !== 0 && noSessDev.err.indexOf('node tools/play.mjs new') >= 0 && noSessDev.err.indexOf('--player') < 0, '工具面：开发档会话缺失提示不带 --player（档位各归各）');
   }
 
-  /* 战斗例外：4 →（掰手腕）26 号，只有一场战斗；玩家版保留与网页版同款的对照 */
+  /* R2①：18 号（带地图锚点编号的选项）在玩家模式上屏时锚点被滤掉 */
+  {
+    const T3 = fs.mkdtempSync(path.join(os.tmpdir(), 'playtest-player3-'));
+    play(['--player', 'new', 'station'], T3); play(['--player', 'choose', '1'], T3);
+    const p18 = play(['--player', 'state'], T3);
+    ok(p18.out.indexOf('去食堂') >= 0 && p18.out.indexOf('去食堂（1）') < 0, 'R2①：18 号选项锚点（1）不出现在玩家面（数据面仍有——网页端 R09 锚点）');
+    ok((D2.nodes['18'].c || []).some(ch => (ch.l || '').indexOf('（1）') >= 0), 'R2①：数据面锚点保留（只过滤呈现层）');
+    const lg = play(['--player', 'log'], T3);
+    ok(!/（\d+）/.test(lg.out) && !/\d+ → \d/.test(lg.out), 'R2①：玩家版 log 也不带编号锚点 / 编号去向');
+  }
+
+  /* B99：28 号的显示楼层＝发生场景（中层；玩家面不再自相矛盾——R2 ④-4） */
+  {
+    const T4 = fs.mkdtempSync(path.join(os.tmpdir(), 'playtest-player4-'));
+    const P4 = (...args) => play(['--player', ...args], T4);
+    P4('new', 'station'); P4('choose', '1'); P4('choose', '5'); P4('choose', '2');   // 1 → 18 → 5 → 28
+    const p28 = P4('state');
+    ok(p28.out.indexOf('追猫') >= 0 && p28.out.indexOf('【中层】') >= 0, 'B99：进 28（追猫）后显示【中层】（不再标顶层）');
+  }
+  /* R2 ①-1（父代理 2026-10-03 裁定）：--player 结局名去字母（「结局 A · 圆满」→「结局 · 圆满」）；数据面与网页端不动 */
+  {
+    const T5 = fs.mkdtempSync(path.join(os.tmpdir(), 'playtest-player5-'));
+    const st41 = C2.newState('normal'); st41.loc = '41'; st41.items.push('桑尼的账本', '监控回放');
+    fs.mkdirSync(path.join(T5, '.playtest'), { recursive: true });
+    fs.writeFileSync(path.join(T5, '.playtest', 'player-session.json'), JSON.stringify({ v: 1, level: 'station', state: st41, log: [], steps: 0, createdAt: new Date().toISOString() }));
+    const p41 = play(['--player', 'state'], T5);
+    ok(p41.out.indexOf('🏁 结局 · 圆满') >= 0 && p41.out.indexOf('结局 A') < 0, 'R2①：玩家版结局名去字母（🏁 结局 · 圆满）');
+    const w41 = play(['--player', 'where'], T5);
+    ok(w41.out.indexOf('结局 · 圆满') >= 0 && w41.out.indexOf('结局 A') < 0, 'R2①：玩家版 where 同样去字母');
+    ok((D2.nodes['41'].endTag || '').indexOf('结局 A') >= 0, 'R2①：数据面 endTag 保留「结局 A · 圆满」（网页端随界面批登记，本轮不动）');
+    fs.writeFileSync(path.join(T5, 'dev41.json'), JSON.stringify({ v: 1, kind: 'playtest-snapshot', level: 'station', state: st41, log: [], steps: 0, savedAt: new Date().toISOString() }));
+    play(['load', 'dev41.json'], T5);
+    const dev41 = play(['state'], T5);
+    ok(dev41.out.indexOf('结局 A · 圆满') >= 0, 'R2①：开发版照旧显示「结局 A · 圆满」（过滤只作用于 --player）');
+  }
+  /* 战斗例外：4 →（掰手腕）26 号，只有一场战斗；玩家版保留与网页版同款的对照＋构成行（B80） */
   const pb = P2('choose', '1');
   eq(pb.code, 0, '4 号掰手腕 → 26 退出码 0');
   const st26 = C2.newState('normal'); st26.loc = '26';
@@ -437,6 +505,7 @@ seq.forEach(s => console.log('  ' + s));
   const mine = C2.atkOf(st26), need = C2.battleNeed(st26, ch26.battle);
   const chip = '你的武力值 ' + mine + (mine >= need ? ' ≥ ' : ' < ') + need;
   ok(pb.out.indexOf(chip) >= 0, '玩家版战斗选项保留「' + chip + '」对照（例外）');
+  ok(pb.out.indexOf('构成：无加成＝0（还差 1 点）') >= 0, 'B80：玩家版对照行下方带构成行（无加成＝0／还差 1 点）');
   ok(pb.out.indexOf('→ 胜') < 0 && pb.out.indexOf('→ 负') < 0, '玩家版战斗选项不带胜负去向编号');
 
   /* 禁用：--json / load / auto；save 可用（留证据） */

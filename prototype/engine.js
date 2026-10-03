@@ -36,6 +36,13 @@
  *   E11 战斗败方描写 choice.battle.loseSay → 败北时在既有机械行之后，以 choice.say 同渠道带出旁白；不改状态
  *   E12 条件灰显 choice.lockIf → cond 不满足时再判 lockIf：成立 ⇒ 灰显＋lockText；不成立 ⇒ 隐藏（无 lockIf = 旧行为）
  *
+ * B03 复检收口轮改动（B78/B80/B99，接口以设计档 §8.1/§8.3 与节点表 §9.4 为准）：
+ *   B78 星币数字口径：payReason 拒付理由＝数字式「星币不够（需要 N 枚星币，还差 K 枚）」；
+ *       档位词与「还差点底气」句退役（「无数字」只约束氧气余量读数——数据面 unit 不动）
+ *   B80 战斗构成行：Core.atkParts / Core.battleBreakdown → 对照行「你的武力值 X ≥/< Y」下方的
+ *       「构成：…＝X（还差 N 点）」（exact 白名单③ 第二段；网页与 --player 同源）
+ *   B99 节点显式 scene：事件节点可在数据里声明发生场景（无 pin 节点——如站关 28）→ 显示楼层取发生场景
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
@@ -51,9 +58,12 @@
   let D = null;        // 当前关卡数据（selectLevel 绑定；同步给 G.GAME_DATA，旧代码/旧测试仍可读）
   let levelId = null;  // 当前关卡 id
 
-  /* v1.2：走进有编号点的目标节点 → 切换到它所在的场景（无编号节点保持当前场景） */
+  /* v1.2：走进有编号点的目标节点 → 切换到它所在的场景（无编号节点保持当前场景）
+   * B99（R2 问题 16③）：节点可用 scene 显式声明发生场景——事件节点没印编号，但正文自述跨层时
+   * 舞台按【事件发生场景表】（节点表 §9.4）算；显示楼层取发生场景（唯一用例＝station 28 scene:'deck2'）。 */
   function syncScene(st, nodeId) {
-    const sid = Core.sceneOfNode(nodeId);
+    const node = D && D.nodes && D.nodes[nodeId];
+    const sid = (node && node.scene) || Core.sceneOfNode(nodeId);
     if (sid) st.scene = sid;
   }
 
@@ -255,6 +265,21 @@
       if (bonus) Object.keys(bonus).forEach(k => { if (st.learned[k]) a += bonus[k]; });
       return a;
     },
+    /* B80（R2·裁定 3）：武力构成明细——「焊接枪 +1、电击棒 +2…＝X（还差 N 点）」的数据面。
+     * 与 atkOf 同源（装备 atk + 线索加成 atkFromClues）；供网页与 --player 的对照行下渲染（白名单③ 第二段）。 */
+    atkParts(st) {
+      const parts = [];
+      st.items.forEach(id => { const m = D.items[id] || {}; if (m.atk) parts.push({ name: id, n: m.atk }); });
+      const bonus = (D.meta && D.meta.atkFromClues) || null;
+      if (bonus) Object.keys(bonus).forEach(k => { if (st.learned[k]) parts.push({ name: k, n: bonus[k] }); });
+      return parts;
+    },
+    battleBreakdown(st, need) {
+      const parts = Core.atkParts(st);
+      const mine = Core.atkOf(st);
+      const body = parts.length ? parts.map(p => p.name + ' +' + p.n).join('、') : '无加成';
+      return '构成：' + body + '＝' + mine + (mine < need ? '（还差 ' + (need - mine) + ' 点）' : '');
+    },
     condOk(st, cond) {
       if (!cond) return true;
       if (cond.item && !Core.hasItem(st, cond.item)) return false;
@@ -301,7 +326,8 @@
       if (c.all) bits.push(...c.all.map(x => Core.lockHint({ cond: x })));
       if (c.any) bits.push(...c.any.map(x => Core.lockHint({ cond: x })));
       if (c.noItem || c.knows || c.noKnows || c.pinsAll || c.notPinsAll || c.notPins || c.chDone) bits.push('还不到时候');   // 线索等
-      Core.resources().forEach(r => { if (c[r.id] != null) bits.push('还差点底气'); });   // 资源 → 还差点底气
+      /* B78（R2·裁定 1）：资源面＝数字式（原「还差点底气」档位词退役，§8.1）；本站数据无资源 cond，供兜底/工具面 */
+      Core.resources().forEach(r => { if (c[r.id] != null) bits.push('需要 ' + c[r.id] + ' ' + (r.unit || '') + (r.name || r.id)); });
       return [...new Set(bits.filter(Boolean))].join('；') || '还不到时候';
     },
     /* E4：提示分级——不写 = vague；引擎不自动往选项上附加效果/数值（写什么由作者定） */
@@ -340,8 +366,8 @@
     payReason(st, price, resId) {
       const r = Core.resDef(resId || Core.mainResId()) || { id: 'coins', name: '萨瓦币', unit: '枚', zeroWarn: '花光就闯关失败' };
       const have = Core.resOf(st, r.id);
-      /* B77 渲染字面：资源名随金额一起给全（「5 枚星币」——与既有「＋2 枚星币」同构） */
-      if (have < price) return (r.name || r.id) + '不够（需要 ' + price + ' ' + (r.unit || '') + (r.name || '') + '）';
+      /* B77 渲染字面（金额带币种名）＋ B78（R2·裁定 1）：拒付理由＝数字式——「星币不够（需要 N 枚星币，还差 K 枚）」 */
+      if (have < price) return (r.name || r.id) + '不够（需要 ' + price + ' ' + (r.unit || '') + (r.name || r.id) + '，还差 ' + (price - have) + ' ' + (r.unit || '') + '）';
       if (Core.resNoFail(r)) return '';           // E1：该资源花光不判失败 → 可以花到 0
       if (have - price < 1) return '买完就剩 0 ' + (r.unit || '') + (r.name || '') + '——' + (r.zeroWarn || '花光就闯关失败') + '，不能买';
       return '';
@@ -1292,9 +1318,11 @@
       const mine = Core.atkOf(st);
       b.classList.add('battle');
       if (mine < need) b.classList.add('risk');
-      /* 战斗对照（exact 白名单③）保留；「胜 → / 负 → 」去向标签已按 §8.3 撤下 */
+      /* 战斗对照（exact 白名单③）保留；「胜 → / 负 → 」去向标签已按 §8.3 撤下；
+       * B80（R2·裁定 3）：对照行下方渲染「构成行」——这套加成怎么凑出来的＋还差几点（白名单③ 第二段） */
       b.innerHTML = '<span>' + nm(ch.l) + '</span>' +
-        '<span class="chip">你的武力值 ' + mine + (mine >= need ? ' ≥ ' : ' < ') + need + '</span>';
+        '<span class="chip">你的武力值 ' + mine + (mine >= need ? ' ≥ ' : ' < ') + need + '</span>' +
+        '<span class="chip atkParts">' + esc(Core.battleBreakdown(st, need)) + '</span>';
     } else {
       b.innerHTML = '<span>' + nm(ch.l) + '</span>';
     }

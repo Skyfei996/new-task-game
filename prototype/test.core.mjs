@@ -426,7 +426,7 @@ eq(st.coins, 1, '……扣款后正好剩 1 枚');
 /* ⑧ payReason：DOM 按钮禁用与核心判定共用的唯一入口 */
 eq(C.payReason({ coins: 3 }, 2), '', 'payReason：可以买 → 空字符串');
 eq(C.payReason({ coins: 2 }, 2), '买完就剩 0 枚萨瓦币——身无分文会闯关失败，不能买', 'payReason：恰好花光（B77：金额带币种名）');
-eq(C.payReason({ coins: 1 }, 2), '萨瓦币不够（需要 2 枚萨瓦币）', 'payReason：钱不够（B77：金额带币种名）');
+eq(C.payReason({ coins: 1 }, 2), '萨瓦币不够（需要 2 枚萨瓦币，还差 1 枚）', 'payReason：钱不够（B77 币种名＋B78 数字式：还差 N 枚）');
 
 /* ---------- 12. 人物表 / 人物触发点（v1.3） ---------- */
 eq(Object.keys(D.characters).length, 8, '人物表 8 位');
@@ -544,12 +544,12 @@ C.go(h, 'h1');
 const vc4 = C.visibleChoices(h);
 ok(vc4.length > 0 && vc4.every(e => ['vague', 'exact', 'none'].indexOf(e.hint) >= 0), 'E4：可见选项列表带 hint 字段（缺省 vague）');
 
-/* --- E5 灰显措辞（lockText + 兜底不含数字） --- */
+/* --- E5 灰显措辞（lockText + 兜底；B78 起资源面＝数字式——「还差点底气」档位词退役） --- */
 eq(C.lockHint({ lockText: '（还差点门道。）' }), '（还差点门道。）', 'E5：有 lockText 就用它');
 eq(C.lockHint({ cond: { item: '木棍' } }), '还差：木棍', 'E5：道具兜底 = 还差：X');
 eq(C.lockHint({ cond: { knows: '秘密' } }), '还不到时候', 'E5：线索兜底 = 还不到时候');
-eq(C.lockHint({ cond: { oxy: 3 } }), '还差点底气', 'E5：资源兜底 = 还差点底气');
-ok(!/[0-9]/.test(C.lockHint({ cond: { oxy: 3 } })) && !/[0-9]/.test(C.lockHint({ cond: { item: '木棍' } })), 'E5：兜底不含数字');
+eq(C.lockHint({ cond: { oxy: 3 } }), '需要 3 点氧气', 'B78：资源兜底＝数字式（需要 N <单位><名>；原「还差点底气」退役）');
+ok(!/[0-9]/.test(C.lockHint({ cond: { knows: '秘密' } })) && !/[0-9]/.test(C.lockHint({ cond: { item: '木棍' } })), 'E5：非资源兜底仍不含数字（线索／道具面）');
 
 /* --- E6 once / st.chDone / { chDone } 谓词 --- */
 const h1Choices = LVH.nodes.h1.c;

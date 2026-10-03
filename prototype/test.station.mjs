@@ -327,8 +327,8 @@ eq(D.nodes['19'].en.once, undefined, '舱外每次进入都要耗氧（不是一
 {
   const battleCh = D.nodes['16'].c.find(ch => ch.battle);
   ok(!!battleCh && battleCh.fx && battleCh.fx.oxygen === -5, '16 号失控机器人战 −5 氧（战斗选项的代价）');
-  const crawlCh = D.nodes['16'].c.find(ch => (ch.l || '').indexOf('爬道') >= 0);
-  ok(!!crawlCh && crawlCh.fx && crawlCh.fx.oxygen === -10, '16 号钻维修爬道 −10 氧');
+  const crawlCh = D.nodes['16'].c.find(ch => (ch.l || '').indexOf('往上爬') >= 0);   // B91（R2 问题 13）：标签改「掀开检修口的盖子」
+  ok(!!crawlCh && crawlCh.fx && crawlCh.fx.oxygen === -10, '16 号掀开检修口往上爬 −10 氧');
   ok(crawlCh.cond.any && crawlCh.cond.any.length === 2, '爬道需要「糖糖是帮手」或「万能扳手」（任一）');
 }
 
@@ -372,7 +372,7 @@ function runMainRoute(diff) {
   goPick('20', '吃一盒合成料理'); snap('吃掉赠的料理');
   goPick('20', '乘电梯去底层'); goPick('21', '去维修区');
   goPick('16', '零件堆'); snap('翻零件堆');
-  goPick('16', '钻进'); snap('爬道到实验室');
+  goPick('16', '往上爬'); snap('爬道到实验室');
   goPick('7', '打开工具柜'); snap('拆到芯片');
   goPick('30', '把芯片收好'); goPick('16', '回底层大厅'); goPick('21', '去冷却塔'); snap('进冷却塔');
   goPick('13', '用万能扳手拧上总阀'); snap('关阀');
@@ -433,7 +433,7 @@ ok(st.learned['糖糖是帮手'] && st.learned['保险柜密码'], '糖糖是帮
 goPick('23', '去实验室'); eq(st.loc, '7', '23→7');
 C.go(st, '16'); eq(st.loc, '16', '走到维修区');
 const oxCrawl = st.oxygen;
-goPick('16', '钻进'); eq(st.loc, '7', '16→7（爬道）');
+goPick('16', '往上爬'); eq(st.loc, '7', '16→7（爬道）');
 eq(st.oxygen, oxCrawl - 10, '钻爬道 −10 氧');
 ok(st.learned['维修爬道路线'], '记住维修爬道路线');
 goPick('7', '打开工具柜'); eq(st.loc, '30', '7→30（自己拆芯片）');
@@ -506,7 +506,7 @@ ok((D.nodes['32'].t || '').indexOf('星尘矿石') >= 0 && D.nodes['32'].t.index
 /* 收贿赂（10 ③）：+10 星币只发一次，线索断；再进反应堆舱 → 桑尼伏击（29 号失败结算） */
 st = C.newState('normal');
 C.go(st, '10');
-goPick('10', '收下他递来的一叠星币'); eq(st.loc, '33', '10→33（收下好处——B03 标签去「封口费」预设）');
+goPick('10', '收下他亮出来的星币'); eq(st.loc, '33', '10→33（收下好处——B03 标签去「封口费」预设；B81 动作已在正文）');
 eq(st.coins, 30, '封口费 +10（只发一次：20→30）');
 ok(st.learned['收了桑尼的贿赂'], '线索断：记住「收了桑尼的贿赂」');
 C.go(st, '12');
@@ -587,7 +587,7 @@ let BUDGET = null;
   /* 设计 §8.7-2 的三处点名行：钉到具体选项（节点级匹配可能被同节点其它选项代偿） */
   const pin = (id, frag) => (D.nodes[id].c.find(ch => (ch.l || '').indexOf(frag) >= 0) || {});
   eq((pin('5', '钻到沙发').fx || {}).oxygen, -5, '§8.7-2 点名行：5① 打招呼 −5（钻沙发）');
-  eq((pin('16', '零件堆翻一翻').fx || {}).oxygen, -5, '§8.7-2 点名行：16⑤ 翻零件堆 −5');
+  eq((pin('16', '翻一翻零件堆').fx || {}).oxygen, -5, '§8.7-2 点名行：16⑤ 翻零件堆 −5');
   eq((pin('13', '拧上总阀').fx || {}).oxygen, -5, '§8.7-2 点名行：13① 关阀 −5');
   /* 补给（毛额）：数据里的净值 20 + 并入的 10 = 30 */
   let dataPos = 0, posOnce = true;
@@ -657,7 +657,7 @@ ok(C.hasItem(st, '合成料理') && st.coins === 0, '买到 0（花光不判失�
 ok(!st.bankrupt, '买完不判失败');
 st = C.newState('normal');
 st.coins = 3;
-eq(C.payReason(st, 5), '星币不够（需要 5 枚星币）', '钱不够的理由文案（B77：金额带币种名）');
+eq(C.payReason(st, 5), '星币不够（需要 5 枚星币，还差 2 枚）', '钱不够的理由文案（B77 币种名＋B78 数字式）');
 st.coins = 4;
 log = C.buy(st, '合成料理', 5);
 ok(!C.hasItem(st, '合成料理') && st.coins === 4, '钱不够买不了，且不扣款');
@@ -995,7 +995,7 @@ function cabinetShortcut(withMedical, diff) {
   goPick('20', '吃一盒合成料理');
   goPick('20', '拐两个弯'); goPick('6', '问它'); goPick('23', '回中层大厅');   // 拿保险柜密码
   goPick('20', '乘电梯去底层'); goPick('21', '去维修区');
-  goPick('16', '零件堆'); goPick('16', '钻进'); goPick('7', '打开工具柜');
+  goPick('16', '零件堆'); goPick('16', '往上爬'); goPick('7', '打开工具柜');
   goPick('30', '把芯片收好'); goPick('16', '回底层大厅'); goPick('21', '去冷却塔');
   goPick('13', '用万能扳手拧上总阀');
   goPick('21', '乘电梯去中层'); goPick('20', '去气闸舱'); goPick('11', '打开安保柜'); goPick('11', '穿上磁力靴，出舱');
@@ -1095,7 +1095,7 @@ function cabinetShortcut(withMedical, diff) {
   C.applyRes(s, 'coins', -99);
   ok(s.coins === 0 && !s.bankrupt && s.zeroRes === null && s.loc === '1',
     '星币归零：不设 bankrupt、不进 45、位置不动');
-  eq(C.payReason(s, 5), '星币不够（需要 5 枚星币）', '没钱买不了（理由清晰；B77：金额带币种名）');
+  eq(C.payReason(s, 5), '星币不够（需要 5 枚星币，还差 5 枚）', '没钱买不了（理由清晰；B77 币种名＋B78 数字式）');
   P('钱不判失败：coins.fail === null；归零不结算、不进 45');
 }
 
@@ -1191,12 +1191,16 @@ function cabinetShortcut(withMedical, diff) {
     '10': { knows: '收了桑尼的贿赂' },           // B43：收贿版置首
     '11': { chDone: '取了磁力靴' },
     '12': { knows: '收了桑尼的贿赂' },
+    '14': { item: '监控回放' },                  // B03 复检 ②：复访写回（挡门那句收束）
     '15': { knows: '全站复电' },                 // B12：15 号 tIf 重排（复电版在前）
-    '16': { pinsAll: ['6'] },                    // B03 新：指挥舱来过（维修区场景版）
+    '16': { knows: '机器人小帮手' },            // B99 新：已收编＝写回版置首（原 pinsAll 6 版退居第二行）
+    '17': { knows: '逃生舱检查过' },             // B03 复检 ②：复访写回（检查表已打勾）
     '18': { knows: '全站复电' },                 // B66 新：三厅分叉（复电版置首）
     '19': { knows: '太阳能板已修好' },
     '20': { knows: '全站复电' },
     '21': { knows: '全站复电' },
+    '24': { all: [ { item: '站长授权卡' }, { pinsAll: ['45'] } ] },   // B03 复检 ③：持卡进入＝衔接版置首（父仲裁修正：加 45 来源面）
+    '27': { pinsAll: ['26'] },                    // B79 新：掰腕赢家版置首
     '28': { item: '桑尼的账本' },
     '36': { pinsAll: ['24'] },
     '39': { chDone: '小帮手焊板' },               // B03 新
@@ -1205,10 +1209,10 @@ function cabinetShortcut(withMedical, diff) {
     '43': { all: [ { knows: '反应堆已重启' }, { pinsAll: ['24'] } ] }                       // B58：4 版分档
   };
   const TIF_NODES = Object.keys(TIF);
-  eq(TIF_NODES.length, 22, 'TIF 表 22 行（14＋B03 新 8：1/6/16/18/20/21/39/40）');
+  eq(TIF_NODES.length, 26, 'TIF 表 26 行（14＋B03 新 8：1/6/16/18/20/21/39/40＋复检收口新 4：14/17/24/27）');
   const tifNodes = Object.keys(D.nodes).filter(id => (D.nodes[id].tIf || []).length);
   eq(tifNodes.sort((a, b) => a - b).join(','), TIF_NODES.slice().sort((a, b) => a - b).join(','),
-    '全节点扫描：带 tIf 的节点恰为这 22 个（无表外分叉）');
+    '全节点扫描：带 tIf 的节点恰为这 26 个（无表外分叉）');
   Object.keys(TIF).forEach(id => {
     const node = D.nodes[id];
     ok(Array.isArray(node.tIf) && node.tIf.length >= 1, id + ' 号有 tIf（正文分叉）');
@@ -1245,10 +1249,10 @@ function cabinetShortcut(withMedical, diff) {
   /* R16：3 号对话 / 17 号拆柜 / 28 号文案 */
   const c3 = D.nodes['3'].c.find(ch => (ch.l || '').indexOf('问阿雅') >= 0);
   ok(!!c3 && !!c3.say && c3.say.length > 10, 'R16：3 号问密码有对话反馈（say）');
-  ok(!!c3 && !!c3.fx && c3.fx.learn === '密码线索', 'R16/F1：3 号②留下「密码线索」面包屑（不再凭空给密码）');
+  ok(!!c3 && !!c3.fx && c3.fx.learn === '阿雅的提醒', 'R16/F1：3 号②留下「阿雅的提醒」面包屑（复检收口：原「密码线索」去黑话化）');
   ok(!c3.once, 'B03：3② 去掉 once（不再一次即隐）——重复可问');
   {
-    const s3 = C.newState('normal'); s3.loc = '3'; s3.learned['密码线索'] = true;
+    const s3 = C.newState('normal'); s3.loc = '3'; s3.learned['阿雅的提醒'] = true;
     ok(C.visibleChoices(s3).some(x => (x.label || '').indexOf('问阿雅') >= 0), 'B03：3② 已问过 ⇒ 仍可见（可重复）');
   }
   ok(D.nodes['17'].c[1].once === true && (D.nodes['17'].c[1].fx.gain || []).indexOf('绳索') >= 0,
@@ -1279,7 +1283,7 @@ console.log('———— §8.7-11 lint 五条（L1 同现 / L2 可见性两态 
 const L1_EVENT_CHARS = { '23': ['tangtang'], '28': ['yinhe'], '29': ['sangni'], '31': ['sangni'], '32': ['sangni'], '33': ['sangni'], '40': ['sangni', 'tietou'] };
 const L1_SPOT_TOL = 150;                       // 同房间容差（设计像素）
 const L3_WHITELIST = [['18', '20'], ['20', '21'], ['18', '21'], ['16', '7'], ['11', '19']];
-const L3_EVENT_SCENE = { '22': 'S1', '24': 'S1', '26': 'S1', '27': 'S1', '28': 'S1', '23': 'S2', '25': 'S2', '30': 'S2', '31': 'S2', '32': 'S2', '33': 'S2', '45': 'S2', '29': 'S3', '34': 'S3', '35': 'S3', '36': 'S3', '37': 'S3', '38': 'S3', '40': 'S3', '39': 'S4' };
+const L3_EVENT_SCENE = { '22': 'S1', '24': 'S1', '26': 'S1', '27': 'S1', '28': 'S2', '23': 'S2', '25': 'S2', '30': 'S2', '31': 'S2', '32': 'S2', '33': 'S2', '45': 'S2', '29': 'S3', '34': 'S3', '35': 'S3', '36': 'S3', '37': 'S3', '38': 'S3', '40': 'S3', '39': 'S4' };   // B99：28 的发生场景＝中层仓库门口（R2 问题 16③）
 const L3_EVENT_DECK = { S1: 'deck1', S2: 'deck2', S3: 'deck3', S4: 'exterior' };   // 事件层 → 楼层（§9.4：S1 顶层／S2 中层／S3 底层／S4 舱外）
 const L3_CHANNEL = /电梯|爬道|舱/;
 const L3_EXEMPT = ['41', '42', '43', '29', '44'];         // 结局 / 失败节点豁免
@@ -1289,7 +1293,7 @@ const L4_EXEMPT = [
   ['25', '滑下去'], ['30', '把芯片收好'],
   ['28', '推开仓库的门'], ['19', '爬回气闸舱'], ['39', '爬回气闸舱'], ['26', '先不掰了']
 ];
-const L4_CLIMB = [['16', '钻进维修爬道', 10]];   // 攀爬类：爬道上行 ≥10（正常命中词表靠阈值 5，爬道单列）
+const L4_CLIMB = [['16', '往上爬', 10]];   // 攀爬类：掀检修口上行 ≥10（正常命中词表靠阈值 5，检修口单列；B91）
 /* L5 名词表（B03 重构）：19 词条 = 圣经 §5（引入点·可引用集）
  * 登记规则（设计档 §10.5-L5）：可引用集 = 允许出现该词的节点集（含序章／帮助／道具:xx 三个非节点面）+ 引入点。
  * B03 补登（圣经 §5 可引用列与本轮实现实存在的差异，按实现补登并上报）：银河@10（10② 新标签）、老布@30 / 桑尼@4·12·34·道具:监控回放（§7 正文实引）、维修爬道@帮助（帮助第 8 条）。 */
@@ -1305,7 +1309,7 @@ const L5_NOUNS = [
   { w: '糖糖', intro: '6', allow: ['3', '6', '16', '23', '35', '道具:监控回放'] },
   { w: '老布', intro: '7 / 25', allow: ['4', '7', '16', '25', '30', '38'] },
   { w: '桑尼', intro: '10 / 35', allow: ['4', '10', '12', '29', '31', '32', '33', '34', '35', '40', '41', '42', '道具:监控回放'] },
-  { w: '维修爬道', intro: '16（7 号写「那条爬道」）', allow: ['16', '23', '25', '30', '帮助'] },
+  { w: '维修爬道', intro: '23（7 号写「那条爬道」）', allow: ['23', '25', '30'] },   // 复检收口：16 号已不再用此名（改说「检修口」）
   { w: '星尘矿石', intro: '10 / 32', allow: ['10', '31', '32', '40', '41', '道具:桑尼的账本'] },
   { w: '保险柜', intro: '9 / 23', allow: ['9', '23', '35', '道具:监控回放'] },
   { w: '货单', intro: '8', allow: ['8'] },
@@ -1365,10 +1369,10 @@ function condHasDonePred(c) {
 const L2_ONCE_LIST = [
   ['1', '循着说话声'], ['3', '把医疗包交给阿雅'], ['4', '撬开墙上的急救箱'], ['4', '请铁头搭把手'], ['4', '请他帮忙打开仓库'],
   ['5', '钻到沙发后面'], ['5', '追出去'], ['6', '你能带我去哪儿'], ['7', '打开工具柜'],
-  ['8', '对一对'], ['8', '查一查被改过的货单'], ['9', '转动密码盘'], ['10', '搬一罐冷却剂'], ['10', '把银河叼来的本子'], ['10', '收下他递来的一叠星币'],
+  ['8', '对一对'], ['8', '查一查被改过的货单'], ['9', '转动密码盘'], ['10', '搬一罐冷却剂'], ['10', '把银河叼来的本子'], ['10', '收下他亮出来的星币'],
   ['11', '打开安保柜'], ['12', '启动反应堆'], ['12', '照一照堆芯'], ['13', '拧上总阀'], ['13', '冲过蒸汽'],
   ['14', '跟安保机器人过招'], ['14', '小帮手去机房后台'], ['15', '推上主供电闸门'],
-  ['16', '把卡住的机器人'], ['16', '换上一节新电池'], ['16', '红漆工具箱'], ['16', '零件堆翻一翻'],
+  ['16', '把卡住的机器人'], ['16', '换上一节新电池'], ['16', '红漆工具箱'], ['16', '翻一翻零件堆'],
   ['17', '检查表'], ['17', '应急柜'], ['19', '用工具把面板焊好'], ['19', '让机器人小帮手去焊'], ['28', '站猫罐头']
 ];
 /* 豁免登记（设计档 §10.5-L2①）：14③／8①b＝隐藏式、只有 cond 无显式未完成谓词的边界——本实现在 cond 内已含 noItem，故无需豁免；
@@ -1393,10 +1397,10 @@ const L2_SITES = [
   ['3', '把医疗包交给阿雅'], ['4', '请他帮忙打开仓库'], ['4', '请铁头搭把手'], ['7', '打开工具柜'],
   ['9', '转动密码盘'], ['10', '搬一罐冷却剂'], ['11', '穿上磁力靴，出舱'], ['12', '启动反应堆'], ['12', '照一照堆芯'],
   ['13', '拧上总阀'], ['13', '系上绳索'], ['14', '扳下电闸'], ['15', '推上主供电闸门'],
-  ['16', '换上一节新电池'], ['16', '红漆工具箱'], ['16', '钻进维修爬道'], ['16', '零件堆翻一翻'],
+  ['16', '换上一节新电池'], ['16', '红漆工具箱'], ['16', '掀开检修口'], ['16', '翻一翻零件堆'],
   ['17', '按下发射钮'], ['19', '用工具把面板焊好'], ['28', '站猫罐头'], ['40', '揭发他'], ['40', '放下反应堆']
 ];
-const L2_REPEATABLE = ['11\u0000穿上磁力靴，出舱', '13\u0000系上绳索', '14\u0000扳下电闸', '16\u0000钻进维修爬道'];   // 组三：可重复·按次计费（无完成态）
+const L2_REPEATABLE = ['11\u0000穿上磁力靴，出舱', '13\u0000系上绳索', '14\u0000扳下电闸', '16\u0000掀开检修口'];   // 组三：可重复·按次计费（无完成态）
 const L2_TERMINAL = ['17\u0000按下发射钮', '40\u0000揭发他', '40\u0000放下反应堆'];              // 终局蕴含：成事条去向即结局（无回访）
 function isFailEntry(ch, id) {
   return !!ch && !!ch.say && !ch.fx && !ch.once && !ch.toIf && !ch.back && !ch.battle && !ch.random && ch.to === id;
@@ -1538,7 +1542,7 @@ function domAtoms(c, s) {   // 把成事条 cond 里的“未完成”谓词翻�
     ['9', '转动密码盘', s => { s.learned['保险柜密码'] = true; s.items.push('工牌'); }],
     ['11', '打开安保柜', null],
     ['16', '红漆工具箱', s => { s.visited['25'] = true; s.items.push('手电'); }],
-    ['16', '零件堆翻一翻', s => { s.items.push('手电'); }],
+    ['16', '翻一翻零件堆', s => { s.items.push('手电'); }],
     ['17', '检查表', null],
     ['17', '应急柜', null],
     ['4', '撬开墙上的急救箱', null],
@@ -1631,11 +1635,13 @@ function lintL3(L) {
       (ch.toIf || []).forEach(x => tgts.push(x.to));
       if (ch.battle) tgts.push(ch.battle.winTo, ch.battle.loseTo);
       (ch.random || []).forEach(x => tgts.push(x));
-      const text = (ch.l || '') + ' ' + (ch.say || '') + ' ' + (n.t || '');
       tgts.forEach(t => {
         if (L3_EXEMPT.indexOf(t) >= 0) return;
         const dst = deckOf(t);
         if (!dst || dst === src) return;
+        /* B99：通道词可落在源选项／源正文／目标正文（站关 28 的场景表定在 S2，而「搭电梯下到中层」
+         * 写在 28 的正文里——玩家一进 28 就读到，通道交代并未缺失） */
+        const text = (ch.l || '') + ' ' + (ch.say || '') + ' ' + (n.t || '') + ' ' + ((L.nodes[t] && L.nodes[t].t) || '');
         if (locScene[id] && locScene[t]) {     // 地点 → 地点：白名单节点对 + 文案含通道词
           const pair = L3_WHITELIST.some(([a, b]) => (a === id && b === t) || (b === id && a === t));
           if (!pair) bad.push(`跨层跳跃（白名单外）：${id}(${src}) → ${t}(${dst})「${ch.l}」`);
@@ -1790,7 +1796,7 @@ function providedFlags(L) {
     ['5', '钻到沙发后面', '5'], ['5', '追出去', '28'], ['28', '站猫罐头', '28'],
     ['28', '先回中层大厅', '20'], ['20', '坐在补给柜旁边', '20'],
     ['20', '去实验室', '7'], ['7', '帮他去找工具箱', '25'], ['25', '顺着维修爬道滑下去', '16'],
-    ['16', '把零件堆翻一翻', '16'], ['16', '钻进', '7'], ['7', '自己动手', '30'],
+    ['16', '翻一翻零件堆', '16'], ['16', '往上爬', '7'], ['7', '自己动手', '30'],
     ['30', '把芯片收好', '16'], ['16', '回底层大厅', '21'], ['21', '去冷却塔', '13'], ['13', '用万能扳手拧上总阀', '21'],
     ['21', '乘电梯去中层', '20'], ['20', '去气闸舱', '11'], ['11', '打开安保柜', '11'], ['11', '穿上磁力靴', '19'],
     ['19', '用工具把面板焊好', '39'], ['39', '爬回气闸舱', '11'], ['11', '回中层大厅', '20'],
@@ -1800,7 +1806,7 @@ function providedFlags(L) {
   ];
   const ROUTES = [
     ['主线·结局A', R1, null, '41'],
-    ['收贿线·伏击', [['10', '收下他递来的一叠星币', '33'], ['33', '回仓库看看', '10'], ['10', '先退出去', '20'],
+    ['收贿线·伏击', [['10', '收下他亮出来的星币', '33'], ['33', '回仓库看看', '10'], ['10', '先退出去', '20'],
       ['20', '乘电梯去底层', '21'], ['21', '去反应堆舱', '12'], ['12', '舱门', '29']], null, '29'],
     ['氧气死亡', [['21', '去冷却塔', '44']], s => { s.oxygen = 5; }, '44'],
     ['保险柜线', [['9', '转动密码盘', '45']], s => { s.learned['保险柜密码'] = true; s.items.push('工牌'); }, '45'],
@@ -2108,13 +2114,13 @@ console.log('———— B02-QA 修正轮：12 号三态 / 41 证据分版 / 43
   eq(t41.length, 8, '41 号：tIf 恰 8 条（证据 4 档 × 广播 2 档）');
   const COMBOS = [
     [['桑尼的账本', '监控回放'], true, '监控里那只手', '站长'],
-    [['桑尼的账本', '监控回放'], false, '监控里那只手', '阿雅'],
+    [['桑尼的账本', '监控回放'], false, '监控里那只手', '一个轻柔的声音'],
     [['桑尼的账本'], true, '「猫粮」进、「矿石」出', '站长'],
-    [['桑尼的账本'], false, '「猫粮」进、「矿石」出', '阿雅'],
+    [['桑尼的账本'], false, '「猫粮」进、「矿石」出', '一个轻柔的声音'],
     [['监控回放'], true, '拉下了主供电的保险丝', '站长'],
-    [['监控回放'], false, '拉下了主供电的保险丝', '阿雅'],
+    [['监控回放'], false, '拉下了主供电的保险丝', '一个轻柔的声音'],
     [[], true, '人赃并获', '站长'],
-    [[], false, '人赃并获', '阿雅']
+    [[], false, '人赃并获', '一个轻柔的声音']
   ];
   const bad = [];
   COMBOS.forEach(([items, p24, fragA, fragB], k) => {
@@ -2134,9 +2140,9 @@ console.log('———— B02-QA 修正轮：12 号三态 / 41 证据分版 / 43
   eq(t43.length, 4, '43 号：tIf 恰 4 条（重启 × 站长）');
   const COMBOS = [
     [true, true, '点亮', '站长'],
-    [true, false, '点亮', '阿雅'],
+    [true, false, '点亮', '身旁的人拍拍你的肩'],
     [false, true, '熄灭', '站长'],
-    [false, false, '熄灭', '阿雅']
+    [false, false, '熄灭', '身旁的人拍拍你的肩']
   ];
   const bad = [];
   COMBOS.forEach(([restart, p24, fragA, fragB], k) => {
@@ -2196,25 +2202,25 @@ console.log('———— B02-QA 修正轮：12 号三态 / 41 证据分版 / 43
     ['B41：23 改「诀窍我教你」', has(D.nodes['23'].t, '诀窍我教你') && !has(D.nodes['23'].t, '带你钻进去')],
     ['B41：30 去「钻出来」', has(D.nodes['30'].t, '死角') && !has(D.nodes['30'].t, '钻出来')],
     ['B42：8① 两行账目＋无账本反馈', has(ch('8', '对一对').say, '「罐头」8 箱进') && has(gas('8'), '为什么是矿石')],
-    ['B42/B03：8③ 广播呼应（尾句＝「把所有人带走的地方」）', has(ch('8', '广播').say, '得先有个能把所有人带走的地方')],
-    ['B43：10 两缺项反馈＋收贿标签去预设', has(gas('10'), '安保科的锁') && has(gas('10'), '得先过安保那一关') && has(ch('10', '收下他递来的一叠星币').l, '拿着烫手') && has(D.nodes['10'].tIf[0].t, '货架已经空了大半')],
+    ['B42/B93：8③ 广播呼应（尾句＝心里没底）', has(ch('8', '广播').say, '喊完之后，你心里反倒有点没底') && !has(ch('8', '广播').say, '把所有人带走的地方')],
+    ['B43/B81：10 两缺项反馈＋收贿标签去预设', has(gas('10'), '安保科的锁') && has(gas('10'), '得先过安保那一关') && has(ch('10', '收下他亮出来的星币').l, '拿着烫手') && has(D.nodes['10'].tIf[0].t, '货架已经空了大半')],
     ['B44：11 删「流程卡」／13 删「梯子」＋②回报句', !has(D.nodes['11'].t, '流程卡') && !has(D.nodes['13'].t, '梯子') && has(gas('13'), '挂架')],
     ['B46：14③ 需小帮手／19① 工具（原 lockText 指路语料退场）',
       has(JSON.stringify(ch('14', '小帮手').cond), '机器人小帮手') && has(gas('19'), '没有能焊的家伙') &&
       !has(JSON.stringify(D.nodes['14']), '维修区里还卡着一台')],
-    ['B47：16 型号句分叉／商店未写／④零件堆指路／37 命名',
-      !has(D.nodes['16'].t, '跟糖糖一个型号') && has(D.nodes['16'].tIf[0].t, '跟糖糖一个型号') &&
+    ['B47/B99：16 型号句分叉（写回版置首）／商店未写／④零件堆指路／37 命名',
+      !has(D.nodes['16'].t, '跟糖糖一个型号') && has(D.nodes['16'].tIf[1].t, '跟糖糖一个型号') && has(D.nodes['16'].tIf[0].t, '货架底下空了') &&
       has(gas('16'), '没有能用的电池') && has(gas('16'), '也许有趁手的东西') &&
       has(D.nodes['37'].t, '小帮手') && !has(JSON.stringify(D.nodes['16']), '贩卖机')],
     ['B49：17 检查表空格＋钥匙文案', has(D.nodes['17'].t, '三个格子还空着') && has(ch('17', '按下发射钮').l, '插上逃生舱钥匙')],
     ['B50：22 臂章暗示', has(D.nodes['22'].t, '臂章') && has(D.nodes['22'].t, '货运')],
     ['B52：31 去数字', has(D.nodes['31'].t, '一把') && !has(D.nodes['31'].t, '8 枚')],
     ['B53：33 台词＋代价句', has(D.nodes['33'].t, '你就别去了') && has(D.nodes['33'].t, '比看上去的还要沉')],
-    ['B54：35 调令收束', has(D.nodes['35'].t, '调令落款')],
+    ['B89：35 调令收束', has(D.nodes['35'].t, '调令牌正面空着') && !has(D.nodes['35'].t, '调令落款')],
     ['B55/B03：36 广播音中性化＋站长版分叉', has(D.nodes['36'].t, '一个平稳的声音') && has(D.nodes['36'].tIf[0].t, '站长的声音很稳') &&
       !has(D.nodes['36'].t + D.nodes['36'].tIf[0].t, '脱离了危险') && !has(D.nodes['36'].t, '站长稳住了')],
     ['B56：40 胶囊/无人机＋暗号串线', has(D.nodes['40'].t, '三枚金色胶囊') && has(D.nodes['40'].t, '一台无人机') && has(D.nodes['40'].tIf[0].t, '全串起来了')],
-    ['B59：帮助第 8 条跨层走通道', has(D.help[7], '维修爬道') && has(D.help[7], '舱外')],
+    ['B94：帮助地图行去通道列举（跨层时场景图会自动切换）', has(D.help[7], '跨层时场景图会自动切换') && !has(D.help[7], '维修爬道') && !has(D.help[7], '舱外') && !has(D.help[7], '电梯')],
     ['B59：乘员表去剧透', !has(D.characters.sangni.bio, '真凶') && !has(D.characters.yilanna.bio, '失踪') && has(D.characters.pangpang.bio, '洗碗')],
     ['B03：全关零灰显——lockText 面彻底退场', !has(JSON.stringify(D), 'lockText') && !has(JSON.stringify(D), '"lock"')]
   ];
@@ -2222,6 +2228,137 @@ console.log('———— B02-QA 修正轮：12 号三态 / 41 证据分版 / 43
   P('QA 文案落点：' + cases.length + ' 组逐条通过（B40~B59 数据面＋B03 改写点）');
 }
 
+
+/* ============ 17. B03 复检收口轮（B78~B100 ＋ 真人线 R2 四条）落点 ============ */
+console.log('');
+console.log('———— B03 复检收口轮：B78 星币数字 / B79 27 号兑现 / B80 构成行 / B99 发生场景 / R2 四条 ————');
+
+/* --- 17-1 B78：星币数字口径（引擎面；界面面由 test.play ⑧ 段覆盖） --- */
+{
+  eq(C.payReason({ coins: 3 }, 5), '星币不够（需要 5 枚星币，还差 2 枚）', 'B78：拒付理由＝数字式（需要 N／还差 K）');
+  ok(C.lockHint({ cond: { coins: 5 } }).indexOf('需要 5 枚星币') >= 0, 'B78：资源条件提示＝数字式（lockHint）');
+  ok(C.lockHint({ cond: { coins: 5 } }).indexOf('底气') < 0, 'B78：「还差点底气」句退役（引擎面无残留；37 号正文「多一分底气」为叙事句，不在本项面）');
+  P('B78：星币数字口径——payReason／lockHint 两处引擎面通过');
+}
+
+/* --- 17-2 B79：27 号赢家当场兑现（数据＋行为） --- */
+{
+  const n27 = D.nodes['27'];
+  eq((n27.tIf || []).length, 1, 'B79：27 号 tIf 恰 1 行（赢家版）');
+  eq(JSON.stringify(n27.tIf[0].cond), JSON.stringify({ pinsAll: ['26'] }), 'B79：赢家版 cond＝pinsAll 26（先匹配者为准）');
+  ok(n27.tIf[0].t.indexOf('交过手的人') >= 0 && n27.tIf[0].t.indexOf('掰赢') < 0, 'B79：交手过版正文（父代理 2026-10-03 中性化裁定：判据不记胜负⇒不误称「掰赢」）');
+  const pick = s => C.visibleChoices(s).filter(x => (x.label || '').indexOf('急救箱') >= 0);
+  const s = C.newState('normal'); s.loc = '27'; s.visited['26'] = true;
+  const v = pick(s);
+  eq(v.length + ':' + v[0].ci, '1:0', 'B79：掰腕赢家进 27 ⇒ 兑现条恰一条、置首');
+  eq(JSON.stringify(n27.c[0].cond), JSON.stringify({ all: [{ pinsAll: ['26'] }, { noItem: '医疗包' }] }), 'B79：兑现条 cond＝pinsAll 26 ＋ noItem 医疗包');
+  eq(n27.c[0].once, '急救箱开过', 'B79：共享 once「急救箱开过」（与 4③/④ 天然互斥）');
+  const ox = s.oxygen;
+  const r = C.choose(s, v[0].ci); C.move(s, r);
+  ok(C.hasItem(s, '医疗包'), 'B79：当场拿到医疗包');
+  eq(s.oxygen, ox, 'B79：0 氧（赢家待遇——不扣氧气）');
+  eq(s.loc, '27', 'B79：原地（留在 27，不被踢出）');
+  eq(pick(s).length, 0, 'B79：兑现后本节点该条隐（once）');
+  const s4 = C.newState('normal'); s4.loc = '4'; s4.visited['26'] = true; s4.chDone['急救箱开过'] = true;
+  eq(C.visibleChoices(s4).filter(x => (x.label || '').indexOf('急救箱') >= 0).length, 0, 'B79：共享 once——27 兑现后 4③/④ 齐隐');
+  const s2 = C.newState('normal'); s2.loc = '27';
+  eq(pick(s2).length, 0, 'B79：没掰过手腕 ⇒ 兑现条不出现（无白拿）');
+  const s3 = C.newState('normal'); s3.loc = '27'; s3.visited['26'] = true; s3.items.push('医疗包');
+  eq(pick(s3).length, 0, 'B79：已持医疗包 ⇒ 不重复发');
+  P('B79：27 号赢家当场兑现（0 氧／原地／once 共享／三态不出现）逐条通过');
+}
+
+/* --- 17-3 B80：战斗构成行（Core 面；呈现面由 test.play ⑧ 段覆盖） --- */
+{
+  const s0 = C.newState('normal');
+  eq(C.battleBreakdown(s0, 1), '构成：无加成＝0（还差 1 点）', 'B80：零加成＝「无加成＝0（还差 1 点）」');
+  const s1 = C.newState('normal'); s1.items.push('焊接枪', '电击棒');
+  eq(C.battleBreakdown(s1, 3), '构成：焊接枪 +1、电击棒 +2＝3', 'B80：逐项列举＋达标（不带还差）');
+  eq(C.battleBreakdown(s1, 6), '构成：焊接枪 +1、电击棒 +2＝3（还差 3 点）', 'B80：差额＝need − 现价');
+  const s2 = C.newState('normal'); s2.items.push('焊接枪'); s2.learned['机器人小帮手'] = true;
+  ok(C.battleBreakdown(s2, 3).indexOf('机器人小帮手 +1') >= 0, 'B80：线索加成（机器人小帮手）并入构成');
+  eq(C.atkParts(s1).length, 2, 'B80：atkParts 与 atkOf 同源（两件装备 ⇒ 两条）');
+  ok(C.atkOf(s1) === 3 && C.battleBreakdown(s1, 3).indexOf('＝3') >= 0, 'B80：atkOf＝构成合计（同源）');
+  P('B80：构成行数据面（无加成／逐项／还差／线索加成）逐条通过');
+}
+
+/* --- 17-4 B99：28 号发生场景（显示楼层＝发生场景） --- */
+{
+  eq(D.nodes['28'].scene, 'deck2', 'B99：28 号声明发生场景 scene:deck2（§9.4 事件发生场景表 S2）');
+  const s = C.newState('normal');
+  C.go(s, '5'); eq(s.scene, 'deck1', 'B99：5 号照旧取 pin 场景（deck1）');
+  C.go(s, '28'); eq(s.scene, 'deck2', 'B99：进 28 ⇒ 显示楼层切到中层（原为顶层——R2 ④-4 楼层自相矛盾）');
+  C.go(s, '10'); eq(s.scene, 'deck2', 'B99：28 → 仓库（同层 deck2）');
+  const s2 = C.newState('normal'); C.go(s2, '21');
+  eq(s2.scene, 'deck3', 'B99：scene 字段不影响其它节点（21 = deck3）');
+  P('B99：事件节点显式发生场景——28 显示楼层＝中层（不再自相矛盾）');
+}
+
+/* --- 17-5 R2 ①：编号面（数据侧锚点保留＋呈现侧过滤在工具面） --- */
+{
+  ok((D.nodes['18'].c || []).some(ch => (ch.l || '').indexOf('（1）') >= 0), 'R2①：数据面保留地图锚点（（1）——网页端 R09 锚点；--player 由呈现层过滤，见 test.play ⑧）');
+  P('R2①：编号只从 --player 呈现层撤下（数据面锚点不动）');
+}
+
+/* --- 17-6 R2 ②：复访写回 3 处（16/14/17；自写句原文入交付报告） --- */
+{
+  const s16 = C.newState('normal'); s16.learned['机器人小帮手'] = true;
+  ok(C.nodeText(s16, D.nodes['16']).indexOf('货架底下空了') >= 0, 'R2②：16 号已收编 ⇒ 写回版（货架底下空了）');
+  ok(C.nodeText(C.newState('normal'), D.nodes['16']).indexOf('卡在货架底下') >= 0, 'R2②：16 号未收编 ⇒ 照旧（机器人还卡着）');
+  const s14 = C.newState('normal'); s14.items.push('监控回放');
+  ok(C.nodeText(s14, D.nodes['14']).indexOf('不再拦你') >= 0, 'R2②：14 号持监控回放 ⇒ 写回版（退到一边不再拦路）');
+  ok(C.nodeText(C.newState('normal'), D.nodes['14']).indexOf('横在门口') >= 0, 'R2②：14 号首访 ⇒ 照旧（横在门口）');
+  const s17 = C.newState('normal'); s17.learned['逃生舱检查过'] = true;
+  ok(C.nodeText(s17, D.nodes['17']).indexOf('都打上了勾') >= 0, 'R2②：17 号查过检查表 ⇒ 写回版（三个格子都打上了勾）');
+  ok(C.nodeText(C.newState('normal'), D.nodes['17']).indexOf('还空着') >= 0, 'R2②：17 号未查 ⇒ 照旧（还空着）');
+  P('R2②：复访写回 3 处（16 已收编／14 持回放／17 已查表）——各自谓词下正文换版');
+}
+
+/* --- 17-7 R2 ③：24 号持卡衔接（＋不重发卡；父代理 2026-10-03 修正裁定：谓词＝持卡∧去过 45） --- */
+{
+  const s = C.newState('normal'); s.items.push('站长授权卡'); s.visited['45'] = true;
+  const t = C.nodeText(s, D.nodes['24']);
+  ok(t.indexOf('原来你早拿到了') >= 0 && t.indexOf('塞进你手里') < 0, 'R2③：从保险柜取卡后再进 24 ⇒ 衔接版（不再重演「塞进你手里」）');
+  const t2 = C.nodeText(C.newState('normal'), D.nodes['24']);
+  ok(t2.indexOf('塞进你手里') >= 0 && t2.indexOf('原来你早拿到了') < 0, 'R2③：首访（未去过 45）⇒ 默认交接版（en 先发卡也不误判）');
+  const s2b = C.newState('normal'); s2b.items.push('站长授权卡');
+  ok(C.nodeText(s2b, D.nodes['24']).indexOf('塞进你手里') >= 0, 'R2③：只持卡、未去过 45 ⇒ 仍默认版（来源面不混淆）');
+  const s2 = C.newState('normal'); s2.items.push('站长授权卡');
+  const before = s2.items.length;
+  C.go(s2, '24');
+  eq(s2.items.length, before, 'R2③：持卡进 24 ⇒ 不重复发卡（物品数不变）');
+  const s3 = C.newState('normal');
+  C.go(s3, '24');
+  ok(C.hasItem(s3, '站长授权卡'), 'R2③：无卡进 24 ⇒ 照旧发卡');
+  P('R2③：24 号持卡衔接（首访默认版／45 取卡后衔接版／不重发卡）');
+}
+
+/* --- 17-8 R2 ④：12③ 自指（门票只收一次） --- */
+{
+  const n12 = D.nodes['12'];
+  const idx = n12.c.findIndex(ch => (ch.l || '').indexOf('照一照堆芯') >= 0 && ch.once === true);
+  ok(idx >= 0, 'R2④：12③ 成事条在（带 once）');
+  eq(n12.c[idx].to, '12', 'R2④：12③ 成事条 to 自指（原 to:21＝被踢出＋重复收门票）');
+  const s = C.newState('normal'); s.items.push('手电');
+  C.go(s, '12');                        // 进舱：扣门票 −10
+  const ox = s.oxygen;
+  const r = C.choose(s, idx); C.move(s, r);
+  eq(s.loc, '12', 'R2④：执行 12③ ⇒ 留在反应堆舱（不被踢出）');
+  eq(s.oxygen, ox, 'R2④：自指不重跑 en（门票不再收第二次）');
+  ok(C.hasItem(s, '反应堆安全规程'), 'R2④：照旧拿到安全规程');
+  ok(!C.visibleChoices(s).some(x => x.ci === idx), 'R2④：拿到后该条隐（once）');
+  ok(C.visibleChoices(s).some(x => (x.label || '').indexOf('启动反应堆') >= 0), 'R2④：留在舱内 ⇒ 可直接接着启动反应堆');
+  P('R2④：12③ 自指收口（留舱／门票只收一次／一次即隐）');
+}
+
+/* --- 17-9 B90：12 号失败词（去「序列」预设） --- */
+{
+  const fail12 = (D.nodes['12'].c || []).find(ch => (ch.say || '').indexOf('缺的东西，还没凑齐') >= 0);
+  ok(!!fail12 && fail12.say.indexOf('你按铭牌挨个把接口试了一遍') >= 0 && fail12.say.indexOf('序列') < 0,
+    'B90：12 号失败词＝「你按铭牌挨个把接口试了一遍」（去「序列」预设）；去向自指 12');
+  eq(fail12 && fail12.to, '12', 'B90：失败条原地（to:12，不重跑门票）');
+  P('B90：12 号失败词逐字落点');
+}
 
 /* ============ 汇总 ============ */
 console.log('');
