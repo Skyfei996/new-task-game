@@ -127,7 +127,7 @@
        * 坐标为**暂定值**：按成图目测取值（依据逐条注在行内），待老板试玩回报／C 键手标校准后回填。 */
       'room-galley': {
         id: 'room-galley', name: '晨星号 · 食堂', label: '顶层',
-        image: '../images/station/rooms/galley.jpg', width: 1659, height: 948,
+        image: '../images/station/rooms/galley.jpg', width: 1660, height: 948,
         figures: { pangpang: [880, 205, 160, 225] },   // B120：胖胖（灶台后）可见轮廓框——目测初值，待标定
         pins: { '18': [1330, 690],    // 出口＝右下拱门洞（目测：门洞内缘中心——「摸黑去中央大厅」）
                 '1': [640, 660] }     // B125 自指 pin（暂定·目测）：长餐桌一带地面——无浮图时承担「你在这里」标记＋遮罩开孔
@@ -140,7 +140,7 @@
       },
       'room-medbay': {
         id: 'room-medbay', name: '晨星号 · 医务室', label: '顶层',
-        image: '../images/station/rooms/medbay.jpg', width: 1659, height: 948,
+        image: '../images/station/rooms/medbay.jpg', width: 1660, height: 948,
         figures: { aya: [455, 145, 235, 515],          // B120：床边阿雅——目测初值，待标定
                    yilanna: [690, 255, 195, 180] },    // B120：床上伊莲娜（卧姿可见段）＝基础图留守回落值；苏醒态由变体 figures 承担（T73 已标定）
         /* B122（§7.10/§7.11-T73）：站长已醒（pinsAll 24）⇒ L1 背景切「靠床头坐起」版（T73 免验收直入）；
