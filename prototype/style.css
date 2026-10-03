@@ -102,11 +102,7 @@ body {
   background: rgba(20, 30, 42, .85); color: var(--ink); border: 1px solid var(--line);
 }
 #sceneCtrls button:hover { border-color: var(--accent); }
-#hintBar {
-  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
-  background: rgba(0, 0, 0, .55); color: #cfe0ee; font-size: 12px;
-  padding: 5px 14px; border-radius: 999px; white-space: nowrap;
-}
+/* B04（§6.4）：#hintBar 归位到物品栏行内右侧——样式已外置到 style-ui.css（本档不再定义） */
 #calibBox {
   position: absolute; left: 12px; bottom: 12px; max-width: 340px;
   background: rgba(0, 0, 0, .8); border: 1px solid var(--accent); border-radius: 10px;
@@ -301,9 +297,8 @@ body {
 @media (max-width: 900px) {
   #app { flex-direction: column; }
   #sceneWrap { height: 52vh; }
-  #stage { width: min(100%, calc((52vh - 24px) * var(--scene-w, 1) / var(--scene-h, 1))); }
+  /* 窄屏舞台高度比例：B04 已在 style-ui.css 按「舞台＋物品栏行」重算（单一来源，本档不再定义） */
   #panel { width: 100%; flex: 1; border-left: none; border-top: 1px solid var(--line); }
-  #hintBar { font-size: 11px; }
   /* v0.2：关卡卡片在窄屏上竖排 */
   .levelCard { flex-direction: column; }
   .lcPoster { width: 100%; height: 150px; }
@@ -325,7 +320,7 @@ body {
 }
 @keyframes resLow { 50% { box-shadow: 0 0 0 4px rgba(230, 57, 70, .25); } }
 
-/* ---------- B03 氧气条：分段填充、无数字；条色随档（≥50% 正常／20~50% 警示／<20% 危险） ---------- */
+/* ---------- 氧气条：分段填充＋数值（B04 重订：条＋数值同帧同色，条色随档 ≥50／20~49／<20） ---------- */
 #resList .res.bar { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; }
 #resList .res.bar .barCells { display: inline-flex; gap: 2px; }
 #resList .res.bar .barCells i {

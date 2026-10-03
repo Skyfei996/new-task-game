@@ -14,7 +14,7 @@
 //   node tools/play.mjs auto [--steps 40] [--seed 7]
 //   node tools/play.mjs --json state           （JSON 输出，AI 友好；--json 可放子命令前）
 //   node tools/play.mjs --player choose 2      （玩家模式，给 AI 体验师：隐藏武力/步数/机械理由，节点编号不上屏；
-//                                                数值面：氧气＝文本条（无数字）、星币＝数字（🪙 星币 20）；
+//                                                数值面：氧气＝文本条＋数值（B04 §6.1）、星币＝数字（🪙 星币 20）；
 //                                                禁用 --json / load / auto；会话单独存）
 //
 // 会话状态存在 <当前目录>/.playtest/session.json（玩家模式 = player-session.json；已加入 .gitignore）。
@@ -239,20 +239,21 @@ function devChoiceLine(C, st, c) {
 
 /* ============ 玩家模式（E10，给 AI 体验师）============
  * 隐藏：武力面板、步数、计数、去向编号、机械理由（灰显面按数据而定，B03 后 station 无灰显项）。
- * 数值面（B78 复检收口）：氧气＝同构文本条＋档位词（无数字）；星币＝数字式（🪙 星币 20）——钱数不再隐藏。
+ * 数值面（B04 §6.1 重订）：氧气＝同构文本条＋具体数值＋档位词（如 `💨 氧气 ██████░░░░ 58 还好`——
+ *   数值＝余量原值；档位词保留＝颜色档的文本冗余；网页 HUD 同源同值）；星币＝数字式（🪙 星币 20）。
  * 编号面（R2 ①）：场景号/去向编号/选项里的地图锚点一律不上屏（playerLabel 过滤；网页端 R09 编号锚点保留）。
  * 例外：战斗选项保留与真实玩家一模一样的「你的武力值 X ≥/< Y」对照＋构成行（白名单③，§8.3/B80）。
  * 规范：docs/design-station-v1.md §7-E10、§8.3；简报见 docs/playtest-guide.md §二。 */
 const PLAYER_TIER = {
-  /* 氧气：§8.3 的 ≥50% / 20~50% / <20% 三档（基准 = 普通开局 100，即绝对值 50 / 20） */
+  /* 氧气：§8.3 的 ≥50 / 20~49 / <20 三档（基准 = 普通开局 100，即绝对值 50 / 20） */
   oxygen: v => (v >= 50 ? '还好' : v >= 20 ? '有点闷' : '快喘不上气')
 };
-/* 定性档位／数值：带条的资源照旧只给条＋档位词；其余资源（星币）＝数字式（B78） */
+/* 定性档位／数值：带条的资源＝条＋数值＋档位词（B04）；其余资源（星币）＝数字式（B78） */
 function playerResText(C, st, r) {
   const name = (r.icon ? r.icon + ' ' : '') + (r.name || r.id);
   const v = C.resOf(st, r.id);
-  /* B03：氧气＝同构文本条（分段填充、无数字）＋档位词；与网页 HUD 同一口径（设计档 §8.3） */
-  if (r.bar) return name + ' ' + playerBar(v, (r.start && r.start.normal) || 100) + ' ' + (PLAYER_TIER[r.id] ? PLAYER_TIER[r.id](v) : '');
+  /* B04（§6.1）：氧气＝同构文本条＋数值＋档位词；与网页 HUD 同一口径（数值＝余量原值） */
+  if (r.bar) return name + ' ' + playerBar(v, (r.start && r.start.normal) || 100) + ' ' + v + ' ' + (PLAYER_TIER[r.id] ? PLAYER_TIER[r.id](v) : '');
   return name + ' ' + v;
 }
 /* B03：氧气文本条（与网页分段条同构）——10 格，满= 普通开局值 */
@@ -762,13 +763,13 @@ function helpText(player) {
     '  help                                   这份说明',
     '',
     '  --json 可放在任意子命令前：输出机器可读 JSON（node / name / text / choices[{i,label,to,ok,why}] / shop / sell / state{…}）',
-    '  --player 玩家模式（给 AI 体验师）：隐藏武力/步数/机械理由，节点编号不上屏；氧气＝文本条，星币＝数字；',
+    '  --player 玩家模式（给 AI 体验师）：隐藏武力/步数/机械理由，节点编号不上屏；氧气＝文本条＋数值，星币＝数字；',
     '           禁用 --json / load / auto；会话存 player-session.json；save 可用',
     '',
     '文件：会话 = ' + SESSION_FILE + '（开发）｜ ' + PLAYER_SESSION_FILE + '（--player）　（.playtest/ 已进 .gitignore）',
     '详细玩法与「给 AI 体验师下指令」的模板：docs/playtest-guide.md'
   ];
-  if (player) L.splice(1, 0, '（玩家模式已启用：隐藏武力/步数/机械理由，节点编号不上屏；氧气文本条、星币数字；禁用 --json / load / auto；会话 = player-session.json）');
+  if (player) L.splice(1, 0, '（玩家模式已启用：隐藏武力/步数/机械理由，节点编号不上屏；氧气文本条＋数值、星币数字；禁用 --json / load / auto；会话 = player-session.json）');
   return L.join('\n');
 }
 

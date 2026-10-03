@@ -379,9 +379,11 @@ seq.forEach(s => console.log('  ' + s));
   const n = P('new', 'station');
   eq(n.code, 0, '--player new station 退出码 0');
   const expOxy = tierOxy(resDef('oxygen').start.normal + enOxy);
-  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + expOxy).test(n.out), '玩家版氧气：文本条＋档位（10 格；档位 ' + expOxy + '）');
+  const expOxVal = resDef('oxygen').start.normal + enOxy;
+  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + expOxVal + ' ' + expOxy).test(n.out),
+    'B04：玩家版氧气＝文本条＋数值＋档位（10 格；数值 ' + expOxVal + '；档位 ' + expOxy + '——§6.1 同口径）');
   ok(n.out.indexOf('🪙 ' + coinTxt + ' ' + resDef('coins').start.normal) >= 0, 'B78：玩家版星币＝数字式（🪙 ' + coinTxt + ' ' + resDef('coins').start.normal + '）');
-  ok(!/💨\s*\d/.test(n.out), '玩家版氧气仍不显示数字（条＋档位）');
+  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + expOxVal + ' ').test(n.out), 'B04：玩家版氧气显示具体数值（取代 B03「无数字」——老板 2026-10-03 裁定）');
   ok(!/能买点东西|不多了|花光了/.test(n.out), 'B78：星币档位词退役（零残留）');
   ok(n.out.indexOf('⚔ 武力') < 0, '玩家版不显示武力面板');
   ok(n.out.indexOf('第 0 步') < 0 && n.out.indexOf('已探索') < 0, '玩家版不显示步数 / 已探索计数');
@@ -394,7 +396,8 @@ seq.forEach(s => console.log('  ' + s));
   /* 困难开局：数值跟着算（氧气条档位 / 星币数字） */
   const h = P('new', 'station', '--hard');
   const hardExp = tierOxy(resDef('oxygen').start.hard + enOxy);
-  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + hardExp).test(h.out), '困难开局：文本条＋档位按数值算（困难 ' + resDef('oxygen').start.hard + ' − ' + (-enOxy) + ' → ' + hardExp + '）');
+  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + (resDef('oxygen').start.hard + enOxy) + ' ' + hardExp).test(h.out),
+    '困难开局：文本条＋数值＋档位按实际算（困难 ' + resDef('oxygen').start.hard + ' − ' + (-enOxy) + ' → ' + (resDef('oxygen').start.hard + enOxy) + ' / ' + hardExp + '）');
   ok(h.out.indexOf('🪙 ' + coinTxt + ' ' + resDef('coins').start.hard) >= 0, 'B78：困难开支星币也报数字（' + resDef('coins').start.hard + '）');
 
   /* 独立会话：玩家存 player-session.json，开发存 session.json；互不打扰 */
@@ -412,7 +415,8 @@ seq.forEach(s => console.log('  ' + s));
   /* buy 后的整屏也走玩家渲染（防漏传 player 参数——审计发现过的漏洞） */
   const pb2 = P('buy', '合成料理');
   eq(pb2.code, 0, '--player buy 退出码 0');
-  ok(!/💨\s*\d/.test(pb2.out) && pb2.out.indexOf('🪙 ' + coinTxt + ' ') >= 0, '--player buy 后的整屏仍是玩家版（氧气无数字；星币数字）');
+  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + (resDef('oxygen').start.hard + enOxy) + ' ').test(pb2.out) && pb2.out.indexOf('🪙 ' + coinTxt + ' ') >= 0,
+    '--player buy 后的整屏仍是玩家版（氧气＝条＋数值；星币数字）');
   ok(!/能买点东西|不多了|花光了/.test(pb2.out), 'B78：buy 后整屏也无档位词');
   ok(pb2.out.indexOf('　→ 买：buy ') >= 0, '--player buy 后的整屏带买家动作提示（B03 工具面）');
   ok(!/→ \d/.test(pb2.out), '--player buy 后的整屏不显示去向编号');
@@ -490,7 +494,7 @@ seq.forEach(s => console.log('  ' + s));
     ok(p41.out.indexOf('🏁 结局 · 圆满') >= 0 && p41.out.indexOf('结局 A') < 0, 'R2①：玩家版结局名去字母（🏁 结局 · 圆满）');
     const w41 = play(['--player', 'where'], T5);
     ok(w41.out.indexOf('结局 · 圆满') >= 0 && w41.out.indexOf('结局 A') < 0, 'R2①：玩家版 where 同样去字母');
-    ok((D2.nodes['41'].endTag || '').indexOf('结局 A') >= 0, 'R2①：数据面 endTag 保留「结局 A · 圆满」（网页端随界面批登记，本轮不动）');
+    ok((D2.nodes['41'].endTag || '').indexOf('结局 A') >= 0, 'R2①：数据面 endTag 保留「结局 A · 圆满」（网页端渲染层已于 B04 去字母——本条只锁数据面；§6.2）');
     fs.writeFileSync(path.join(T5, 'dev41.json'), JSON.stringify({ v: 1, kind: 'playtest-snapshot', level: 'station', state: st41, log: [], steps: 0, savedAt: new Date().toISOString() }));
     play(['load', 'dev41.json'], T5);
     const dev41 = play(['state'], T5);

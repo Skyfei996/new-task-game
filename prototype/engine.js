@@ -43,6 +43,16 @@
  *       「构成：…＝X（还差 N 点）」（exact 白名单③ 第二段；网页与 --player 同源）
  *   B99 节点显式 scene：事件节点可在数据里声明发生场景（无 pin 节点——如站关 28）→ 显示楼层取发生场景
  *
+ * B04 界面与视觉批（E13~E20，能力登记＝design-station-v1.md §7 v0.6；口径＝design-ui-v1.md）：
+ *   E13 浮现图渲染 renderMoments（节点 moments/mIf → 场景叠层；缺图兜底＝不渲染不留位）
+ *   E14 消息分类着色（Core.sayKindOf / Core.textKind → data-kind：info/gain/key/fail）
+ *   E15 剧情区反馈区（最近一次操作的消息组常驻；与 toast 同源）
+ *   E16 物品栏（地图下方横排：st.items × itemOrder；点选详情气泡＋「看内容」E3）
+ *   E17 物品栏「使用」（Core.itemUseInfo：等价执行唯一消费该道具的可见选项）
+ *   E18 地图光环位按关卡停用（判据＝本关是否注册 moments：站关撤下、示例关 dalim 沿用）
+ *   E19 氧气读数＝条＋数值（renderHUD：resOf 原值＋同帧更新；数值与条同色）
+ *   E20 结局名去字母（Core.endDisplayName：数据面 endTag/n 不动，仅渲染层）
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
@@ -359,6 +369,100 @@
     nodeText(st, node) {
       const hit = ((node && node.tIf) || []).find(x => Core.condOk(st, x.cond));
       return hit ? hit.t : (node && node.t);
+    },
+
+    /* ============ B04（界面与视觉批）纯判据 / 布局助手（不接触 DOM；口径＝design-ui-v1.md）============
+     * DOM 层与测试同源调用这里；每条口径的行号指针写在注释里。 */
+
+    /* ---- §7 浮现图（两层制 L2）---- */
+    momentDef(id) { return (D && D.moments && D.moments[id]) || null; },
+    /* 节点 moments/mIf：先匹配者为准；命中行完整替换默认集；id 未注册 ⇒ 忽略该条 */
+    momentsOf(st, node) {
+      const n = node || (st && st.loc ? (D && D.nodes[st.loc]) : null);
+      if (!n) return [];
+      const hit = ((n.mIf) || []).find(x => Core.condOk(st, x.cond));
+      const ids = hit ? (hit.moments || []) : (n.moments || []);
+      return ids.filter(id => !!Core.momentDef(id));
+    },
+    /* 注册表条目 → 场景像素布局：锚点＝原图像素（角色图＝底边中点、窗景＝窗区中心）；
+     * 尺寸：角色图宽＝场景宽 × w（默认 0.22）；窗景＝窗区 × fit（默认 1.06）。
+     * idx/total 只服务「未给锚点」的兜底摆放（左右对称：中心 ±0.32×场景宽、底边对齐）。 */
+    momentLayout(id, sid, idx, total) {
+      const def = Core.momentDef(id);
+      const sc = (D && D.scenes[sid]) || null;
+      if (!def || !sc || !def.file) return null;
+      const card = !!def.card, lighten = !!def.lighten;
+      if (def.win) {
+        const fit = def.fit == null ? 1.06 : def.fit;
+        return {
+          id: id, x: (def.at ? def.at[0] : sc.width / 2), y: (def.at ? def.at[1] : sc.height / 2),
+          w: def.win[0] * fit, h: def.win[1] * fit, win: true, card: card, lighten: lighten
+        };
+      }
+      let cx, cy;
+      if (def.at) { cx = def.at[0]; cy = def.at[1]; }
+      else {
+        const i = idx || 0, n = Math.max(1, total || 1);
+        cx = sc.width * (0.5 + (n <= 1 ? 0 : (i - (n - 1) / 2) * (0.64 / (n - 1))));
+        cy = sc.height * 0.86;
+      }
+      return { id: id, x: cx, y: cy, w: sc.width * (def.w == null ? 0.22 : def.w), h: null, win: false, card: card, lighten: lighten };
+    },
+
+    /* ---- §6.2 结局名展示层去字母（数据面 n/endTag 不动；与 --player 的 playerEndName 同规则） ---- */
+    endDisplayName(s) { return String(s == null ? '' : s).replace(/结局\s*[A-Za-z]\s*·/g, '结局 ·'); },
+
+    /* ---- §3 消息分类（渲染层据此上色；判据零数据改动） ---- */
+    /* 选项消息的类：sayKind 可选覆盖（'fail'｜'info'）＞形状判据（say ∧ to=当前节点 ∧ ¬fx ∧ ¬once）＞ null */
+    sayKindOf(st, ch) {
+      if (!ch || !ch.say) return null;
+      if (ch.sayKind === 'fail' || ch.sayKind === 'info') return ch.sayKind;
+      return (!ch.fx && !ch.once && ch.to === (st && st.loc)) ? 'fail' : 'info';
+    },
+    /* 效果日志的类：🔑 线索 → key；获得/失去 → gain；其余 → info */
+    textKind(text) {
+      const s = String(text == null ? '' : text);
+      if (s.indexOf('🔑 记住了一条线索：') === 0) return 'key';
+      if (s.indexOf('获得 ') === 0 || s.indexOf('失去 ') === 0) return 'gain';
+      return 'info';
+    },
+    /* §4 时长（毫秒）：info/gain＝4.2s；key/fail＝7.0s（信息量最大的两类给足阅读时间） */
+    msgHold: { info: 4200, gain: 4200, key: 7000, fail: 7000 },
+    /* §4 一次操作的消息组：say（若有）＋效果行；同文本只留一次——toast 与反馈区渲染同一份 */
+    msgGroup(say, sayKind, logs) {
+      const out = [], seen = {};
+      const push = (text, kind) => {
+        const t = String(text == null ? '' : text);
+        if (!t || seen[t]) return;
+        seen[t] = true;
+        out.push({ text: t, kind: kind || Core.textKind(t) });
+      };
+      if (say) push(say, sayKind || Core.textKind(say));
+      (logs || []).forEach(t => push(t));
+      return out;
+    },
+
+    /* ---- §5 物品栏 ---- */
+    /* 持有道具，顺序＝itemOrder（只列已持有——未持有不留灰位） */
+    invItems(st) { return ((D && D.itemOrder) || []).filter(id => Core.hasItem(st, id)); },
+    /* 该选项是否消费此道具：cond 树（item/anyItem，含 all/any 递归）或 fx.lose 命中 */
+    consumesItem(ch, itemId) {
+      const tree = c => !!c && (c.item === itemId || ((c.anyItem || []).indexOf(itemId) >= 0)
+        || (c.all || []).some(tree) || (c.any || []).some(tree));
+      return tree(ch && ch.cond) || (((ch && ch.fx && ch.fx.lose) || []).indexOf(itemId) >= 0);
+    },
+    /* 「使用」判据：当前节点里可见（非 hide、未做过）且消费该道具的选项
+     * 返回 { count, cis }——1 条＝「使用」按钮（等价执行该选项）；>1＝「可用于 N 处」；0＝不出现 */
+    itemUseInfo(st, itemId) {
+      const node = (st && st.loc && D.nodes[st.loc]) || null;
+      if (!node || node.fail || node.win || st.bankrupt) return { count: 0, cis: [] };
+      const cis = [];
+      (node.c || []).forEach((ch, ci) => {
+        if (Core.choiceDone(st, ch, ci, st.loc)) return;
+        if (Core.choiceState(st, ch) === 'hide') return;
+        if (Core.consumesItem(ch, itemId)) cis.push(ci);
+      });
+      return { count: cis.length, cis: cis };
     },
 
     /* ---- 货币 / 资源守卫（v1.3 规则推广到任何 noSpendToZero 的资源）----
@@ -694,17 +798,68 @@
   const esc = s => String(s == null ? '' : s)                    // 关卡数据的文本进 innerHTML 前先转义
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-  /* 提示气泡：默认总计 3.4 秒；opts.hold 可延长（E7 的旁白用得更久）。
+  /* ---------- B04（§3/§4）：消息（toast ＋ 剧情区反馈区同源） ----------
+   * 时长：info/gain＝4.2s、key/fail＝7.0s；同屏最多 3 条（超出时最早一条立即淡出）。
    * 第二参数必须是对象——log.forEach(toast) 会把下标当第二参数传进来，收数字当毫秒会出事。 */
+  const MSG_HOLD = Core.msgHold;   // 时长定值住 Core（与测试同源）
   function toast(msg, opts) {
-    const hold = (opts && typeof opts === 'object' && opts.hold) || 3400;
+    const o = (opts && typeof opts === 'object') ? opts : null;
+    const text = String(msg == null ? '' : msg);
+    const kind = (o && o.kind) || Core.textKind(text);
+    const hold = (o && o.hold) || MSG_HOLD[kind] || 4200;
     const box = $('toasts');
-    const d = document.createElement('div');
-    d.className = 'toast';
-    d.textContent = msg;
+    const d = document.createElement('span');   // §3 总规则：消息节点＝<span class="msg msg-<kind>">
+    d.className = 'toast msg msg-' + kind;      // data-kind = DOM 机检锚点（§3 断言 1）
+    d.dataset.kind = kind;
+    d.textContent = (kind === 'fail' ? '✕ ' : '') + text;   // fail 前缀由 UI 层加（不改数据文本）
     box.appendChild(d);
-    setTimeout(() => d.classList.add('fade'), hold - 800);
+    /* §4：同屏最多 3 条——计数只算「在场」的（已打 .leaving、还在 260ms 淡出中的不算），
+     * 否则一次塞 5 条时会把淡出中的也算满，同屏可见会到 4 条。 */
+    const live = Array.prototype.filter.call(box.children, c => !c.classList.contains('leaving'));
+    for (let i = 0; i < live.length - 3; i += 1) {
+      const old = live[i];
+      old.classList.add('leaving');
+      setTimeout(() => old.remove(), 260);
+    }
+    setTimeout(() => d.classList.add('fade'), Math.max(0, hold - 800));
     setTimeout(() => d.remove(), hold);
+  }
+  function toastGroup(msgs) { msgs.forEach(m => toast(m.text, { kind: m.kind })); }
+  /* 反馈区（§4）：正文与选项之间常驻；进入新节点或重开本关 ⇒ 清空；同节点内原位刷新（不叠新行） */
+  let fbLoc = null;
+  function showFeedback(msgs) {
+    const box = $('feedback');
+    box.innerHTML = '';
+    if (msgs && msgs.length) {
+      let n = 0;
+      for (const m of msgs) {
+        for (const line of String(m.text).split('\n')) {
+          if (n >= 4) break;                    // 合计 ≤4 行（§4）
+          box.appendChild(msgNode(line, m.kind));
+          n += 1;
+        }
+        if (n >= 4) break;
+      }
+    }
+    box.classList.toggle('hidden', !box.children.length);   // 无内容时不占位
+    fbLoc = st ? st.loc : null;
+  }
+  function syncFeedback() {                     // 换节点即清空（renderAll 每帧）
+    if (!st) return;
+    if (fbLoc !== st.loc) {
+      const box = $('feedback');
+      box.innerHTML = '';
+      box.classList.add('hidden');
+      fbLoc = st.loc;
+    }
+  }
+  /* 单条消息节点（§3：class="msg msg-<kind>" data-kind=<kind>）——反馈区用 */
+  function msgNode(text, kind) {
+    const s = document.createElement('span');
+    s.className = 'msg msg-' + kind;
+    s.dataset.kind = kind;
+    s.textContent = (kind === 'fail' ? '✕ ' : '') + text;
+    return s;
   }
 
   /* ---------- 被偷强反馈（v1.3，v0.2 起对任何资源都通用） ---------- */
@@ -765,6 +920,8 @@
     const img = $('sceneImg');
     img.src = sc.image;              // 图片路径只来自关卡数据（levels/*.js）
     img.alt = sc.name + ' 场景图';
+    momentLive = {};                 // B04（§7.3）：换场景 ⇒ 浮现层清空重渲染（不跨节点/场景驻留）
+    $('momentLayer').innerHTML = '';
     $('dimSvg').setAttribute('viewBox', '0 0 ' + sc.width + ' ' + sc.height);
     [$('maskRect'), $('dimRect')].forEach(r => {
       r.setAttribute('width', sc.width);
@@ -783,7 +940,7 @@
     if (!s) return null;
     const lv = LEVELS[id] || {};
     const node = (lv.nodes || {})[s.loc];
-    return { loc: s.loc, name: node ? node.n : '？', visited: Object.keys(s.visited || {}).length };
+    return { loc: s.loc, name: node ? Core.endDisplayName(node.n) : '？', visited: Object.keys(s.visited || {}).length };
   }
   function levelCard(id, lv) {
     const meta = lv.meta || {};
@@ -859,9 +1016,11 @@
 
   /* 真正进入关卡：跑开局效果 + 存档 + 渲染（序章层按下「跳过 / 开始」后才走到这里） */
   function beginRun() {
-    Core.go(st, D.start.node).forEach(toast);
+    const msgs = Core.go(st, D.start.node).map(t => ({ text: t, kind: Core.textKind(t) }));
+    toastGroup(msgs);
     save();
     renderAll();
+    showFeedback(msgs);        // B04（§4）：开局进入效果也进反馈区（与 toast 同源）
   }
   /* E2：序章层——新局开场整屏显示一次（读档不重放；没有 meta.prologue 的关卡不显示） */
   function showPrologue(pro) {
@@ -888,6 +1047,7 @@
     curScene = null;
     hudPrev = null;                      // 新局：不把上一局的值当变化来闪
     foldLoc = null;                      // 换关卡 = 折叠状态归零（foldLoc 在下方声明，执行时早已初始化）
+    fbLoc = null;                        // 换局：反馈区不得留上一局的消息（§4「重开本关时清空」）
     $('overlay').classList.add('hidden');
     startRun();
   }
@@ -899,6 +1059,7 @@
     curScene = null;
     hudPrev = null;                      // 读档：不把读入的值当变化来闪
     foldLoc = null;
+    fbLoc = null;                        // 读档＝换局：反馈区清空（存档节点与上一局末节点相同也如此）
     save();
     $('overlay').classList.add('hidden');
     renderAll();
@@ -909,6 +1070,7 @@
     curScene = null;
     hudPrev = null;
     foldLoc = null;
+    fbLoc = null;                        // 重开本关 ⇒ 反馈区清空（§4）
     startRun();          // E2：重开本关 = 新局 → 有 prologue 也先弹一次（读档不重放）
   }
   function backToLevelSelect() {
@@ -922,7 +1084,7 @@
     if (!D || !st) return;
     applyScene();   // 先同步场景（背景图 / 遮罩 / 舞台比例），再渲染
     hideAlertBar(); // 重绘即撤下上一条警示条（本次新发生的由 showFlash 在本函数之后重新弹出）
-    renderHUD(); renderPins(); renderCharSpots(); renderVisited(); renderNode();
+    renderHUD(); renderPins(); renderCharSpots(); renderMoments(); renderInv(); syncFeedback(); renderVisited(); renderNode();
     if (Core.deadEnd(st)) showStuck();   // v0.2：卡死保险
   }
 
@@ -932,10 +1094,11 @@
     const s0 = (r.start && (r.start.normal || 0)) || 0;
     return Math.max(1, Math.round(s0 * 0.2));
   }
-  /* ---------- HUD 资源（B03：氧气＝分段填充条、无数字；其余资源＝计数） ---------- */
-  /* bar:true 的资源按「余量读数」口径呈现（设计档 §8.3）：分段填充条、无数字；
-   * 档位色 = ≥50% 正常（ok）／20~50% 警示（warn）／<20% 危险（danger·呼吸感）；基准 = 普通开局值。
-   * hudPrev = 上一次渲染时的资源值：值有变 → 条退／涨＋闪（扣氧／回氧即时可见）。 */
+  /* ---------- HUD 资源（B04：氧气＝条＋数值；其余资源＝计数） ---------- */
+  /* bar:true 的资源按「余量读数」口径呈现（design-ui-v1.md §6.1／设计档 §8.3，B04 重订）：
+   * 分段填充条＋具体数值（数值＝余量原值，单位「点」；条＝round(值÷基准×10) 格、基准＝普通开局值）；
+   * 档位色 = ≥50 正常（ok）／20~49 警示（warn）／<20 危险（danger·呼吸感）——数字与条同色。
+   * 两者同源同帧：同一处渲染，条与数字永不脱节；hudPrev = 上一次渲染值：有变 → 条与数字一起闪。 */
   const BAR_SEGMENTS = 10;
   let hudPrev = null;
   function barTier(r, v) {
@@ -951,14 +1114,14 @@
       const v = Core.resOf(st, r.id);
       const low = v <= lowThreshold(r);
       next[r.id] = v;
-      if (r.bar) {                     // B03 氧气条：分段填充、无数字
+      if (r.bar) {                     // B04（§6.1）：氧气＝分段填充条＋数值
         const base = (r.start && r.start.normal) || 100;
         const filled = Math.max(0, Math.min(BAR_SEGMENTS, Math.round(base > 0 ? v / base * BAR_SEGMENTS : 0)));
         const hit = prev && prev[r.id] != null && prev[r.id] !== v;
         const s = document.createElement('span');
         s.className = 'stat res bar ' + barTier(r, v) + (hit ? ' hit' : '');
         s.dataset.res = r.id;
-        s.title = (r.name || r.id);
+        s.title = (r.name || r.id) + '：' + v;
         const ic = document.createElement('span');
         ic.className = 'barIcon';
         ic.textContent = r.icon || '';
@@ -969,8 +1132,12 @@
           c.className = i < filled ? 'on' : 'off';
           cells.appendChild(c);
         }
+        const num = document.createElement('span');   // B04（§6.1）：条旁的数值＝当前余量原值
+        num.className = 'barNum';
+        num.textContent = v;
         s.appendChild(ic);
         s.appendChild(cells);
+        s.appendChild(num);
         box.appendChild(s);
         if (hit) setTimeout(() => s.classList.remove('hit'), 700);   // 闪一下（扣／回氧均即时可见）
         return;
@@ -1065,31 +1232,47 @@
     if (!ids.length) { box.innerHTML = '<span class="dim">（还没去过任何地方）</span>'; return; }
     ids.forEach(id => {
       const s = document.createElement('span');
-      s.className = 'vchip'; s.textContent = id; s.title = nm(D.nodes[id].n);
+      s.className = 'vchip'; s.textContent = id; s.title = Core.endDisplayName(nm(D.nodes[id].n));
       box.appendChild(s);
     });
   }
 
   /* ---------- 人物：地图光环 / 本处人物小卡 / 人物图鉴 ---------- */
-  function charsHere() {
+  /* 本处人物（B04 §7.6）：两层制关卡（有 moments 注册表）＝node.chars 直连（28/29/40 等「客场」节点同样显示）；
+   * 示例关 dalim 无该数据 ⇒ 沿用旧口径（按 spot.scene 过滤），既有行为零变化。 */
+  function hereChars() {
     const node = D.nodes[st.loc];
+    const ids = ((node && node.chars) || []).filter(cid => !!D.characters[cid]);
+    if (D.moments) return ids;
     const sid = Core.sceneOf(st);
-    return ((node && node.chars) || []).filter(cid => {
-      const ch = D.characters[cid];
-      return !!ch && ch.spot && ch.spot.scene === sid;
-    });
+    return ids.filter(cid => { const ch = D.characters[cid]; return !!ch.spot && ch.spot.scene === sid; });
   }
-  /* 立绘：有 img 用图；没有（原创关卡立绘未到）就用 emoji 占位 */
+  /* 立绘：有 img（T05 切片）用图；没有 ⇒ emoji 占位；加载失败 ⇒ 原地回落 emoji（缺图不留破图） */
   function charFace(ch, cls) {
-    if (ch.img) return '<img class="' + cls + '" src="' + ch.img + '" alt="' + ch.name + '">';
+    if (ch.img) return '<img class="' + cls + ' faceImg" src="' + ch.img + '" alt="' + ch.name + '" data-emoji="' + (ch.emoji || '👤') + '">';
     return '<span class="' + cls + ' ccFace">' + (ch.emoji || '👤') + '</span>';
+  }
+  /* 头像缺图兜底（B04）：立绘/切片未到货时，img 加载失败 ⇒ 换回 emoji 占位（不留白框） */
+  function guardFaces(root) {
+    const imgs = root && root.querySelectorAll ? root.querySelectorAll('img.faceImg') : [];
+    Array.prototype.forEach.call(imgs, img => {
+      if (img.dataset.guarded) return;
+      img.dataset.guarded = '1';
+      img.onerror = () => {
+        const sp = document.createElement('span');
+        sp.className = img.className.split(' ').filter(c => c !== 'faceImg').join(' ') + ' ccFace';
+        sp.textContent = img.dataset.emoji || '👤';
+        img.replaceWith(sp);
+      };
+    });
   }
   function renderCharSpots() {
     const layer = $('charLayer');
     layer.innerHTML = '';
+    if (D.moments) return;   // B04（§11）：两层制关卡（站关）撤下地图光环位——人由 L1/L2 承担；示例关沿用
     const sc = D.scenes[Core.sceneOf(st)];
     const size = Math.round(88 * (sc.width / 800)) + 'px';
-    charsHere().forEach((cid, i) => {
+    hereChars().forEach((cid, i) => {
       const ch = D.characters[cid];
       const d = document.createElement('div');
       d.className = 'charSpot' + (ch.spot.y > sc.height * 0.8 ? ' low' : '') + (i ? ' alt' : '');
@@ -1104,7 +1287,7 @@
   function renderHereChars() {
     const box = $('hereChars');
     box.innerHTML = '';
-    const ids = charsHere();
+    const ids = hereChars();
     box.classList.toggle('hidden', !ids.length);
     if (!ids.length) return;
     const head = document.createElement('div');
@@ -1123,6 +1306,7 @@
       row.appendChild(b);
     });
     box.appendChild(row);
+    guardFaces(box);
   }
   function openCharCard(cid) {
     const ch = D.characters[cid];
@@ -1133,6 +1317,7 @@
       '<h3 class="ccName">' + ch.name + (ch.title ? ' <span class="dim small">· ' + ch.title + '</span>' : '') + '</h3>' +
       '<p class="ccBio">' + ch.bio + '</p>' +
       '<p class="dim small">常出没于：' + (sc ? sceneLabel(sc.id) : '？') + '</p>';
+    guardFaces($('charCardBody'));
     $('charCardModal').classList.remove('hidden');
   }
   function openCharsBook() {
@@ -1148,7 +1333,139 @@
       b.onclick = () => openCharCard(cid);
       grid.appendChild(b);
     });
+    guardFaces(grid);
     $('charsModal').classList.remove('hidden');
+  }
+
+  /* ---------- B04（§7）：浮现层（L2）——节点 moments/mIf 求值 → 场景叠层；缺图不渲染、不留位 ---------- */
+  let momentLive = {};   // id → 元素（同场景内续存的元素；退场时淡出后移除，出现时不重复淡入）
+  function createMomentEl(id, def, plan, sc, i) {
+    const d = document.createElement('div');
+    d.className = 'moment' + (plan.win ? ' win' : '') + (plan.card ? ' card' : '') + (plan.lighten ? ' lighten' : '');
+    d.dataset.moment = id;
+    d.dataset.scene = Core.sceneOf(st);
+    d.style.left = (plan.x / sc.width * 100) + '%';            // 锚点＝原图像素（与 pins 同口径）
+    d.style.top = (plan.y / sc.height * 100) + '%';
+    d.style.width = (plan.w / sc.width * 100) + '%';
+    if (plan.h) d.style.height = (plan.h / sc.height * 100) + '%';
+    const img = document.createElement('img');
+    img.className = 'momentImg';
+    img.alt = '';
+    img.draggable = false;
+    img.style.animationDelay = ((i || 0) * 0.08) + 's';        // 同节点多张依次错开 0.08s（§7.3）
+    img.src = def.file;                                       // 路径只来自关卡数据（levels/*.js）
+    /* 缺图兜底（§7.3）：加载失败 ⇒ 该张不渲染、其余照常、控制台一行告警；不留占位框与破图 */
+    img.onload = () => img.classList.add('on');
+    img.onerror = () => { d.remove(); console.warn('浮现图缺图（已跳过）：' + def.file); };
+    d.appendChild(img);
+    return d;
+  }
+  function renderMoments() {
+    const layer = $('momentLayer');
+    if (!D.moments) { layer.innerHTML = ''; momentLive = {}; return; }   // 无浮现层的关卡：整层不启用
+    const sid = Core.sceneOf(st);
+    const sc = D.scenes[sid];
+    const ids = Core.momentsOf(st, D.nodes[st.loc]);
+    const next = {};
+    ids.forEach((id, i) => {
+      const def = Core.momentDef(id);
+      const plan = Core.momentLayout(id, sid, i, ids.length);
+      if (!def || !plan) return;                               // id 未注册 ⇒ 忽略该条
+      let d = momentLive[id];
+      if (d && d.dataset.scene !== sid) { d.remove(); d = null; }
+      if (!d) { d = createMomentEl(id, def, plan, sc, i); layer.appendChild(d); }
+      next[id] = d;
+    });
+    Object.keys(momentLive).forEach(id => {                    // 退场：淡出 0.25s 后移除（§7.3）
+      if (next[id]) return;
+      const d = momentLive[id];
+      d.classList.add('leaving');
+      setTimeout(() => d.remove(), 260);
+    });
+    momentLive = next;
+  }
+
+  /* ---------- B04（§5）：物品栏（地图下方横排；点选＝详情气泡；「使用」＝等价执行对应选项） ---------- */
+  let invOpen = null;    // 当前展开详情气泡的道具名
+  function invItemName(id) { return id.length > 4 ? id.slice(0, 4) + '…' : id; }   // 名称 ≤4 字截断
+  function renderInv() {
+    const bar = $('invBar');
+    bar.innerHTML = '';
+    const items = Core.invItems(st);
+    if (!items.length) {
+      const d = document.createElement('div');
+      d.className = 'invEmpty';
+      d.textContent = '（还没有道具）';
+      bar.appendChild(d);
+      invOpen = null;
+      return;
+    }
+    items.forEach(id => {
+      const meta = D.items[id] || {};
+      const use = Core.itemUseInfo(st, id);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'invItem' + (invOpen === id ? ' open' : '');
+      b.dataset.item = id;
+      b.title = id;
+      b.innerHTML = '<span class="ivIcon">' + (meta.icon || '❔') + '</span><span class="ivName">' + esc(invItemName(id)) + '</span>'
+        + (Core.itemText(id) ? '<span class="ivBadge">📖</span>' : '')
+        + (use.count === 1 ? '<span class="ivBadge use">可用</span>' : '');
+      b.onclick = () => { invOpen = (invOpen === id) ? null : id; renderInv(); };
+      bar.appendChild(b);
+      if (invOpen === id) bar.appendChild(invBubble(id, meta, use));
+    });
+  }
+  /* 详情气泡：图标/名称 ＋「可用于：<选项名>」＋「使用」（唯一命中）/「可用于 N 处」（多条）＋「看内容」 */
+  function invBubble(id, meta, use) {
+    const node = D.nodes[st.loc];
+    const d = document.createElement('div');
+    d.className = 'invBubble';
+    d.innerHTML = '<div class="ibTitle">' + (meta.icon || '❔') + ' ' + esc(id) + '</div>';
+    if (use.count === 1) {
+      const r = document.createElement('div');
+      r.className = 'ibRow';
+      r.textContent = '可用于：' + nm((node.c[use.cis[0]] || {}).l || '');
+      d.appendChild(r);
+      const b = document.createElement('button');
+      b.className = 'ibUse';
+      b.textContent = '使用';
+      b.onclick = () => { invOpen = null; doChoice(use.cis[0]); };    // 与点选项同一路径、同一反馈
+      d.appendChild(b);
+    } else if (use.count > 1) {
+      const b = document.createElement('button');
+      b.textContent = '可用于 ' + use.count + ' 处';
+      b.onclick = () => highlightChoices(use.cis);
+      d.appendChild(b);
+    }
+    if (Core.itemText(id)) {
+      const b = document.createElement('button');
+      b.textContent = '📖 看内容';
+      b.onclick = () => openRead(id);                                 // E3 既有只读面板
+      d.appendChild(b);
+    } else {
+      const r = document.createElement('div');
+      r.className = 'ibDim';
+      r.textContent = '这件东西没什么可读的';
+      d.appendChild(r);
+    }
+    return d;
+  }
+  /* 多条命中：滚动 + 高亮选项列表（§5） */
+  function highlightChoices(cis) {
+    invOpen = null;
+    renderInv();
+    const box = $('choiceList');
+    let first = null;
+    Array.prototype.forEach.call(box.querySelectorAll('.choice[data-ci]'), el => {
+      if (cis.indexOf(Number(el.dataset.ci)) < 0) return;
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+      if (!first) first = el;
+      setTimeout(() => el.classList.remove('flash'), 2400);
+    });
+    if (first && first.scrollIntoView) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
   /* v0.3（§8.3）：去向标注「→ 编号 / 节点名」从玩家视图撤下——它会把事件节点的名字直接剧透；
@@ -1203,13 +1520,15 @@
           }
           b.onclick = () => {
             if (Core.payReason(st, n)) return;   // 守卫判定与按钮禁用同出一处
-            Core.buySticker(st, n).forEach(toast);
-            if (ch.say) toast(Core.fillName(ch.say, st), { hold: 6000 });   // E7：价格类选项也走同一条旁白口径
+            const sayText = ch.say ? Core.fillName(ch.say, st) : null;
+            const msgs = Core.msgGroup(sayText, Core.sayKindOf(st, ch), Core.buySticker(st, n));   // E7：价格类选项同一条旁白口径（B04：并入消息组）
             Core.markChoiceDone(st, ch, idx, st.loc);      // E6：价格类选项同样只做一次
             const hit = (ch.toIf || []).find(x => Core.condOk(st, x.cond));
-            Core.go(st, hit ? hit.to : ch.to).forEach(toast);
+            Core.go(st, hit ? hit.to : ch.to).forEach(t => { msgs.push({ text: t, kind: Core.textKind(t) }); });
+            toastGroup(msgs);
             const fl = Core.takeFlash(st);
             save(); renderAll(); showFlash(fl);
+            showFeedback(msgs);
           };
           row.appendChild(b);
         });
@@ -1249,8 +1568,10 @@
         b.title = why;
         b.onclick = () => {
           if (Core.payReason(st, node.shop.price)) { renderAll(); return; }
-          Core.buy(st, it, node.shop.price).forEach(toast);
+          const msgs = Core.msgGroup(null, null, Core.buy(st, it, node.shop.price));   // B04：购买也进反馈区（§4「最近一次操作」）
+          toastGroup(msgs);
           save(); renderAll();
+          showFeedback(msgs);
         };
         row.appendChild(b);
         wrap.appendChild(row);
@@ -1282,7 +1603,12 @@
         row.innerHTML = '<span class="sIcon">' + (meta.icon || '❔') + '</span><span class="sName">' + it + '</span>';
         const b = document.createElement('button');
         b.textContent = '卖出 +1 ' + (resDef(Core.mainResId()).unit || '') + (resDef(Core.mainResId()).name || '');   // B77：金额带币种名
-        b.onclick = () => { Core.sell(st, it).forEach(toast); save(); renderAll(); };
+        b.onclick = () => {
+          const msgs = Core.msgGroup(null, null, Core.sell(st, it));
+          toastGroup(msgs);
+          save(); renderAll();
+          showFeedback(msgs);
+        };
         row.appendChild(b);
         wrap.appendChild(row);
       });
@@ -1292,20 +1618,25 @@
   }
 
   function doChoice(idx) {
+    /* B04（§3/§4）：一次操作的消息组（say＋效果行＋移动效果）——toast 与反馈区同源；类由判据定 */
+    const node0 = D.nodes[st.loc];
+    const sayKind = Core.sayKindOf(st, (node0.c || [])[idx]);
     const res = Core.choose(st, idx);
-    (res.log || []).forEach(toast);
-    if (res.say) toast(res.say, { hold: 6000 });   // E7：旁白（与效果日志并列，不走 log 通道所以不会重复）
+    const msgs = Core.msgGroup(res.say, sayKind, res.log || []);   // E7：旁白与效果日志并列、同文本只留一次
     let log = [];
     log = Core.move(st, res);              // B03：原地（to 自指）不重跑 en；返回上一处走 goBack
-    log.forEach(toast);
+    (log || []).forEach(t => { msgs.push({ text: t, kind: Core.textKind(t) }); });
+    toastGroup(msgs);
     const flash = Core.takeFlash(st);
     save(); renderAll();
+    showFeedback(msgs);                    // §4：常驻反馈区（同节点内原位刷新）
     showFlash(flash);
   }
 
   function makeChoiceButton(ch, idx, ok) {
     const b = document.createElement('button');
     b.className = 'choice';
+    b.dataset.ci = idx;            // B04：物品栏「可用于 N 处」按 ci 高亮/滚动（§5）
     const t = Core.choiceTargets(ch);
 
     if (!ok) {                     // 锁定（含带战斗的战斗选项）：先于战斗分支——锁定项永远显示 lockText 且不可点
@@ -1359,7 +1690,7 @@
     const node = D.nodes[st.loc];
     if (!node) return;
     $('locBadge').textContent = st.loc;
-    $('locName').textContent = nm(node.n);
+    $('locName').textContent = Core.endDisplayName(nm(node.n));   // B04（§6.2）：结局名去字母（渲染层）
     $('nodeText').textContent = nm(Core.nodeText(st, node));   // E8：正文分叉（首个满足的 tIf；都不满足用 t）
     renderHereChars();
 
@@ -1370,7 +1701,8 @@
     if (node.fail || node.win) {
       const d = document.createElement('div');
       d.className = 'endBanner ' + (node.win ? 'win' : 'fail');
-      d.textContent = node.endTag ? ('🏁 ' + node.endTag) : (node.win ? '🏆 闯关成功！' : '💀 闯关失败');
+      /* B04（§6.2）：玩家可见的结局名一律去字母（「结局 A · 圆满」→「结局 · 圆满」）；数据面 endTag 不动 */
+      d.textContent = node.endTag ? ('🏁 ' + Core.endDisplayName(nm(node.endTag))) : (node.win ? '🏆 闯关成功！' : '💀 闯关失败');
       box.appendChild(d);
       if (node.win && D.meta.winReward) {
         const r = document.createElement('div');
@@ -1443,15 +1775,17 @@
     const safeId = Core.safeNodeId();
     const node = safeId ? D.nodes[safeId] : null;
     $('stuckText').innerHTML = '这里已经没有你能做的事了。<br>可以回到安全点重新想办法，也可以重开本关——进度不会白费。';
-    $('stuckSafeName').textContent = safeId ? (safeId + ' · ' + nm(node ? node.n : '')) : '（本关没有配置安全点）';
+    $('stuckSafeName').textContent = safeId ? (safeId + ' · ' + Core.endDisplayName(nm(node ? node.n : ''))) : '（本关没有配置安全点）';
     $('stuckModal').classList.remove('hidden');
   }
   function goSafe() {
     const safeId = Core.safeNodeId();
     $('stuckModal').classList.add('hidden');
     if (!safeId) return;
-    Core.go(st, safeId).forEach(toast);
+    const msgs = Core.go(st, safeId).map(t => ({ text: t, kind: Core.textKind(t) }));
+    toastGroup(msgs);
     save(); renderAll();
+    showFeedback(msgs);
   }
 
   /* ---------- 视图缩放 / 拖拽 / 校准 ---------- */

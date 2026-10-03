@@ -65,12 +65,12 @@ eq(prologueText.length, 111, '序章恰为设计稿的 111 字（含标点，{me
 ok(D.meta.prologue.lines.every(l => l.length > 0), '序章每一行都非空');
 ok(prologueText.indexOf('攒下') >= 0, 'B75：序章含「攒下」（打工动机——兜里还有实习攒下的星币）');
 ok(!!C.prologue() && C.prologue().lines.length === D.meta.prologue.lines.length, 'Core.prologue() 读得到序章（E2 数据面）');
-/* 帮助（玩法说明）：9 条（新增第 7 条）；也是 §14-7 扫描面里的「帮助」那一半 */
-ok(Array.isArray(D.help) && D.help.length === 9, '帮助恰 9 条（实测 ' + ((D.help || []).length) + '）');
+/* 帮助（玩法说明）：B04 换新稿＝11 条（design-ui-v1.md §8.1 照抄区）；也是 §14-7 扫描面里的「帮助」那一半 */
+ok(Array.isArray(D.help) && D.help.length === 11, 'B04：帮助恰 11 条（§8.1 全文；实测 ' + ((D.help || []).length) + '）');
 ok(D.help.every(l => typeof l === 'string' && l.length > 10), '帮助每一条都是完整句子');
 ok(D.help.some(l => l.indexOf('星币') >= 0 && l.indexOf('20') >= 0), '帮助里有星币条目（R02）');
-ok(D.help.some(l => l.indexOf('氧气条会告诉你还剩多少') >= 0) && !D.help.some(l => l.indexOf('💨') >= 0 && /普通开局 100|困难只有 30/.test(l)),
-  'B03：帮助资源行改氧气条口径（不报开局数值；§7.46/§8.3）');
+ok(D.help.some(l => l.indexOf('氧气条旁边的数字') >= 0 && l.indexOf('普通开局 100') >= 0 && l.indexOf('困难 30') >= 0),
+  'B04：帮助资源行＝氧气条＋数值口径，并报开局数值（100/30——取代 B03「不报开局数值」；§8.1 第 2 条）');
 ok(D.help.some(l => l.indexOf('武力值＝装备加成＋伙伴加成') >= 0 && l.indexOf('焊接枪 +1') >= 0),
   'B69：帮助武力行含构成算式与四件装备');
 ok(D.help.some(l => l.indexOf('🧭') >= 0 && l.indexOf('剧情会告诉你为什么') >= 0), '帮助里有「选项」新哲学条（B03/R06）');
@@ -175,7 +175,8 @@ NEED_CHARS.forEach(n => ok(D.charOrder.some(cid => D.characters[cid].name === n)
 Object.entries(D.characters).forEach(([cid, ch]) => {
   ok(!!ch.name, `人物 ${cid} 有名称`);
   ok(typeof ch.title === 'string' && ch.title.length > 0, `人物 ${cid} 有称号`);
-  ok(!!ch.emoji && !ch.img, `人物 ${cid} 用 emoji 占位（立绘未到）`);
+  ok(!!ch.emoji && !!ch.img && ch.img.indexOf('images/station/chars/') >= 0,
+    `人物 ${cid} 补 img（T05 切片路径）＋保留 emoji 兜底（B04/§7.6；切片未入库时回落 emoji）`);
   ok(typeof ch.bio === 'string' && ch.bio.length >= 8, `人物 ${cid} 有小传（照抄设计档 §2）`);
   const sc = D.scenes[ch.spot && ch.spot.scene];
   ok(!!sc, `人物 ${cid} 的 spot.scene 是已有场景`);
@@ -1280,7 +1281,8 @@ console.log('———— §8.7-11 lint 五条（L1 同现 / L2 可见性两态 
 /* —— 支撑表数据源（照 design-station-nodes.md §9.4；维护方＝叙事/系统线）——
  * 扫描面：node.t / tIf / 选项文案 / say / lockText / battle.loseSay / items.text / 序章 / 帮助（数据源头）；
  * 导出文案稿 docs/station-copy-v1.md 是数据的产品面快照（重导归父侧收口——QA 轮改了文案后须重导，方与源头同源）。 */
-const L1_EVENT_CHARS = { '23': ['tangtang'], '28': ['yinhe'], '29': ['sangni'], '31': ['sangni'], '32': ['sangni'], '33': ['sangni'], '40': ['sangni', 'tietou'] };
+const L1_EVENT_CHARS = { '23': ['tangtang'], '24': ['aya', 'yilanna'], '25': ['laobu'], '26': ['tietou'], '27': ['tietou'], '28': ['yinhe'],
+  '29': ['sangni'], '31': ['sangni'], '32': ['sangni'], '33': ['sangni'], '38': ['laobu'], '40': ['sangni', 'tietou'] };   // B04：24/25/26/27/38 补登记（与 design-station-nodes.md §9.4【角色在场表】同步）
 const L1_SPOT_TOL = 150;                       // 同房间容差（设计像素）
 const L3_WHITELIST = [['18', '20'], ['20', '21'], ['18', '21'], ['16', '7'], ['11', '19']];
 const L3_EVENT_SCENE = { '22': 'S1', '24': 'S1', '26': 'S1', '27': 'S1', '28': 'S2', '23': 'S2', '25': 'S2', '30': 'S2', '31': 'S2', '32': 'S2', '33': 'S2', '45': 'S2', '29': 'S3', '34': 'S3', '35': 'S3', '36': 'S3', '37': 'S3', '38': 'S3', '40': 'S3', '39': 'S4' };   // B99：28 的发生场景＝中层仓库门口（R2 问题 16③）
@@ -2220,7 +2222,7 @@ console.log('———— B02-QA 修正轮：12 号三态 / 41 证据分版 / 43
     ['B55/B03：36 广播音中性化＋站长版分叉', has(D.nodes['36'].t, '一个平稳的声音') && has(D.nodes['36'].tIf[0].t, '站长的声音很稳') &&
       !has(D.nodes['36'].t + D.nodes['36'].tIf[0].t, '脱离了危险') && !has(D.nodes['36'].t, '站长稳住了')],
     ['B56：40 胶囊/无人机＋暗号串线', has(D.nodes['40'].t, '三枚金色胶囊') && has(D.nodes['40'].t, '一台无人机') && has(D.nodes['40'].tIf[0].t, '全串起来了')],
-    ['B94：帮助地图行去通道列举（跨层时场景图会自动切换）', has(D.help[7], '跨层时场景图会自动切换') && !has(D.help[7], '维修爬道') && !has(D.help[7], '舱外') && !has(D.help[7], '电梯')],
+    ['B94：帮助地图行去通道列举（跨层时场景图会自动切换；B04 后为第 10 条）', has(D.help[9], '跨层时场景图会自动切换') && !has(D.help[9], '维修爬道') && !has(D.help[9], '舱外') && !has(D.help[9], '电梯')],
     ['B59：乘员表去剧透', !has(D.characters.sangni.bio, '真凶') && !has(D.characters.yilanna.bio, '失踪') && has(D.characters.pangpang.bio, '洗碗')],
     ['B03：全关零灰显——lockText 面彻底退场', !has(JSON.stringify(D), 'lockText') && !has(JSON.stringify(D), '"lock"')]
   ];
@@ -2359,6 +2361,267 @@ console.log('———— B03 复检收口轮：B78 星币数字 / B79 27 号兑
   eq(fail12 && fail12.to, '12', 'B90：失败条原地（to:12，不重跑门票）');
   P('B90：12 号失败词逐字落点');
 }
+
+/* ============ 18. B04 界面与视觉批（B101~B109；口径＝docs/design-ui-v1.md） ============ */
+console.log('');
+console.log('———— B04 界面批：帮助新稿 / 消息四类 / 反馈区 / 物品栏 / 氧气数值 / 结局名 / 浮现层 ————');
+const uiCssSrc = fs.readFileSync(path.join(dir, 'style-ui.css'), 'utf8');
+const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
+
+/* --- 18-1 §8.1 帮助新稿（11 条）＋§8.2 H1：帮助里出现的每个数字＝数据面现值 --- */
+{
+  const H = D.help.join('\n');
+  const RES = id => D.resources.find(r => r.id === id) || {};
+  const wash = (D.nodes['1'].c || []).find(ch => (ch.l || '').indexOf('洗碗') >= 0) || {};
+  const eat1 = (D.nodes['1'].c || []).find(ch => ch.hint === 'exact') || {};
+  const H1_ROWS = [
+    ['星币开局 20/15', H.indexOf('普通开局 20 枚、困难 15 枚') >= 0, RES('coins').start.normal === 20 && RES('coins').start.hard === 15],
+    ['氧气开局 100/30', H.indexOf('普通开局 100、困难 30') >= 0, RES('oxygen').start.normal === 100 && RES('oxygen').start.hard === 30],
+    ['料理 5 枚一盒', H.indexOf('合成料理 5 枚一盒') >= 0, D.nodes['1'].shop.price === 5],
+    ['备用电池 5 枚', H.indexOf('备用电池 5 枚') >= 0, D.nodes['1'].shop.stock.indexOf('备用电池') >= 0],
+    ['应急包 +10', H.indexOf('应急包 +10') >= 0, D.nodes['2'].en.oxygen === 10],
+    ['氧气站 +5', H.indexOf('氧气站 +5') >= 0, D.nodes['3'].en.oxygen === 5],
+    ['补给柜 +5', H.indexOf('补给柜 +5') >= 0, D.nodes['20'].en.oxygen === 5],
+    ['料理 +10', H.indexOf('合成料理（+10）') >= 0, !!eat1.fx && eat1.fx.oxygen === 10],
+    ['劳动 +2 枚 ∕ −5 氧', H.indexOf('每次 +2 枚星币，费 5 点氧气') >= 0, !!wash.fx && wash.fx.coins === 2 && wash.fx.oxygen === -5],
+    ['氧气条旁的数字（B104 界面同步）', H.indexOf('氧气条旁边的数字') >= 0, true],
+    ['物品栏（B103 界面同步）', H.indexOf('地图下方的物品栏') >= 0, true],
+    ['提示颜色四类（B102 界面同步）', H.indexOf('蓝色＝常规动静') >= 0 && H.indexOf('橙红色') >= 0 && H.indexOf('金色') >= 0 && H.indexOf('绿色') >= 0, true]
+  ];
+  H1_ROWS.forEach(([msg, inHelp, inData]) => ok(inHelp && inData, 'B04 H1：帮助「' + msg + '」＝数据面现值'));
+  eq(['焊接枪', '电击棒', '机械手套', '应急盾'].map(it => D.items[it].atk).join(','), '1,2,1,1',
+    'B04 H1：四件装备武力加成＝帮助第 6 条（+1/+2/+1/+1）');
+  eq(D.meta.atkFromClues['机器人小帮手'], 1, 'B04 H1：收编维修机器人 +1＝帮助第 6 条');
+  ok(!/信用点|还差点底气/.test(H), 'B04 H4：帮助无旧词残留（信用点／还差点底气）');
+  P('帮助新稿：11 条全文在案；H1 数值对拍 ' + H1_ROWS.length + ' 组＋装备/伙伴加成 全中');
+}
+
+/* --- 18-2 §3 消息四类：判据 / fail 双向 / CSS token 四色 / data-kind 契约 --- */
+{
+  const kinds = new Set();
+  let nSay = 0;
+  Object.keys(D.nodes).forEach(id => (D.nodes[id].c || []).forEach(ch => {
+    const k = C.sayKindOf({ loc: id }, ch);
+    if (k == null) return;
+    nSay += 1; kinds.add(k);
+  }));
+  ok(nSay > 0 && [...kinds].every(k => ['info', 'fail'].indexOf(k) >= 0),
+    'B04 §3-1：选项消息类 ∈ {fail,info}（实测 ' + [...kinds].join('/') + '，' + nSay + ' 条）');
+  eq(C.textKind('🔑 记住了一条线索：保险柜密码'), 'key', 'B04 §3-3：fx.learn 产出 → key');
+  eq(C.textKind('获得 医疗包 🩹'), 'gain', 'B04 §3-3：fx.gain → gain');
+  eq(C.textKind('失去 医疗包'), 'gain', 'B04 §3-3：fx.lose 同归 gain（帮助第 8 条含「交出去」）');
+  eq(C.textKind('−5 点氧气'), 'info', 'B04 §3-1：其余效果日志 → info');
+  eq(C.textKind('🛗 到达：顶层'), 'info', 'B04 §3-1：移动提示 → info');
+  /* 断言 2 fail 双向：形状命中集 ≡ 26 条集合（两向相等、零多报） */
+  const shapeFail = [];
+  Object.keys(D.nodes).forEach(id => (D.nodes[id].c || []).forEach((ch, ci) => {
+    if (C.sayKindOf({ loc: id }, ch) === 'fail') shapeFail.push(id + '#' + ci);
+  }));
+  const isFailRow = (ch, id) => !!ch.say && !ch.fx && !ch.once && !ch.toIf && !ch.back && !ch.battle && !ch.random && ch.to === id;
+  const declared = [];
+  Object.keys(D.nodes).forEach(id => (D.nodes[id].c || []).forEach((ch, ci) => { if (isFailRow(ch, id)) declared.push(id + '#' + ci); }));
+  eq(shapeFail.join(','), declared.join(','), 'B04 §3-2：fail 双向——形状命中集 ≡ 26 条集合（两向相等、零多报）');
+  eq(shapeFail.length, 26, 'B04 §3-2：fail 恰 26 条（design-station-nodes.md §9.7 旧锁定项）');
+  eq(C.sayKindOf({ loc: '1' }, { say: '喂', sayKind: 'info', to: '1' }), 'info', 'B04：sayKind 可选覆盖生效（引擎能力保留）');
+  const wrote = [];
+  Object.keys(D.nodes).forEach(id => (D.nodes[id].c || []).forEach((ch, ci) => { if (ch.sayKind) wrote.push(id + '#' + ci); }));
+  eq(wrote.join(','), '', 'B04 §3-2：全关 sayKind 写入 0 处（形状判据零多报 ⇒ 无需在数据面归位）');
+  /* 断言 4：四类 CSS token 互不相同 + :root 有 token */
+  const token = k => (uiCssSrc.match(new RegExp('--msg-' + k + ':\\s*(#[0-9a-fA-F]{6})')) || [])[1];
+  const cols = ['info', 'gain', 'key', 'fail'].map(token);
+  ok(cols.every(Boolean), 'B04 §3-4：style-ui.css :root 四条 --msg-* token（' + cols.join(' ') + '）');
+  eq(new Set(cols).size, 4, 'B04 §3-4：四类颜色互不相同');
+  ['info', 'gain', 'key', 'fail'].forEach(k => ok(uiCssSrc.indexOf('.msg-' + k + ' ') >= 0, 'B04 §3-4：.msg-' + k + ' 类在案'));
+  ok(engSrc.indexOf("className = 'msg msg-' + kind") >= 0 && engSrc.indexOf('dataset.kind = kind') >= 0,
+    'B04 §3-1：消息节点＝class "msg msg-<kind>" ＋ data-kind（DOM 机检锚点）');
+  P('消息四类：判据／fail 双向 26 条／CSS 四色 token／data-kind 契约 逐条通过');
+}
+
+/* --- 18-3 §4 反馈区与 toast：时长 / 去重 / 同屏 / 清空规则 --- */
+{
+  const hold = C.msgHold || {};
+  eq(hold.info + ',' + hold.gain + ',' + hold.key + ',' + hold.fail, '4200,4200,7000,7000',
+    'B04 §4：toast 时长 info/gain＝4.2s、key/fail＝7.0s');
+  const g = C.msgGroup('你推了推门——锁着。', 'fail', ['你推了推门——锁着。', '−5 点氧气']);
+  eq(g.length, 2, 'B04 §4-去重①：say 与效果日志同文本 ⇒ 只显示一次');
+  eq(g[0].text + '｜' + g[0].kind + '｜' + g[1].kind, '你推了推门——锁着。｜fail｜info',
+    'B04 §4：消息组置首为 say（反馈区内容＝say＋效果行）、逐条带 kind');
+  eq(C.msgGroup(null, null, ['获得 手电 🔦', '获得 手电 🔦']).length, 1, 'B04 §4-去重②：同文本效果行只留一次（同源渲染两处）');
+  ok(/c => !c\.classList\.contains\('leaving'\)/.test(engSrc) && engSrc.indexOf('live.length - 3') >= 0,
+    'B04 §4：toast 同屏最多 3 条——计数排除淡出中的（一次塞 5 条也只留 3 条在场；源码契约）');
+  ok(/function showFeedback\(msgs\)[\s\S]{0,200}box\.innerHTML = ''/.test(engSrc) && engSrc.indexOf('function syncFeedback') >= 0,
+    'B04 §4-去重③：反馈区原位刷新（不叠新行）＋换节点即清空（源码契约）');
+  ok(engSrc.indexOf('if (n >= 4) break;') >= 0, 'B04 §4：反馈区合计 ≤4 行（源码契约）');
+  P('反馈区/toast：时长／去重①②／同屏上限／原位刷新与换节点清空 逐条通过');
+}
+
+/* --- 18-4 §5 物品栏三断言 --- */
+{
+  /* ① 条目集＝st.items、顺序＝itemOrder */
+  const s = C.newState('normal');
+  s.items = ['合成料理', '手电', '焊接枪'];
+  eq(C.invItems(s).join(','), '手电,焊接枪,合成料理', 'B04 §5-①：物品栏顺序＝itemOrder');
+  ok(C.invItems(s).every(it => s.items.indexOf(it) >= 0) && C.invItems(s).length === s.items.length,
+    'B04 §5-①：条目集＝st.items 集（未持有不留位）');
+  eq(C.invItems(C.newState('normal')).join(','), '', 'B04 §5-①：空栏＝空（界面画「（还没有道具）」）');
+  /* ② 「使用」判据（抽查 4/13/16/12 等节点） */
+  const useOf = (items, loc, extra) => {
+    const st2 = C.newState('normal');
+    st2.items = items.slice(); st2.loc = loc;
+    if (extra) Object.assign(st2, extra);
+    return C.itemUseInfo(st2, items[items.length - 1]);
+  };
+  eq(useOf(['医疗包'], '3').count, 1, 'B04 §5-②：3 号持医疗包 ⇒ 恰一条（交给阿雅）');
+  eq(useOf(['医疗包'], '4').count, 0, 'B04 §5-②：4 号持医疗包 ⇒ 零条（不出现按钮）');
+  eq(useOf(['万能扳手'], '13').count, 1, 'B04 §5-②：13 号持万能扳手 ⇒ 一条（拧总阀）');
+  eq(useOf(['备用电池'], '16').count, 1, 'B04 §5-②：16 号持备用电池 ⇒ 一条（换电池）');
+  eq(useOf(['手电'], '12').count, 1, 'B04 §5-②：12 号持手电 ⇒ 一条（照堆芯）');
+  eq(useOf(['手电'], '16', { visited: { '25': true } }).count, 2, 'B04 §5-②：16 号持手电（已到过 25）⇒ 两条——「可用于 N 处」');
+  eq(useOf(['合成料理'], '1').count, 1, 'B04 §5-②：fx.lose 判据命中（1④ 吃掉料理）');
+  /* ③ 「使用」与「选项」结果逐字一致 */
+  const mk13 = () => { const x = C.newState('normal'); x.items = ['万能扳手']; x.loc = '13'; return x; };
+  const a13 = mk13(), b13 = mk13();
+  const ci13 = C.itemUseInfo(a13, '万能扳手').cis[0];
+  const snapOf = x => JSON.stringify({ o: x.oxygen, c: x.coins, i: x.items, k: x.learned, v: x.visited, l: x.loc });
+  const viaA = C.choose(a13, ci13); C.move(a13, viaA);
+  const viaB = C.choose(b13, ci13); C.move(b13, viaB);
+  eq(snapOf(a13), snapOf(b13), 'B04 §5-③：走「使用」与走「选项」后的状态逐字一致（资源/道具/去向）');
+  ok(C.hasItem(a13, '冷却剂罐') && a13.loc === '21', 'B04 §5-③：使用真的生效（拿到冷却剂罐、去向 21 号）');
+  P('物品栏：内容＝st.items×itemOrder ／「使用」判据 7 组抽查 ／ 等效执行逐字一致 逐条通过');
+}
+
+/* --- 18-5 §6.1 氧气＝条＋数值（对拍 / 同帧 / 档位） --- */
+{
+  const obase = (D.resources.find(r => r.id === 'oxygen') || { start: {} }).start.normal;
+  const fill = v => Math.max(0, Math.min(10, Math.round(v / obase * 10)));
+  [[100, 10], [58, 6], [30, 3], [20, 2], [19, 2], [5, 1], [0, 0]].forEach(([v, k]) =>
+    eq(fill(v), k, 'B04 §6.1：条填充 round(' + v + '/' + obase + '×10)＝' + k + ' 格'));
+  ok(/num\.textContent = v/.test(engSrc) && engSrc.indexOf('s.appendChild(num);') >= 0,
+    'B04 §6.1：HUD 数值＝余量原值，与条同一处渲染（同帧更新）');
+  ok(/k >= 0\.5 \? 'ok' : k >= 0\.2 \? 'warn' : 'danger'/.test(engSrc), 'B04 §6.1：档位 ≥50／20~49／<20');
+  ok(uiCssSrc.indexOf('.barNum') >= 0 && uiCssSrc.indexOf('.bar.ok .barNum') >= 0, 'B04 §6.1：数字与条同色（CSS）');
+  P('氧气读数：条填充对拍 7 组／同帧渲染／档位边界／同色 逐条通过');
+}
+
+/* --- 18-6 §6.2 结局名去字母（网页端渲染层） --- */
+{
+  eq(C.endDisplayName('结局 A · 圆满'), '结局 · 圆满', 'B04 §6.2：去字母（圆满）');
+  eq(C.endDisplayName('结局 B · 取舍'), '结局 · 取舍', 'B04 §6.2：去字母（取舍）');
+  eq(C.endDisplayName('结局 C · 撤离'), '结局 · 撤离', 'B04 §6.2：去字母（撤离）');
+  eq(C.endDisplayName('失败 · 氧气耗尽'), '失败 · 氧气耗尽', 'B04 §6.2：非结局名不受影响');
+  ok((D.nodes['41'].endTag || '').indexOf('结局 A') >= 0, 'B04 §6.2：数据面 endTag 保留（渲染层才去字母）');
+  ['41', '42', '43'].forEach(id => {
+    const shown = C.endDisplayName(C.fillName(D.nodes[id].n, C.newState('normal')));
+    ok(!/结局 [ABC]/.test(shown), 'B04 §6.2：' + id + ' 号渲染串不含「结局 A/B/C」（' + shown + '）');
+  });
+  const endHits = (engSrc.match(/endDisplayName\(/g) || []).length;
+  ok(endHits >= 4, 'B04 §6.2：渲染层调用 endDisplayName 覆盖结局屏/失败屏/位置名（共 ' + endHits + ' 处）');
+  P('结局名去字母：三条结局＋失败屏＋数据面保留 逐条通过');
+}
+
+/* --- 18-7 §7.7 浮现层七断言（B101） --- */
+{
+  const mom = (loc, extra) => {
+    const s = C.newState('normal'); s.loc = loc;
+    if (extra) Object.assign(s, extra);
+    return C.momentsOf(s, D.nodes[loc]);
+  };
+  /* 1 浮现集＝数据（抽查 N1／N3／N5／N14／N24／N28／N40） */
+  eq(mom('1').join(','), 'pangpang-hail', 'B04 §7.7-1：N1 默认＝[pangpang-hail]');
+  eq(mom('3').join(','), 'aya-nurse', 'B04 §7.7-1：N3 默认＝[aya-nurse]');
+  eq(mom('3', { visited: { '24': true } }).join(','), 'yilanna-awake', 'B04 §7.7-1：N3 pinsAll 24 ⇒ 命中行替换默认集');
+  eq(mom('5').join(','), 'yinhe-idle,win-observation-jupiter', 'B04 §7.7-1：N5 默认＝猫＋窗景两张');
+  eq(mom('5', { chDone: { '跟胖胖打过招呼': true } }).join(','), 'win-observation-jupiter', 'B04 §7.7-1：N5 打过招呼 ⇒ 猫不出现、窗景照旧');
+  eq(mom('14').join(','), 'guardbot-block', 'B04 §7.7-1：N14 默认＝[guardbot-block]');
+  eq(mom('24').join(','), 'yilanna-awake', 'B04 §7.7-1：N24 默认＝[yilanna-awake]');
+  eq(mom('28').join(','), 'yinhe-ledger', 'B04 §7.7-1：N28 默认＝[yinhe-ledger]');
+  eq(mom('40').join(','), 'pod-standoff', 'B04 §7.7-1：N40 默认＝[pod-standoff]');
+  eq(C.momentsOf(C.newState('normal'), { moments: ['不存在的图'] }).length, 0, 'B04 §7.3：id 未注册 ⇒ 忽略该条');
+  const M = Object.keys(D.moments);
+  eq(M.length, 20, 'B04 §7.4/§7.5：注册表 20 条（角色 18＋窗景 2；≤20）');
+  ok(M.every(id => D.moments[id].file === '../images/station/moments/' + id + '.jpg'), 'B04：file 路径＝images/station/moments/<id>.jpg');
+  const onlyChar = M.filter(id => !D.moments[id].win);
+  ok(onlyChar.length === 18 && onlyChar.every(id => D.moments[id].w >= 0.16 && D.moments[id].w <= 0.32),
+    'B04 §7.3：角色图 18 张、宽 w ∈ [0.16,0.32]（' + onlyChar.map(id => D.moments[id].w).join('/') + '）');
+  eq(M.filter(id => D.moments[id].win).length, 2, 'B04 §7.5：窗景 2 条（5 观景厅／11 气闸舱）');
+  const nodeSet = Object.keys(D.nodes).filter(id => D.nodes[id].moments || D.nodes[id].mIf).sort((a, b) => a - b);
+  eq(nodeSet.join(','), '1,3,5,6,10,11,14,22,23,24,26,27,28,31,32,33,37,38,40', 'B04 §11：节点 moments/mIf 恰 19 个（触发列去重口径）');
+  /* 2 层序与不改可点性 */
+  const htmlB = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  ok(htmlB.indexOf('id="momentLayer"') > htmlB.indexOf('id="dimSvg"') && htmlB.indexOf('id="momentLayer"') < htmlB.indexOf('id="pinLayer"'),
+    'B04 §7.7-2：浮现层在场景图/遮罩之上、编号层之下（index.html 结构）');
+  ok(uiCssSrc.indexOf('#momentLayer { position: absolute') >= 0 && uiCssSrc.indexOf('pointer-events: none') >= 0,
+    'B04 §7.7-2：浮现层 pointer-events:none（点编号仍可达）');
+  ok(htmlB.indexOf('<link rel="stylesheet" href="style-ui.css">') > htmlB.indexOf('<link rel="stylesheet" href="style.css">'),
+    'B04 §11：style-ui.css 以多 link 引入、层叠序在后');
+  /* 3 状态切换（28 换图不换位 / 14 退场） */
+  eq(mom('28', { items: ['桑尼的账本'] }).join(','), 'yinhe-lick', 'B04 §7.7-3：N28 交易后切 yinhe-lick');
+  eq(JSON.stringify([D.moments['yinhe-lick'].at, D.moments['yinhe-lick'].w]), JSON.stringify([D.moments['yinhe-ledger'].at, D.moments['yinhe-ledger'].w]),
+    'B04 §7.7-3：换图不换位（两图 at/w 逐字相同）');
+  eq(mom('14', { items: ['监控回放'] }).length, 0, 'B04 §7.7-3：N14 持监控回放 ⇒ guardbot-block 退场（空列表）');
+  /* 4 缺图兜底（结构契约＋源码契约） */
+  ok(/img\.onerror = \(\) => \{ d\.remove\(\); console\.warn/.test(engSrc), 'B04 §7.7-4：单张缺图 ⇒ 移除该元素＋一行告警（其余照常）');
+  ok(uiCssSrc.indexOf('visibility: hidden') >= 0 && uiCssSrc.indexOf('.momentImg.on') >= 0,
+    'B04 §7.7-4：加载完成前不可见（不留白框/破图；无占位框元素）');
+  /* 5 窗景锚点对拍 */
+  const w5 = C.momentLayout('win-observation-jupiter', 'deck1');
+  const d5 = D.moments['win-observation-jupiter'];
+  ok(!!w5 && w5.win && w5.x === d5.at[0] && w5.y === d5.at[1] && Math.abs(w5.w - d5.win[0] * d5.fit) < 1e-9 && Math.abs(w5.h - d5.win[1] * d5.fit) < 1e-9,
+    'B04 §7.7-5：N5 窗景＝注册表值×1.06（中心 ' + w5.x + ',' + w5.y + '；' + w5.w + '×' + w5.h + '）');
+  const w11 = C.momentLayout('win-airlock-array', 'deck2');
+  const d11 = D.moments['win-airlock-array'];
+  ok(!!w11 && w11.x === d11.at[0] && Math.abs(w11.w - d11.win[0] * d11.fit) < 1e-9, 'B04 §7.7-5：N11 窗景同上（' + w11.w + '×' + w11.h + '）');
+  const p1 = C.momentLayout('pangpang-hail', 'deck1');
+  eq(p1.w, D.scenes.deck1.width * D.moments['pangpang-hail'].w, 'B04 §7.3：角色图宽＝场景宽×w');
+  eq(p1.h, null, 'B04 §7.3：角色图锚底边中点（高度自适应）');
+  D.moments['T-noanchor'] = { file: '../images/station/moments/T-noanchor.jpg', w: 0.2 };
+  const na1 = C.momentLayout('T-noanchor', 'deck1', 0, 2), na2 = C.momentLayout('T-noanchor', 'deck1', 1, 2);
+  ok(Math.abs(na1.x - D.scenes.deck1.width * 0.18) < 1e-6 && Math.abs(na2.x - D.scenes.deck1.width * 0.82) < 1e-6 && na1.y === na2.y,
+    'B04 §7.3：未给锚点 ⇒ 左右对称（中心 ±0.32×场景宽）＋底边对齐');
+  delete D.moments['T-noanchor'];
+  /* 6 回归（无 moments 的节点＝空集；站关光环位停用、示例关照旧） */
+  eq(C.momentsOf(C.newState('normal'), D.nodes['2']).length, 0, 'B04 §7.7-6：无 moments 的节点 ⇒ 空集（输出与改前一致）');
+  ok(!!D.moments && !LEVELS.dalim.moments, 'B04 §11：站关注册了 moments（两层制）、示例关 dalim 无（光环位保留）');
+  ok(engSrc.indexOf('if (D.moments) return;') >= 0, 'B04 §11：renderCharSpots 按关卡停用（站关撤下——源码契约）');
+  ok(engSrc.indexOf('if (D.moments) return ids;') >= 0, 'B04 §7.6：在场条＝node.chars 直连（示例关沿用旧口径——源码契约）');
+  /* 7 同角色同框（4 组抽查）＋不并置同角色 */
+  const prefixOf = id => id.split('-')[0];
+  const dup = [];
+  Object.keys(D.nodes).forEach(id => {
+    const seen = {};
+    C.momentsOf(C.newState('normal'), D.nodes[id]).filter(x => !C.momentDef(x).win).forEach(x => {
+      const p = prefixOf(x);
+      if (seen[p]) dup.push(id + ':' + p);
+      seen[p] = 1;
+    });
+  });
+  eq(dup.join(','), '', 'B04 §7.7-7：任一节点的浮现集里同一角色至多一张（不并置同角色）');
+  const OVER = [['1', 'pangpang-hail', null], ['3', 'aya-nurse', null], ['3', 'yilanna-awake', { visited: { '24': true } }],
+    ['5', 'yinhe-idle', null], ['26', 'tietou-armwrestle', null], ['27', 'tietou-open', null]];
+  OVER.forEach(([id, mid, extra]) => {
+    ok(mom(id, extra).indexOf(mid) >= 0, 'B04 §7.7-7：同框抽查 N' + id + ' 的 L2 在案（' + mid + '）');
+    const m = D.moments[mid];
+    ok(Array.isArray(m.at) && m.at.length === 2 && m.w >= 0.16 && m.w <= 0.32,
+      'B04 §7.7-7：' + mid + ' 锚点/尺寸单一记录值（对齐覆盖口径；内景接线后随 pins 重校准）');
+  });
+  /* chars 补登记 6 处 + 头像 img */
+  [['23', 'tangtang'], ['24', 'aya'], ['24', 'yilanna'], ['25', 'laobu'], ['26', 'tietou'], ['27', 'tietou'], ['38', 'laobu']]
+    .forEach(([id, cid]) => ok((D.nodes[id].chars || []).indexOf(cid) >= 0, 'B04 §7.6：' + id + ' 号 chars 补登记 ' + cid));
+  ok(Object.keys(D.characters).every(cid => (D.characters[cid].img || '').indexOf('images/station/chars/') >= 0),
+    'B04 §7.6：8 位乘员 img 全部指向 images/station/chars/（缺图回落 emoji）');
+  ok(engSrc.indexOf('function guardFaces') >= 0 && engSrc.indexOf('img.onerror = () => {') >= 0,
+    'B04：头像缺图回落 emoji（不留破图——源码契约）');
+  P('浮现层：断言 1~7 逐条通过（19 节点／20 条注册表／窗景对拍／层序／缺图兜底／同框 4 组）');
+}
+
+/* --- 18-8 B106 外部数据面（占位图继续服役；切换登记为验收轮后一行） --- */
+{
+  ok(D.scenes.exterior.image.indexOf('station-map-ai-v1') >= 0,
+    'B106（父代理 2026-10-03 裁定）：站外仍用总览占位图——T04 数据面切换登记为统一验收轮后一行（含 19 号 pin 重校准）');
+  ok(D.scenes.exterior.image.indexOf('T04') < 0, 'B106：本轮未切 exterior 图路径（未验收/未入库，避免 pin 错位）');
+  P('B106：占位继续服役（裁定在案）；切换项登记验收轮（pin 重校准绑定）');
+}
+
 
 /* ============ 汇总 ============ */
 console.log('');

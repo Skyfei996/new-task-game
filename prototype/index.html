@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>你有一个新任务！· 网页原型（多关卡）</title>
 <link rel="stylesheet" href="style.css">
+<!-- B04（§11）：本批新增面全部外置到此档（层叠序在后）；style.css 保持既有面、不跨 500 行 -->
+<link rel="stylesheet" href="style-ui.css">
 </head>
 <body>
 <div id="app">
@@ -24,6 +26,8 @@
         </defs>
         <rect id="dimRect" x="0" y="0" width="800" height="800" fill="#060a10" fill-opacity="0.6" mask="url(#dimMask)"/>
       </svg>
+      <!-- B04（§7.3 层序）：浮现层（L2）——在场景图/遮罩之上、编号层之下；pointer-events:none，不挡编号点击 -->
+      <div id="momentLayer"></div>
       <!-- 人物光环层（画在编号层下面，pointer-events:none，不挡编号点击） -->
       <div id="charLayer"></div>
       <div id="pinLayer"></div>
@@ -34,7 +38,11 @@
       <button id="zoomOut" title="缩小">－</button>
       <button id="zoomReset" title="复位">⌂</button>
     </div>
-    <div id="hintBar">高亮的位置可以点击前往 · 灰暗区域还没探索到 ｜ 拖拽 / 滚轮缩放</div>
+    <!-- B04（§5）：物品栏＝地图正下方一条（桌面/移动端同一条）；提示条移入行内右侧（§6.4，不再与场景图叠层） -->
+    <div id="invRow">
+      <div id="invBar" class="invBar"></div>
+      <div id="hintBar">高亮的位置可以点击前往 · 灰暗区域还没探索到 ｜ 拖拽 / 滚轮缩放</div>
+    </div>
     <div id="calibBox" class="hidden"></div>
   </section>
 
@@ -56,9 +64,11 @@
     <div id="visitedRow"><span class="vlabel">已探索：</span><span id="visitedList"></span></div>
     <div id="nodeCard">
       <div id="nodeHead"><span id="locBadge">1</span><span id="locName"></span></div>
-      <div id="nodeText"></div>
-      <!-- 本处人物小卡（点开 = 人物卡弹层） -->
+      <!-- B04（§1 布局）：在场人物条（新位，正文之前；点开 = 人物卡弹层） -->
       <div id="hereChars" class="hidden"></div>
+      <div id="nodeText"></div>
+      <!-- B04（§4）：反馈区——正文与选项之间，最近一次操作的消息组常驻到下一次操作 -->
+      <div id="feedback" class="hidden"></div>
       <div id="choiceList"></div>
     </div>
     <div id="toasts"></div>
