@@ -78,8 +78,9 @@
    * B99（R2 问题 16③）：节点可用 scene 显式声明发生场景——事件节点没印编号，但正文自述跨层时
    * 舞台按【事件发生场景表】（节点表 §9.4）算；显示楼层取发生场景（唯一用例＝station 28 scene:'deck2'）。 */
   function syncScene(st, nodeId) {
-    const node = D && D.nodes && D.nodes[nodeId];
-    const sid = (node && node.scene) || Core.sceneOfNode(nodeId);
+    /* B119：统一走 Core.sceneOfNode（节点显式声明 → 图上的 pin）——显式声明的场景**未注册时**同样回退到
+     * pin 推断（维持本层 deck）：注册丢失/未到货 ⇒ 不换图（零降级），不会切到不存在的场景 id。 */
+    const sid = Core.sceneOfNode(nodeId);
     if (sid) st.scene = sid;
   }
 
