@@ -11,6 +11,8 @@
 //         B114 站外切 T04＋19 号 pin 实测校准 / B115 选关页（难度单选＋唯一「开始」）
 //       / B04 三裁轮（B117／B119 · 2026-10-04）：B119 内景接线（注册一致性／pins／进出往返／锚点／回归五条机检）
 //         ＋ B117 存档三态与通关记录（storage 桩六条）
+//       / B04 同框覆盖轮（B120 · 2026-10-04）：覆盖卡（同框判据／卡面 ⊇ 轮廓框＋余量／单源去 at·w／
+//         换态不换位／z 序）＋ figures lint（§7.7-10）＋全站枚举零双现（§7.7-7／§10-③）＋标定通道（C 键两点定框）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -2602,8 +2604,13 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   eq(M.length, 20, 'B04 §7.4/§7.5：注册表 20 条（角色 18＋窗景 2；≤20）');
   ok(M.every(id => D.moments[id].file === '../images/station/moments/' + id + '.jpg'), 'B04：file 路径＝images/station/moments/<id>.jpg');
   const onlyChar = M.filter(id => !D.moments[id].win);
-  ok(onlyChar.length === 18 && onlyChar.every(id => D.moments[id].w >= 0.16 && D.moments[id].w <= 0.32),
-    'B04 §7.3：角色图 18 张、宽 w ∈ [0.16,0.32]（' + onlyChar.map(id => D.moments[id].w).join('/') + '）');
+  eq(onlyChar.length, 18, 'B04 §7.3：角色图 18 张');
+  const COVER_IDS = ['pangpang-hail', 'aya-nurse', 'yilanna-awake', 'tietou-armwrestle', 'tietou-open', 'yinhe-idle'];
+  const anchored = onlyChar.filter(id => COVER_IDS.indexOf(id) < 0);
+  ok(anchored.length === 12 && anchored.every(id => D.moments[id].w >= 0.16 && D.moments[id].w <= 0.32),
+    'B04 §7.3：非覆盖角色图 12 张、宽 w ∈ [0.16,0.32]（' + anchored.map(id => D.moments[id].w).join('/') + '）');
+  eq(COVER_IDS.filter(id => D.moments[id].at != null || D.moments[id].w != null).join(','), '',
+    'B120 §7.3：六张覆盖图无 at／w 残留（几何唯一来源＝figures；先标定后删值同批）');
   eq(M.filter(id => D.moments[id].win).length, 2, 'B04 §7.5：窗景 2 条（5 观景厅／11 气闸舱）');
   const nodeSet = Object.keys(D.nodes).filter(id => D.nodes[id].moments || D.nodes[id].mIf).sort((a, b) => a - b);
   eq(nodeSet.join(','), '1,3,4,5,6,10,11,14,22,23,24,26,27,28,31,32,33,37,38,40', 'B04 §11＋B111：节点 moments/mIf 恰 20 个（B111 补登 N4）');
@@ -2632,9 +2639,9 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   const w11 = C.momentLayout('win-airlock-array', 'deck2');
   const d11 = D.moments['win-airlock-array'];
   ok(!!w11 && w11.x === d11.at[0] && Math.abs(w11.w - d11.win[0] * d11.fit) < 1e-9, 'B04 §7.7-5：N11 窗景同上（' + w11.w + '×' + w11.h + '）');
-  const p1 = C.momentLayout('pangpang-hail', 'deck1');
-  eq(p1.w, D.scenes.deck1.width * D.moments['pangpang-hail'].w, 'B04 §7.3：角色图宽＝场景宽×w');
-  eq(p1.h, null, 'B04 §7.3：角色图锚底边中点（高度自适应）');
+  const p1 = C.momentLayout('sangni-smile', 'room-warehouse');   // 非覆盖场合：走既有锚点渲染
+  eq(p1.w, D.scenes['room-warehouse'].width * D.moments['sangni-smile'].w, 'B04 §7.3：非覆盖角色图宽＝场景宽×w');
+  eq(p1.h, null, 'B04 §7.3：非覆盖角色图锚底边中点（高度自适应）');
   D.moments['T-noanchor'] = { file: '../images/station/moments/T-noanchor.jpg', w: 0.2 };
   const na1 = C.momentLayout('T-noanchor', 'deck1', 0, 2), na2 = C.momentLayout('T-noanchor', 'deck1', 1, 2);
   ok(Math.abs(na1.x - D.scenes.deck1.width * 0.18) < 1e-6 && Math.abs(na2.x - D.scenes.deck1.width * 0.82) < 1e-6 && na1.y === na2.y,
@@ -2645,7 +2652,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   ok(!!D.moments && !LEVELS.dalim.moments, 'B04 §11：站关注册了 moments（两层制）、示例关 dalim 无（光环位保留）');
   ok(engSrc.indexOf('if (D.moments) return;') >= 0, 'B04 §11：renderCharSpots 按关卡停用（站关撤下——源码契约）');
   ok(engSrc.indexOf('if (D.moments) return ids;') >= 0, 'B04 §7.6：在场条＝node.chars 直连（示例关沿用旧口径——源码契约）');
-  /* 7 同角色同框（4 组抽查）＋不并置同角色 */
+  /* 7 同角色同框（B120 覆盖卡：判据／覆盖几何／单源／换态不换位）＋不并置同角色 */
   const prefixOf = id => id.split('-')[0];
   const dup = [];
   Object.keys(D.nodes).forEach(id => {
@@ -2657,14 +2664,25 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
     });
   });
   eq(dup.join(','), '', 'B04 §7.7-7：任一节点的浮现集里同一角色至多一张（不并置同角色）');
-  const OVER = [['1', 'pangpang-hail', null], ['3', 'aya-nurse', null], ['3', 'yilanna-awake', { visited: { '24': true } }],
-    ['4', 'tietou-armwrestle', null], ['5', 'yinhe-idle', null], ['26', 'tietou-armwrestle', null], ['27', 'tietou-open', null]];
-  OVER.forEach(([id, mid, extra]) => {
-    ok(mom(id, extra).indexOf(mid) >= 0, 'B04 §7.7-7：同框抽查 N' + id + ' 的 L2 在案（' + mid + '）');
-    const m = D.moments[mid];
-    ok(Array.isArray(m.at) && m.at.length === 2 && m.w >= 0.16 && m.w <= 0.32,
-      'B04 §7.7-7：' + mid + ' 锚点/尺寸单一记录值（对齐覆盖口径；内景接线后随 pins 重校准）');
+  const COVER = [['1', 'pangpang-hail', null], ['3', 'aya-nurse', null],
+    ['3', 'yilanna-awake', { visited: { '24': true } }], ['4', 'tietou-armwrestle', null],
+    ['5', 'yinhe-idle', null], ['24', 'yilanna-awake', null], ['26', 'tietou-armwrestle', null], ['27', 'tietou-open', null]];
+  COVER.forEach(([id, mid, extra]) => {
+    const sid = C.sceneOfNode(id);
+    ok(mom(id, extra).indexOf(mid) >= 0, 'B120 §7.7-7：同框组合 N' + id + '×' + mid + ' 在案（场景 ' + sid + '）');
+    eq(C.coverState(mid, sid), 'cover', 'B120 §7.7-7：' + mid + ' ⇒ 覆盖分支命中（同框判据＝figures）');
+    const cid = C.charIdOf(mid), box = C.figuresOf(sid)[cid], plan = C.momentLayout(mid, sid);
+    const ex = Math.max(12, box[2] * 0.08), ey = Math.max(12, box[3] * 0.08);
+    eq([plan.cover, plan.win].join(','), 'true,false', 'B120 §7.7-7：' + mid + ' 渲染计划＝覆盖卡（非窗景）');
+    ok(Math.abs(plan.w - (box[2] + ex * 2)) < 1e-9 && Math.abs(plan.h - (box[3] + ey * 2)) < 1e-9
+      && Math.abs(plan.x - (box[0] - ex + (box[2] + ex * 2) / 2)) < 1e-9 && Math.abs(plan.y - (box[1] - ey + (box[3] + ey * 2) / 2)) < 1e-9,
+      'B120 §7.7-7：' + mid + ' 卡面 ⊇ 轮廓框外扩 max(12,8%×边)（卡 ' + [plan.x, plan.y, plan.w, plan.h].join(',') + '）');
   });
+  const geoOf = id => { const p = C.momentLayout(id, 'room-gym'); return [p.x, p.y, p.w, p.h].join(','); };
+  eq(geoOf('tietou-armwrestle'), geoOf('tietou-open'),
+    'B120 §7.7-7：换态不换位——T41／T49 同卡面（几何逐字相同：' + geoOf('tietou-open') + '）');
+  eq(C.momentLayout('pangpang-hail', 'deck1'), null,
+    'B120 §7.3：非本场景（deck1 未标定 figures）⇒ 该张不渲染（不得回落对称摆放）');
   /* chars 补登记 6 处 + 头像 img */
   [['23', 'tangtang'], ['24', 'aya'], ['24', 'yilanna'], ['25', 'laobu'], ['26', 'tietou'], ['27', 'tietou'], ['38', 'laobu']]
     .forEach(([id, cid]) => ok((D.nodes[id].chars || []).indexOf(cid) >= 0, 'B04 §7.6：' + id + ' 号 chars 补登记 ' + cid));
@@ -2672,7 +2690,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
     'B04 §7.6：8 位乘员 img 全部指向 images/station/chars/（缺图回落 emoji）');
   ok(engSrc.indexOf('function guardFaces') >= 0 && engSrc.indexOf('img.onerror = () => {') >= 0,
     'B04：头像缺图回落 emoji（不留破图——源码契约）');
-  P('浮现层：断言 1~7 逐条通过（20 节点／20 条注册表／窗景对拍／层序／缺图兜底／同框 5 组）');
+  P('浮现层：断言 1~7 逐条通过（20 节点／20 条注册表／窗景对拍／层序／缺图兜底／覆盖卡 8 组几何）');
 }
 
 /* --- 18-8 B114 站外切换（T04 入库接管；pin 按成图实测；占位退场） --- */
@@ -2716,6 +2734,102 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   ok(uiCssSrc.indexOf('.lcDiffOpt') >= 0 && uiCssSrc.indexOf('.lcBtns .lcMain') >= 0 && uiCssSrc.indexOf('.lcBtns .lcAlt') >= 0 && uiCode.indexOf('lcResume') < 0,
     'B115/B117：单选与三态按钮（主/次）样式在案（style-ui.css）、lcResume 样式已撤（代码面）');
   P('选关页：单选默认普通／三态按钮（cardInfo 驱动）／「继续」零残留 逐条通过');
+}
+
+/* --- 18-11 B120 同框全覆盖（覆盖卡）：figures lint ／ 全站枚举零双现 ／ 呈现与标定通道 --- */
+{
+  /* ① figures 规格＋lint（§7.7-10）：5 房 6 条（登记表 7 行——N4／N26 同角色同行）；键 ∈ characters；
+   *   框与卡面（含余量）落在图界内；6 条中 5 条与 §7.3 同框面表逐值一致；room-medbay/yilanna 一条＝
+   *   基图（卧姿）目测暂值——§7.3 该行写「＝变体 medbay-awake 的 figures（T73 出图后标定）」，随 B122 变体轮重标。 */
+  const FIG = { 'room-galley': { pangpang: [880, 205, 160, 225] },
+    'room-medbay': { aya: [455, 145, 235, 515], yilanna: [690, 255, 195, 180] },
+    'room-gym': { tietou: [745, 195, 245, 445] },
+    'room-observation': { yinhe: [1125, 440, 165, 170] },
+    'room-lab': { laobu: [430, 300, 290, 460] } };
+  eq(Object.keys(D.scenes).filter(sid => D.scenes[sid].figures).sort().join(','), Object.keys(FIG).sort().join(','),
+    'B120 §7.7-10：figures 登记＝5 房（含角色房间全登记；其余房间不登记＝无同框面）');
+  eq(Object.keys(FIG).reduce((n, sid) => n + Object.keys(FIG[sid]).length, 0), 6,
+    'B120：figures 共 6 条＝同框面表 7 行（N4／N26 同角色共用一行）');
+  const bad = [];
+  Object.entries(FIG).forEach(([sid, spec]) => {
+    const sc = D.scenes[sid], figs = sc.figures || {};
+    if (JSON.stringify(Object.keys(figs).sort()) !== JSON.stringify(Object.keys(spec).sort())) bad.push(sid + '：键集不符');
+    Object.entries(spec).forEach(([cid, box]) => {
+      if (!D.characters[cid]) bad.push(sid + '/' + cid + '：键非 characters');
+      if (JSON.stringify(figs[cid]) !== JSON.stringify(box)) bad.push(sid + '/' + cid + '：轮廓框初值与登记表不符');
+      const ex = Math.max(12, box[2] * 0.08), ey = Math.max(12, box[3] * 0.08);
+      if (!(box[0] > 0 && box[1] > 0 && box[0] + box[2] < sc.width && box[1] + box[3] < sc.height)) bad.push(sid + '/' + cid + '：框越界');
+      if (!(box[0] - ex > 0 && box[1] - ey > 0 && box[0] + box[2] + ex < sc.width && box[1] + box[3] + ey < sc.height)) bad.push(sid + '/' + cid + '：卡面（含余量）越界');
+    });
+  });
+  eq(bad.join(' ｜ '), '', 'B120 §7.7-10：figures lint——键 ∈ characters／框与卡面在图界内／初值与 §7.3 表逐值（yilanna 一条＝基图暂值，随 B122 变体重标）');
+  const coverFalse = Object.keys(D.moments).filter(id => D.moments[id].cover === false);
+  eq(coverFalse.join(','), '', 'B120 §7.7-10：例外表初始为空 ⇒ 全关零 cover:false（与登记一致）');
+  /* ② 全站枚举（含 mIf 分支与条件变化）：同框必覆盖卡；无 L1 实体者不得误判——零双现（§7.7-7／§10-③） */
+  const PROBES = [null, { visited: { '24': true } }, { chDone: { '跟胖胖打过招呼': true } },
+    { items: ['桑尼的账本'] }, { items: ['监控回放'] }];
+  const miss = [], wrong = [], dbl = [], nCombos = [];
+  Object.keys(D.nodes).forEach(id => {
+    const n = D.nodes[id];
+    if (!n.moments && !n.mIf) return;
+    const sid = C.sceneOfNode(id);
+    PROBES.forEach(extra => {
+      const s = C.newState('normal'); s.loc = id; if (extra) Object.assign(s, extra);
+      const seen = {};
+      C.momentsOf(s, n).filter(mid => C.charIdOf(mid)).forEach(mid => {
+        const cid = C.charIdOf(mid), figs = C.figuresOf(sid) || {}, st = C.coverState(mid, sid);
+        nCombos.push(id + '×' + mid);
+        if (seen[cid]) dbl.push(id + ':' + cid);
+        seen[cid] = 1;
+        if (figs[cid]) { if (st !== 'cover') miss.push(id + '×' + mid); }
+        else if (st !== 'none') wrong.push(id + '×' + mid + ':' + st);
+      });
+    });
+  });
+  ok(nCombos.length >= 16, 'B120 §7.7-7：全站枚举 ' + nCombos.length + ' 条（节点×角色 L2 组合，含 mIf 分支）');
+  eq(miss.join(' ｜ '), '', 'B120 §7.7-7：同框组合逐条覆盖分支命中——零漏覆盖');
+  eq(wrong.join(' ｜ '), '', 'B120 §7.7-7：无 L1 实体的角色 L2 不被误判覆盖（走既有呈现；未标定即红）');
+  eq(dbl.join(' ｜ '), '', 'B120 §10-③：全站同角色双现＝0（机检）');
+  /* ③ 老板一眼判三条的机检面（N3 阿雅/伊莲娜各一次；N5 银河一次） */
+  const cnt = (loc, extra, cid) => {
+    const s = C.newState('normal'); s.loc = loc; if (extra) Object.assign(s, extra);
+    return C.momentsOf(s, D.nodes[loc]).filter(mid => C.charIdOf(mid) === cid).length;
+  };
+  eq([cnt('3', null, 'aya'), cnt('3', null, 'yilanna'), cnt('3', { visited: { '24': true } }, 'aya'),
+    cnt('3', { visited: { '24': true } }, 'yilanna'), cnt('24', null, 'aya'), cnt('24', null, 'yilanna')].join(','),
+    '1,0,0,1,0,1', 'B120 §10-①：医务室——N3 阿雅恰一次（伊莲娜由 L1 承担）；pinsAll24／N24 ⇒ 伊莲娜恰一次');
+  eq(cnt('5', null, 'yinhe'), 1, 'B120 §10-②：观景厅——银河恰一次');
+  eq(C.coverState('yinhe-idle', 'room-observation'), 'cover', 'B120 §10-②：银河一次＝覆盖卡（L1 猫被卡面盖住，无双现）');
+  /* ④ 覆盖卡呈现契约（CSS）：实底圆角卡／无羽化遮罩／object-fit:cover 内缩 ≥6%／z 序在其它浮现图之上 */
+  const coverRule = (uiCssSrc.match(/\.moment\.cover \{([\s\S]*?)\}/) || [])[1] || '';
+  const coverImg = (uiCssSrc.match(/\.moment\.cover \.momentImg \{([^}]*)\}/) || [])[1] || '';
+  const pct = (s, k) => { const m = s.match(new RegExp('(?:^|[^-])' + k + ':\\s*(-?[\\d.]+)%')); return m ? Number(m[1]) : NaN; };
+  ok(/z-index:\s*2/.test(coverRule) && /overflow:\s*hidden/.test(coverRule) && /background:\s*#/.test(coverRule) && /border-radius/.test(coverRule),
+    'B120 §7.3：覆盖卡＝实底圆角卡（不透明底＋裁边）＋z 序在其它浮现图之上（z-index:2）');
+  ok(/object-fit:\s*cover/.test(coverImg) && /mask-image:\s*none/.test(coverImg),
+    'B120 §7.3：卡内图 object-fit:cover＋无羽化遮罩（mask:none）');
+  const inset = -pct(coverImg, 'left'), zoom = pct(coverImg, 'width') / 100;
+  ok(inset >= 6 && zoom >= 1.06,
+    'B120 §7.3：内缩放大 ≥6%（实测 ×' + zoom.toFixed(2) + '；每侧裁 ' + (inset / zoom).toFixed(1) + '%）');
+  ok(/z-index:\s*0/.test((uiCssSrc.match(/#momentLayer \{([^}]*)\}/) || [])[1] || ''),
+    'B120 §7.3：#momentLayer 自建堆叠上下文（z-index:0）——覆盖卡不越到编号层之上');
+  /* ⑤ 标定通道：两点定框（Core 纯面）＋引擎接线契约 */
+  eq(JSON.stringify(C.boxOfPoints([100, 200], [40, 260])), '[40,200,60,60]', 'B120 标定：两点定框归一化（左上／右下可反着点）');
+  eq(JSON.stringify(C.boxOfPoints([40, 260], [100, 200])), '[40,200,60,60]', 'B120 标定：两点定框与点击顺序无关');
+  ok(engSrc.indexOf('Core.boxOfPoints(calibA') >= 0 && engSrc.indexOf('function calibDot') >= 0 && engSrc.indexOf('calibRedraw') >= 0,
+    'B120 标定：C 键校准＝两点定框（屏上给「scenes[].figures = { 角色id: [x,y,w,h] }」数值行——源码契约）');
+  ok(/if \(calib\) calibRedraw\(\);/.test(engSrc),
+    'B120 标定：校准层随场景切换重画（既有 figures 虚线框对照——源码契约）');
+  /* ⑥ 渲染契约：.cover 类／未标定告警／缺图兜底不受影响；「无 at 无 w」才算待标定（w 默认值／对称摆放不受影响） */
+  ok(engSrc.indexOf("(plan.cover ? ' cover' : '')") >= 0, 'B120：覆盖卡渲染类（engine 契约）');
+  ok(engSrc.indexOf('浮现图未标定轮廓框（已跳过）') >= 0, 'B120 §7.3：未标定 figures ⇒ 该张不渲染＋一行告警');
+  ok(/img\.onerror = \(\) => \{ d\.remove\(\); console\.warn/.test(engSrc), 'B120 §7.3：覆盖卡缺图走同一兜底（移除＋告警——源码契约）');
+  D.moments['pangpang-probe'] = { file: '../images/station/moments/pangpang-hail.jpg', w: 0.2 };   // 合成：角色图「有 w、无 at」
+  eq(C.coverState('pangpang-probe', 'deck1'), 'none', 'B120 §7.3：有 w 无 at 的角色图不误判待标定（w 默认 0.22／对称摆放口径在）');
+  const probe = C.momentLayout('pangpang-probe', 'deck1', 0, 1);
+  ok(!!probe && probe.x > 0 && probe.h === null, 'B120 §7.3：有 w 无 at 的角色图照旧走对称摆放（不被 figures 判据吞掉）');
+  delete D.moments['pangpang-probe'];
+  P('覆盖卡：figures lint ／ 全站枚举零双现 ' + nCombos.length + ' 条 ／ 医务室与观景厅计数 ／ CSS 契约 ／ 标定通道 逐条通过');
 }
 
 

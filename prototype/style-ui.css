@@ -81,7 +81,8 @@
 #resList .res.bar.danger .barNum { color: #ff6b6b; }
 
 /* ---------- ⑤ 浮现层（§7；场景图之上、编号点之下，不接收指针事件） ---------- */
-#momentLayer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 10px; }
+#momentLayer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 10px; z-index: 0; }
+/* z-index:0＝自建堆叠上下文（B120）：覆盖卡的 z-index 只在浮现层内生效，不会越到编号层之上 */
 .moment { position: absolute; transform: translate(-50%, -100%); pointer-events: none; }        /* 角色图：锚＝底边中点 */
 .moment.win { transform: translate(-50%, -50%); }                                               /* 窗景图：锚＝窗区中心 */
 .momentImg {
@@ -102,6 +103,25 @@
 }
 /* 点缀：黑位嵌合（发光体；仅点缀，不作主手段，D47） */
 .moment.lighten .momentImg { mix-blend-mode: lighten; -webkit-mask-image: none; mask-image: none; }
+
+/* 覆盖卡（B120 · §7.3 同框全覆盖）：实底圆角卡——卡面由 figures 轮廓框＋余量定位（引擎算）；
+   实底＝全覆盖的结构性保证；z 序在其它浮现图之上（窗景不切过卡面；不越到编号层——见 #momentLayer 的堆叠上下文）。 */
+.moment.cover {
+  transform: translate(-50%, -50%); z-index: 2; overflow: hidden;
+  border-radius: 12px; background: #0b1118;                                  /* 实底（不透明底色——结构性保证） */
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .55); border: 1px solid rgba(255, 255, 255, .14);
+}
+.moment.cover .momentImg {                                                /* 内缩放大 14%（≥6%）＝裁去成图烘焙柔边 */
+  position: absolute; left: -7%; top: -7%; width: 114%; height: 114%;
+  object-fit: cover; -webkit-mask-image: none; mask-image: none;            /* 无羽化遮罩（实底卡）；卡外不透轮廓 */
+}
+
+/* 校准层（B120：两点定框——figures 轮廓框标定通道；仅校准模式显示） */
+.calibLayer { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.calibRect { position: absolute; border: 1px dashed rgba(255, 183, 3, .9); background: rgba(255, 183, 3, .08); }
+.calibRect span { position: absolute; left: 2px; top: 2px; font-size: 11px; color: #ffd166; text-shadow: 0 1px 2px #000; }
+.calibRect.calibNew { border-style: solid; border-color: #7cc9ff; background: rgba(120, 200, 255, .12); }
+.calibDot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #7cc9ff; box-shadow: 0 0 0 2px rgba(0, 0, 0, .6); }
 
 /* ---------- ⑥ 布局：场景区改上下两段（舞台 + 物品栏行）；提示条归位到行内右侧（§1/§6.4） ---------- */
 #sceneWrap { flex-direction: column; gap: 4px; }

@@ -451,7 +451,7 @@ VERDICT: pass
 - **实现范围**：`docs/design-ui-v1.md` §11 所列文件（engine.js／style.css（+新建 style-ui.css）／index.html／station.js／test.station.mjs／test.play.mjs／tools/play.mjs）＋ **美术未到货期间的兜底**（无图不留位、不影响可玩性）。**不变量**：剧情数据语义与数值不动（文案、条件、预算、断循环）；示例关（dalim）保住其光环位。
 
 ## §5 实施记录（eng-coder）
-**状态行**：实施完成（B110~B115 追加轮：三闸 569／1817／420＋两冒烟＋DOM 冒烟 40/0；内部审计与代码评审终态 pass（0🔴／2🟡报告项）；上一轮 B101~B109 证据见下）
+**状态行**：实施完成（B120 覆盖卡追加轮（2026-10-04）：三闸 569／2094／420＋两冒烟（DOM 54/0、CLI 61/0）；内部审计 1 轮＋代码评审 2 轮，终态 pass、0🔴）
 
 
 
@@ -582,5 +582,41 @@ VERDICT: pass
 #### 5.6 机制说明缺档（待 §4.1 增补时并入，审计 🔵6）
 
 「出口 pin 多点命中 ⇒ 大厅编号须显式声明楼层场景」「走廊/房内后继事件显式声明」「`syncScene` 统一走 `sceneOfNode`（声明未注册⇒回退）」三条是内景接线的必要条件，目前只写在代码注释与本记录里，设计档 §4.1 尚未成文；下轮 §4.1 增补时请并入（不改本轮交付）。
+
+### 追加 · B120 同框覆盖轮实现（覆盖卡 · eng-coder · 2026-10-04）
+
+**口径**：唯一照抄件＝`docs/design-ui-v1.md` §7.3（同框全覆盖＝覆盖卡）／§7.7-7·10／§10-B120／§11「2026-10-04 同框覆盖轮（B120）预计受影响文件」；不变量＝剧情语义/条件/数值/文案不动、示例关不受影响。
+
+#### 一、落点（文件 → 做了什么）
+
+| 文件 | 实施内容 |
+|---|---|
+| `prototype/levels/station.js`（1062→1077） | ① 5 房新增 `figures`（6 条：galley/pangpang [880,205,160,225]／medbay/aya [455,145,235,515]＋yilanna [690,255,195,180]／gym/tietou [745,195,245,445]／observation/yinhe [1125,440,165,170]／lab/laobu [430,300,290,460]）；② 6 张同框浮图去 `at`／`w`（pangpang-hail／aya-nurse／yilanna-awake／tietou-armwrestle／tietou-open／yinhe-idle）——先标定后删值、同批；③ 头注释与场景块注释同步（figures 口径／标定通道） |
+| `prototype/engine.js`（1994→2086） | ① Core 纯面：`charIdOf`／`figuresOf`／`coverBox`／`coverState`（'cover'／'uncalibrated'／'none' 单点判定）／`coverPlan`（卡面＝轮廓框每侧外扩 max(12 原像素, 该边×8%)、锚＝框中心）／`boxOfPoints`（两点定框）；② `momentLayout` 覆盖分支＋未标定⇒null（不回落对称摆放）；③ `renderMoments` 未标定一行告警；④ `createMomentEl` 加 `cover` 类；⑤ C 键校准扩展两点定框（`calibLayer`／`calibRect`／`calibDot`／`calibRedraw`＋换场景重画），屏上给出 `scenes['<sid>'].figures = { 角色id: [x,y,w,h] }` 数值行 |
+| `prototype/style-ui.css`（139→159） | `.moment.cover`（实底圆角卡：不透明底＋overflow:hidden＋z-index:2；卡内图 object-fit:cover＋left/top −7%／width/height 114%＝内缩放大 14%、mask:none）；`#momentLayer` 补 `z-index:0`（自建堆叠上下文——覆盖卡不越到编号层之上）；校准层样式（`.calibLayer`／`.calibRect`／`.calibDot`） |
+| `prototype/test.station.mjs`（2946→3059） | §18-7 后半改写（「at／w 单一记录值」→ 覆盖几何断言：8 组同框组合逐条＝覆盖分支命中＋卡面 ⊇ 轮廓框外扩＋单源无 at/w＋换态不换位＋非本场景 null）；新增 §18-11（figures lint §7.7-10／全站枚举零双现 §7.7-7·§10-③／老板三条机检／CSS 呈现契约／标定通道契约＋「有 w 无 at 不误判」探针） |
+
+#### 二、验收证据（全绿）
+
+- 三套自测：`node prototype/test.core.mjs` → 通过 569／失败 0；`node prototype/test.station.mjs` → 通过 **2094**／失败 0；`node prototype/test.play.mjs` → 通过 420／失败 0。
+- 冒烟①（示例关）：`node tools/play.mjs new dalim` 首屏正常（1 · 停车场，三选项）＋`auto --steps 15 --seed 7` 正常收尾（第 15 步／已探索 8 处）。
+- 冒烟②（站关主线＋`--player`，临时 CLI 冒烟 61/0）：41 步走通到结局 A（2/3/4/5/7/24 号内景逐房在案；41 号继承 40 号 room-escapepod＝既有行为）；`--player` 短走＋结局面去字母。
+- DOM 冒烟（临时迷你 DOM 跑引擎 DOM 路径，54/0）：26 号＝tietou-armwrestle 覆盖卡＋卡面换算对拍；26→27 换态同卡面（style 四值逐字相同）；未标定（合成删 figures）⇒ 不渲染＋告警、还原恢复；3 号＝阿雅恰一次（覆盖卡）、伊莲娜零 L2；缺图 onerror ⇒ 移除＋告警、再进恢复；C 键两点定框回显 [455,145,235,515]＝登记值＋落库路径；24 号＝伊莲娜恰一次、阿雅零 L2；5 号＝银河恰一次（覆盖卡）＋窗景并存、换态后卡退场。
+- 覆盖几何实算（阿雅 [455,145,235,515]，图 1659×948）：ex＝max(12,18.8)＝18.8、ey＝max(12,41.2)＝41.2 ⇒ 卡面 x 436.2→708.8、y 103.8→701.2（272.6×597.4）⊇ 轮廓框且落在图界内。
+- 不变量：`git diff` 逐文件核对＝改动面仅上表 4 文件（无剧情语义/条件/数值/文案改动）；§18-7 既有「不并置同角色」「缺图兜底」「回归」断言均通过；示例关（dalim）零变化（冒烟①）。
+
+#### 三、偏差与登记（本轮明示）
+
+1. `figures` 第 3 行（medbay/yilanna [690,255,195,180]）＝**基图（卧姿）目测值**：设计 §7.3 该行写「＝变体 `medbay-awake` 的 `figures`（T73 出图后标定）」——变体机制（B122）与本轮不同批，取基图睡姿框是「先标定后删 at/w」在 B122 前唯一可行解（要盖住的正是基图里睡着的伊莲娜）；station.js 注释与 test §18-11 文案均已披露「T73 变体出图后按变体 figures 重标」。
+2. 增量基准：`engine.js` ＋92（设计预估 ≤＋60）／`style-ui.css` ＋20（≤＋15）／`test.station.mjs` ＋108（≤＋70）——超出部分＝校准通道与覆盖卡断言面；`station.js` ＋15 ≤＋25 在预估内。请 §6 收口时更新基准。
+3. B122 协调项（非本轮缺陷，供排期）：`station.js` 节点 3 的 `mIf` 仍为 `['yilanna-awake']`（设计 §7.4 目标＝`pinsAll 24` ⇒ 空集），§11 列在 B122 块；§7.7-12 的「变体感知」两条断言（非角色同实体／变体 figures）同随 B122。
+4. 临时脚本（DOM 冒烟／CLI 冒烟）用后已删（`git status` 无残留）。
+5. `docs/**` 工作树改动＝并发的另一设计轮（B123~B125，v1.8），不在本轮写域，未动。
+
+#### 四、内部审计与代码评审（终态 pass）
+
+- 偏离审计（explore，1 轮）：0🔴／0🟡／1🔵＝「伊莲娜初值与设计行出处差异」→ 与本报告偏差 1 同源，已披露（建议 B122 轮归位）；未发现未披露偏离。
+- 代码评审（advisor·code，2 轮）：第 1 轮 **pass**（0🔴／2🟡 可选／2🔵）；采纳并已修 2 项——① `coverState` 判据收紧（`!def.at && !def.w && !def.win`——角色图「有 w 无 at」不再误判待标定，走既有对称摆放；同步加探针断言）② test §18-11 文案与出处校正（yilanna 一条＝基图暂值）。第 2 轮逐条复验：**pass**、无新增问题。
+- 终态：**clean**（三闸＋两冒烟复跑全绿；无遗留必须修项；2 项父侧报告项：增量基准、B122 协调项）。
 
 ## §6 验证与收口（父代理）

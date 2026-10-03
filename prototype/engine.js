@@ -59,6 +59,12 @@
  *   E24 内景场景接线：房间节点 scene: 'room-*'（syncScene 既有优先序）＋场景表注册；未注册房间＝维持原场景（零降级）；
  *       读档按 st.loc 重算场景（旧档 scene 停在 deck 也能落在内景）；sceneOfNode：节点显式声明优先于 pin 推断
  *
+ * B120 改动（2026-10-04 同框覆盖轮；口径＝design-ui-v1.md §7.3，能力登记＝design-station-v1.md §7-E25）：
+ *   E25 覆盖卡（同框全覆盖）：角色图 L2（id 首段 ∈ characters）指向本场景 L1 常驻角色（scenes[].figures）
+ *       ⇒ 实底圆角卡（卡面 ⊇ 轮廓框每侧外扩 max(12, 该边×8%)；object-fit:cover 内缩放大 ≥6%）；
+ *       几何唯一来源＝figures（覆盖图去 at／w）；换态不换位；z 序在其它浮现图之上（不越到编号层之上）；
+ *       未标定／缺图 ⇒ 该张不渲染＋一行告警；C 键校准扩展两点定框（figures 标定通道，屏上给数值行）。
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
@@ -445,6 +451,35 @@
 
     /* ---- §7 浮现图（两层制 L2）---- */
     momentDef(id) { return (D && D.moments && D.moments[id]) || null; },
+    /* ---- B120（§7.3 同框全覆盖）：覆盖卡判定与几何（纯面；DOM 层与测试同源调用）----
+     * 同框＝角色图 L2（id 首段 ∈ characters）指向角色 C，且 C ∈ 本场景 L1 可见角色（scenes[].figures）；
+     * 渲染判据＝数据（新图/新场景自动纳入）；例外可 cover:false 显式关（默认不写，初始为空）。 */
+    charIdOf(id) { const p = String(id).split('-')[0]; return (D && D.characters && D.characters[p]) ? p : null; },
+    figuresOf(sid) { const sc = (D && D.scenes[sid]) || null; return (sc && sc.figures) || null; },   /* §7.10 变体接入点（另一轮） */
+    coverBox(id, sid) {
+      const cid = Core.charIdOf(id), figs = Core.figuresOf(sid);
+      return (cid && figs && figs[cid]) ? figs[cid] : null;
+    },
+    /* 覆盖判定单点：'cover'＝同框且已标定 ⇒ 覆盖卡；'uncalibrated'＝角色图**未给任何几何**
+     * （无 at／w／win——几何唯一来源＝figures）而 figures 未标定 ⇒ 该张不渲染（DOM 层出一行告警）；
+     * 'none'＝走既有锚点／对称摆放（§7.3：w 默认 0.22、未给锚点时左右对称——二者均不属“待标定”）。 */
+    coverState(id, sid) {
+      const def = Core.momentDef(id), cid = Core.charIdOf(id);
+      if (!def || !cid || def.cover === false) return 'none';
+      if (Core.coverBox(id, sid)) return 'cover';
+      return (!def.at && !def.w && !def.win) ? 'uncalibrated' : 'none';
+    },
+    /* 覆盖卡几何（§7.3 全覆盖判据）：锚＝轮廓框中心；卡面＝轮廓框每侧外扩 max(12 原像素, 该边×8%) */
+    coverPlan(id, box) {
+      const ex = Math.max(12, box[2] * 0.08), ey = Math.max(12, box[3] * 0.08);
+      const w = box[2] + ex * 2, h = box[3] + ey * 2;
+      return { id: id, x: box[0] - ex + w / 2, y: box[1] - ey + h / 2, w: w, h: h,
+               win: false, card: false, cover: true, lighten: false, fig: box, ex: ex, ey: ey };
+    },
+    /* 两点定框（B120 标定通道）：任意两角 → [x, y, w, h]（原图像素，与 pins 同口径） */
+    boxOfPoints(a, b) {
+      return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])];
+    },
     /* 节点 moments/mIf：先匹配者为准；命中行完整替换默认集；id 未注册 ⇒ 忽略该条 */
     momentsOf(st, node) {
       const n = node || (st && st.loc ? (D && D.nodes[st.loc]) : null);
@@ -460,6 +495,9 @@
       const def = Core.momentDef(id);
       const sc = (D && D.scenes[sid]) || null;
       if (!def || !sc || !def.file) return null;
+      const cstate = Core.coverState(id, sid);
+      if (cstate === 'cover') return Core.coverPlan(id, Core.coverBox(id, sid));   // B120：覆盖卡（几何＝figures）
+      if (cstate === 'uncalibrated') return null;                                  // B120：未标定轮廓框 ⇒ 不渲染
       const card = !!def.card, lighten = !!def.lighten;
       if (def.win) {
         const fit = def.fit == null ? 1.06 : def.fit;
@@ -1013,6 +1051,7 @@
     $('stage').style.setProperty('--scene-h', sc.height);
     $('sceneTag').textContent = sceneLabel(sid);
     resetView();
+    if (calib) calibRedraw();          // B120：校准模式中换场景 ⇒ 重画标定层（既有 figures 虚线框）
     if (!first && st) toast('🛗 到达：' + sceneLabel(sid));
   }
 
@@ -1458,7 +1497,7 @@
   let momentLive = {};   // id → 元素（同场景内续存的元素；退场时淡出后移除，出现时不重复淡入）
   function createMomentEl(id, def, plan, sc, i) {
     const d = document.createElement('div');
-    d.className = 'moment' + (plan.win ? ' win' : '') + (plan.card ? ' card' : '') + (plan.lighten ? ' lighten' : '');
+    d.className = 'moment' + (plan.win ? ' win' : '') + (plan.card ? ' card' : '') + (plan.cover ? ' cover' : '') + (plan.lighten ? ' lighten' : '');
     d.dataset.moment = id;
     d.dataset.scene = Core.sceneOf(st);
     d.style.left = (plan.x / sc.width * 100) + '%';            // 锚点＝原图像素（与 pins 同口径）
@@ -1487,7 +1526,12 @@
     ids.forEach((id, i) => {
       const def = Core.momentDef(id);
       const plan = Core.momentLayout(id, sid, i, ids.length);
-      if (!def || !plan) return;                               // id 未注册 ⇒ 忽略该条
+      if (!def || !plan) {                                     // id 未注册 ⇒ 忽略该条
+        if (def && Core.coverState(id, sid) === 'uncalibrated') {
+          console.warn('浮现图未标定轮廓框（已跳过）：' + id);   // B120（§7.3）：figures 缺 ⇒ 不渲染＋一行告警
+        }
+        return;
+      }
       let d = momentLive[id];
       if (d && d.dataset.scene !== sid) { d.remove(); d = null; }
       if (!d) { d = createMomentEl(id, def, plan, sc, i); layer.appendChild(d); }
@@ -1936,7 +1980,7 @@
       dragging = false;
     });
 
-    // 校准模式：点击画面 → 显示坐标
+    // 校准模式：单击画面 → 显示坐标＋最近任务点；B120：连点两次＝两点定框（figures 轮廓框标定通道）
     wrap.addEventListener('click', e => {
       if (!calib || !st) return;
       const sc = D.scenes[Core.sceneOf(st)];
@@ -1948,17 +1992,66 @@
         const d = Math.hypot(p[0] - x, p[1] - y);
         if (d < bd) { bd = d; best = id; }
       });
-      $('calibBox').innerHTML = '场景：<b>' + sc.name + '</b>　坐标：<b>' + x + ', ' + y + '</b>　最近任务点：<b>' + best + '</b>（' + Math.round(bd) + 'px）<br>' +
-        '把「场景 + 任务点编号 → 坐标」反馈给开发者，即可修正关卡数据里的 pins。';
+      const line = '场景：<b>' + sc.name + '</b>　坐标：<b>' + x + ', ' + y + '</b>　最近任务点：<b>' + best + '</b>（' + Math.round(bd) + 'px）';
+      if (!calibA) {                                        // 第一次点击＝框的左上角
+        calibA = [x, y];
+        calibDot(x, y);
+        $('calibBox').innerHTML = line + '<br>🎯 轮廓框第一点已记（左上）——再点一次＝右下角，给出 figures 数值行。';
+        return;
+      }
+      const box = Core.boxOfPoints(calibA, [x, y]);        // 第二次点击＝右下角 ⇒ [x, y, w, h]（原图像素）
+      calibA = null;
+      calibRedraw();                                        // 清掉首点标记，重画既有 figures 虚线框（对照）
+      calibRect(box, 'calibNew', '[' + box.join(',') + ']');
+      $('calibBox').innerHTML = line + '<br>🎯 矩形（原图像素）：<b>[' + box.join(', ') + ']</b>　'
+        + '写进 <b>scenes[\'' + sc.id + '\'].figures</b>：<b>{ 角色id: [' + box.join(', ') + '] }</b><br>'
+        + '角色 id（按画面里是谁选一个）：' + Object.keys(D.characters).join('／') + '——已登记的轮廓框以虚线显示，标定后改数据（以数据为准）。';
     });
+  }
+
+  /* B120（§7.3 标定通道）：C 键两点定框——覆盖卡几何唯一来源＝`scenes[].figures`，标定同 pins 流程。
+   * 校准模式下点两次＝框一条轮廓框（左上→右下），屏上直接给出可写进数据的数值行；
+   * 已登记的 `figures` 以虚线框显示（新旧对照）；本工具只作测量显示，不自动落库（数据照旧手改）。 */
+  let calibA = null;                                        // 框选第一点（原图像素）；null＝等待下一次开框
+  function calibLayerEl() {
+    let el = document.getElementById('calibLayer');
+    if (!el) { el = document.createElement('div'); el.id = 'calibLayer'; el.className = 'calibLayer'; $('stage').appendChild(el); }
+    return el;
+  }
+  function calibRect(box, cls, label) {
+    const sc = D.scenes[Core.sceneOf(st)];
+    const d = document.createElement('div');
+    d.className = 'calibRect ' + cls;
+    d.style.left = (box[0] / sc.width * 100) + '%';
+    d.style.top = (box[1] / sc.height * 100) + '%';
+    d.style.width = (box[2] / sc.width * 100) + '%';
+    d.style.height = (box[3] / sc.height * 100) + '%';
+    if (label) { const s = document.createElement('span'); s.textContent = label; d.appendChild(s); }
+    calibLayerEl().appendChild(d);
+  }
+  function calibDot(x, y) {
+    const sc = D.scenes[Core.sceneOf(st)];
+    const d = document.createElement('div');
+    d.className = 'calibDot';
+    d.style.left = (x / sc.width * 100) + '%';
+    d.style.top = (y / sc.height * 100) + '%';
+    calibLayerEl().appendChild(d);
+  }
+  function calibRedraw() {
+    const el = calibLayerEl();
+    el.innerHTML = '';
+    calibA = null;
+    if (!calib || !st || !curScene) return;
+    Object.entries(D.scenes[curScene].figures || {}).forEach(([cid, b]) => calibRect(b, 'calibFig', cid));
   }
 
   function toggleCalib() {
     calib = !calib;
     $('calibBox').classList.toggle('hidden', !calib);
     $('sceneWrap').classList.toggle('calib', calib);
+    calibRedraw();
     if (calib) $('calibBox').innerHTML = (st && curScene)
-      ? '🎯 校准模式（当前场景：' + D.scenes[curScene].name + '）：点击场景图任意位置，显示该处坐标。'
+      ? '🎯 校准模式（当前场景：' + D.scenes[curScene].name + '）：单击＝坐标＋最近任务点；连点两次＝人物可见轮廓框（figures，左上→右下）。'
       : '🎯 校准模式：先选一个关卡开始游戏。';
   }
 

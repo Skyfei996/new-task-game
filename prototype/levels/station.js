@@ -41,6 +41,9 @@
  *   ＋房节点 `scene` 绑定（既有字段，零引擎新字段）；每房 pins＝出口 pin（本层大厅）＋房内交互点（1~3，见各房注释）；
  *   大厅 18/20 与 22 号显式声明楼层场景（出口 pin 令大厅编号多点命中，显式声明保住「回大厅切层图」）；
  *   房间相关浮现图锚点同批重标（对 room 图）。
+ * B04 同框覆盖轮（B120 · 2026-10-04；口径＝`docs/design-ui-v1.md` §7.3）：数据面唯一新增＝`scenes[].figures`
+ *   （5 房 6 条：常驻角色可见轮廓框）；同框的 6 张浮图去 `at`／`w`（几何唯一来源＝figures——先标定后删值，同批）；
+ *   卡面＝轮廓框每侧外扩 max(12, 该边×8%)；laobu-point（T72）到货按同口径注册（轮廓框已在 room-lab）。
  * B03 复检收口轮（2026-10-03）：B78 星币数字（引擎/工具面）；B79 27 号赢家当场兑现；B80 战斗构成行（引擎/工具面）；
  *   B81~B98 逐条文案（照抄件升级＝bible §7 v2.5）；B99 28 号发生场景 scene:'deck2'；真人线 R2 四修：
  *   ① --player 无编号（工具面）/ ② 16·14·17 复访写回 / ③ 24 持卡衔接 / ④ 12③ 自指（门票只收一次）——自写文案见批次档 §5。
@@ -102,10 +105,15 @@
        * width/height＝成图实测原像素（JPEG 头实测，与入库图逐字一致）。
        * pins＝出口 pin（本层大厅 18/20/21，锚在图中舱门/出口构件）＋房内交互点（该房可见选项的可达目标、
        *   图上有对应构件者；纯文本/自指选项不标 pin——不造图不新增语义）。
+       * figures＝**常驻角色可见轮廓框**（B120 · 口径＝`design-ui-v1.md` §7.3；键＝characters 键、
+       *   值＝[x,y,w,h] 原图像素）：L2 浮现图指向本场景已画角色（同框）⇒ 以覆盖卡渲染（卡面 ⊇ 轮廓框
+       *   每侧外扩 max(12, 该边×8%)）——几何唯一来源＝本表（覆盖图不再写 at／w，先标定后删值同批）；
+       *   标定＝C 键校准两点定框（左上→右下，屏上给出数值行）；无角色房间不登记（＝无同框面）。
        * 坐标为**暂定值**：按成图目测取值（依据逐条注在行内），待老板试玩回报／C 键手标校准后回填。 */
       'room-galley': {
         id: 'room-galley', name: '晨星号 · 食堂', label: '顶层',
         image: '../images/station/rooms/galley.jpg', width: 1659, height: 948,
+        figures: { pangpang: [880, 205, 160, 225] },   // B120：胖胖（灶台后）可见轮廓框——目测初值，待标定
         pins: { '18': [1330, 690] }   // 出口＝右下拱门洞（目测：门洞内缘中心——「摸黑去中央大厅」）
       },
       'room-sleep': {
@@ -116,24 +124,29 @@
       'room-medbay': {
         id: 'room-medbay', name: '晨星号 · 医务室', label: '顶层',
         image: '../images/station/rooms/medbay.jpg', width: 1659, height: 948,
+        figures: { aya: [455, 145, 235, 515],          // B120：床边阿雅——目测初值，待标定
+                   yilanna: [690, 255, 195, 180] },    // B120：床上伊莲娜（卧姿可见段；T73 变体出图后按变体 figures 重标）
         pins: { '18': [1330, 860],    // 出口＝右下门内地面（目测：门洞地面中线）
                 '24': [870, 470] }    // 房内＝病床床头（阿雅换冰袋处——「把医疗包交给阿雅」→ 24 号委托）
       },
       'room-gym': {
         id: 'room-gym', name: '晨星号 · 健身房', label: '顶层',
         image: '../images/station/rooms/gym.jpg', width: 1659, height: 948,
+        figures: { tietou: [745, 195, 245, 445] },     // B120：铁头可见轮廓框（N26 掰手腕／N27 递手套＝同卡换图）——目测初值，待标定
         pins: { '18': [1022, 285],    // 出口＝正上方双开门（目测：门扇中心）
                 '26': [1240, 520] }   // 房内＝哑铃架（「跟他掰手腕」构件；与 L2 铁头锚点错开以免遮挡）
       },
       'room-observation': {
         id: 'room-observation', name: '晨星号 · 观景厅', label: '顶层',
         image: '../images/station/rooms/observation.jpg', width: 1659, height: 948,
+        figures: { yinhe: [1125, 440, 165, 170] },     // B120：银河（沙发上）可见轮廓框——目测初值，待标定
         pins: { '18': [830, 890],     // 出口＝画面下缘地面通道（目测：地毯前沿——图中无门构件）
                 '28': [1185, 600] }   // 房内＝沙发上的银河（「追出去」构件——与 L2 同座标＝对齐覆盖）
       },
       'room-lab': {
         id: 'room-lab', name: '晨星号 · 实验室', label: '中层',
         image: '../images/station/rooms/lab.jpg', width: 1660, height: 948,
+        figures: { laobu: [430, 300, 290, 460] },      // B120：老布可见轮廓框——T72（laobu-point）到货注册同口径（覆盖卡）
         pins: { '20': [830, 880],     // 出口＝画面下缘门框中线（目测：门槛中点）
                 '25': [780, 55],      // 房内＝天花板检修口（老布「指给你看」的构件——「帮他去找工具箱」→ 25）
                 '30': [300, 640] }    // 房内＝左侧实验台下的工具柜（「打开工具柜，自己动手」→ 30）
@@ -295,6 +308,9 @@
      * 条目字段：file＝运行时图路径（`images/station/moments/<id>.jpg`）；at＝锚点（原图像素，与 pins 同口径：
      *   角色图＝底边中点、窗景图＝窗区中心）；w＝角色图宽 ÷ 场景宽（默认 0.22，按图 0.16~0.32）；
      *   win＝窗区尺寸（原图像素；窗景图显示＝窗区 × fit）；card＝圆角卡呈现（群像/信息密集张，D47 辅法）。
+     * B120（同框全覆盖）：指向本场景 L1 常驻角色的 L2（charId ∈ `scenes[].figures`）＝**覆盖卡**——
+     *   几何唯一来源＝figures，本表不再写 at／w（pangpang-hail／aya-nurse／yilanna-awake／
+     *   tietou-armwrestle／tietou-open／yinhe-idle 六张，已删值）；换态不换位（同角色多状态共用同一轮廓框）。
      * 图号对应（`art/requirements-v1.md` §4.2 交付路径）：T37 yinhe-ledger／T38 yinhe-idle／T39 yilanna-awake／
      *   T40 laobu-lookout／T41 tietou-armwrestle／T42 tangtang-guide／T43 pod-standoff／T44 sangni-smile／
      *   T45 pangpang-hail／T46 aya-nurse／T47 sangni-flip／T48 sangni-cave／T49 tietou-open／T50 guardbot-block／
@@ -304,16 +320,16 @@
      *   图未到货 ⇒ 该张不渲染（无占位、不报错——§7.3 兜底），注册表照常先行登记。 */
     moments: {
       /* —— 角色浮现图（18 张）—— */
-      'pangpang-hail':        { file: '../images/station/moments/pangpang-hail.jpg', at: [1000, 400], w: 0.22 },     // T45 · 1（默认）｜B119 重标：galley 图内灶台后胖胖（底边中点）
-      'aya-nurse':            { file: '../images/station/moments/aya-nurse.jpg', at: [600, 660], w: 0.22 },        // T46 · 3（默认）｜B119 重标：medbay 图内床边阿雅（脚底）
-      'yilanna-awake':        { file: '../images/station/moments/yilanna-awake.jpg', at: [860, 500], w: 0.22 },    // T39 · 24（默认）＋3·pinsAll 24｜B119 重标：medbay 病床上伊莲娜
-      'yinhe-idle':           { file: '../images/station/moments/yinhe-idle.jpg', at: [1185, 600], w: 0.16 },       // T38 · 5（默认）｜B119 重标：observation 沙发上零食袋旁的银河
+      'pangpang-hail':        { file: '../images/station/moments/pangpang-hail.jpg' },        // T45 · 1（默认）｜B120 覆盖卡：几何＝room-galley.figures.pangpang
+      'aya-nurse':            { file: '../images/station/moments/aya-nurse.jpg' },            // T46 · 3（默认）｜B120 覆盖卡：几何＝room-medbay.figures.aya
+      'yilanna-awake':        { file: '../images/station/moments/yilanna-awake.jpg' },        // T39 · 24（默认）＋3·pinsAll 24｜B120 覆盖卡：几何＝room-medbay.figures.yilanna
+      'yinhe-idle':           { file: '../images/station/moments/yinhe-idle.jpg' },           // T38 · 5（默认）｜B120 覆盖卡：几何＝room-observation.figures.yinhe（z 序在窗景之上）
       'tangtang-guide':       { file: '../images/station/moments/tangtang-guide.jpg', at: [900, 780], w: 0.18 },    // T42 · 6＋23（默认）｜B119 重标：command 图内控制台前地板（糖糖悬浮位）
       'sangni-smile':         { file: '../images/station/moments/sangni-smile.jpg', at: [820, 830], w: 0.22 },      // T44 · 10（默认）｜B119 重标：warehouse 图内货架前地板（挡道位）
       'guardbot-block':       { file: '../images/station/moments/guardbot-block.jpg', at: [830, 700], w: 0.20 },   // T50 · 14（默认）｜B119 重标：server 图内机柜通道前方（挡门位）
       'sil-figure':           { file: '../images/station/moments/sil-figure.jpg', at: [640, 620], w: 0.20 },        // T56 · 22（默认）
-      'tietou-armwrestle':    { file: '../images/station/moments/tietou-armwrestle.jpg', at: [890, 700], w: 0.22 }, // T41 · 26（默认）＋4｜B119 重标：gym 图内铁头（脚底）
-      'tietou-open':          { file: '../images/station/moments/tietou-open.jpg', at: [890, 700], w: 0.22 },       // T49 · 27（默认）｜B119 重标：同铁头位（换态不换位）
+      'tietou-armwrestle':    { file: '../images/station/moments/tietou-armwrestle.jpg' },    // T41 · 26（默认）＋4｜B120 覆盖卡：几何＝room-gym.figures.tietou
+      'tietou-open':          { file: '../images/station/moments/tietou-open.jpg' },          // T49 · 27（默认）｜B120 覆盖卡：同为 tietou 轮廓框（换态不换位）
       'yinhe-ledger':         { file: '../images/station/moments/yinhe-ledger.jpg', at: [1020, 870], w: 0.16 },     // T37 · 28（默认）
       'yinhe-lick':           { file: '../images/station/moments/yinhe-lick.jpg', at: [1020, 870], w: 0.16 },       // T53 · 28·item ≥ 桑尼的账本（换图不换位）
       'sangni-flip':          { file: '../images/station/moments/sangni-flip.jpg', at: [1100, 700], w: 0.22, card: true },   // T47 · 31（默认；信息密集——圆角卡）｜B119 重标：warehouse 图内货箱前地板
