@@ -33,8 +33,6 @@
     </div>
     <div id="playWrap">
       <section id="playMain">
-        <!-- v0.3（E2）：序章块——开新局时显示一次（可跳过；读档/载入快照不重放） -->
-        <div id="prologueBox" class="hidden"></div>
         <div id="playHead">
           <span id="locBadge">–</span>
           <span id="locName">（还没开局）</span>
@@ -44,7 +42,7 @@
         <div id="events" class="hidden"></div>
         <div id="endBanner" class="hidden"></div>
         <div id="choiceList"></div>
-        <div id="playFoot">灰显选项 = 现在做不到（条件不足/买不起），原因写在按钮上；按钮上的编号就是选项序号；带 📖 的道具点开看正文。</div>
+        <div id="playFoot">灰显选项 = 现在做不到（条件不足/买不起），原因写在按钮上；按钮上的编号就是选项序号。</div>
       </section>
 
       <aside id="playSide">
@@ -66,15 +64,6 @@
           <textarea id="snapText" placeholder="「生成快照」把当前进度写成一段文本；复现问题时把它发给开发者，或粘一份快照进来点「载入快照」。"></textarea>
         </div>
       </aside>
-    </div>
-
-    <!-- v0.3（E3）：道具正文只读面板（背包里带正文的道具点开看） -->
-    <div id="readPanel" class="hidden">
-      <div class="card">
-        <h3 id="readTitle"></h3>
-        <div id="readBody"></div>
-        <button class="btn" id="readClose">收起</button>
-      </div>
     </div>
   </section>
 

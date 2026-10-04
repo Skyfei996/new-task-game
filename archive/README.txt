@@ -3,7 +3,6 @@
 
 怎么玩：打开 index.html（或 prototype/index.html）
 包含两关：原创《空间站大停摆》 + Demo《勇闯大里姆》
-旧版对照：打开 archive.html（2026-10-01 旧版存档，含旧版两个游戏）
 说明：进度存在你自己的浏览器里（换浏览器/清缓存会重新开始）
 
 管理台（给剧本打磨用）：打开 prototype/lab.html

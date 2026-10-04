@@ -6,8 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>你有一个新任务！· 网页原型（多关卡）</title>
 <link rel="stylesheet" href="style.css">
-<!-- B04（§11）：本批新增面全部外置到此档（层叠序在后）；style.css 保持既有面、不跨 500 行 -->
-<link rel="stylesheet" href="style-ui.css">
 </head>
 <body>
 <div id="app">
@@ -27,8 +25,6 @@
         </defs>
         <rect id="dimRect" x="0" y="0" width="800" height="800" fill="#060a10" fill-opacity="0.6" mask="url(#dimMask)"/>
       </svg>
-      <!-- B04（§7.3 层序）：浮现层（L2）——在场景图/遮罩之上、编号层之下；pointer-events:none，不挡编号点击 -->
-      <div id="momentLayer"></div>
       <!-- 人物光环层（画在编号层下面，pointer-events:none，不挡编号点击） -->
       <div id="charLayer"></div>
       <div id="pinLayer"></div>
@@ -39,23 +35,13 @@
       <button id="zoomOut" title="缩小">－</button>
       <button id="zoomReset" title="复位">⌂</button>
     </div>
-    <!-- B04（§5）：物品栏＝地图正下方一条（桌面/移动端同一条）；提示条移入行内右侧（§6.4，不再与场景图叠层） -->
-    <div id="invRow">
-      <div id="invBar" class="invBar"></div>
-      <div id="hintBar">高亮的位置可以点击前往 · 灰暗区域还没探索到 ｜ 拖拽 / 滚轮缩放</div>
-    </div>
+    <div id="hintBar">高亮的位置可以点击前往 · 灰暗区域还没探索到 ｜ 拖拽 / 滚轮缩放</div>
     <div id="calibBox" class="hidden"></div>
-    <!-- B132（§6.7）：CG 整屏层——场景区最上（编号/浮现/物品栏/提示条之上）；在 #stage 之外 ⇒ 不随舞台拖拽/缩放；
-         点击/拖拽/滚轮不穿透到底层；缺图由引擎整层隐藏（不留空框） -->
-    <div id="cgLayer" class="cgLayer hidden">
-      <div id="cgChip" class="cgChip hidden">点击继续</div>
-      <img id="cgImg" class="cgImg" alt="" draggable="false">
-    </div>
   </section>
 
   <aside id="panel">
     <div id="hud">
-      <!-- v0.2：全部资源由关卡数据声明（大里姆=萨瓦币；空间站=星币+氧气），含低额预警 -->
+      <!-- v0.2：全部资源由关卡数据声明（大里姆=萨瓦币；空间站=信用点+氧气），含低额预警 -->
       <span id="resList"></span>
       <span class="stat" id="atkEl">⚔ 武力值 0</span>
       <span class="spacer"></span>
@@ -71,18 +57,16 @@
     <div id="visitedRow"><span class="vlabel">已探索：</span><span id="visitedList"></span></div>
     <div id="nodeCard">
       <div id="nodeHead"><span id="locBadge">1</span><span id="locName"></span></div>
-      <!-- B04（§1 布局）：在场人物条（新位，正文之前；点开 = 人物卡弹层） -->
-      <div id="hereChars" class="hidden"></div>
       <div id="nodeText"></div>
-      <!-- B04（§4）：反馈区——正文与选项之间，最近一次操作的消息组常驻到下一次操作 -->
-      <div id="feedback" class="hidden"></div>
+      <!-- 本处人物小卡（点开 = 人物卡弹层） -->
+      <div id="hereChars" class="hidden"></div>
       <div id="choiceList"></div>
     </div>
     <div id="toasts"></div>
   </aside>
 </div>
 
-<!-- v0.2：启动页 = 关卡选择（卡片：海报图 + 标题 + 一句话 + 难度与开局资源 + 难度单选（默认普通）+ 唯一「开始」；B115） -->
+<!-- v0.2：启动页 = 关卡选择（卡片：海报图 + 标题 + 一句话 + 难度与开局资源 + 继续上次进度） -->
 <div id="overlay" class="modal">
   <div class="card wide">
     <h1>你有一个新任务！</h1>
@@ -127,15 +111,6 @@
   </div>
 </div>
 
-<!-- v0.3（E3）：道具正文只读面板（背包里带正文的道具点开看） -->
-<div id="readModal" class="modal hidden">
-  <div class="card">
-    <h3 id="readTitle"></h3>
-    <div id="readBody"></div>
-    <button class="closeBtn" data-close="readModal">收起</button>
-  </div>
-</div>
-
 <!-- 人物图鉴（点一张看介绍；原创关卡立绘未到 → emoji 占位） -->
 <div id="charsModal" class="modal hidden">
   <div class="card">
@@ -150,19 +125,6 @@
   <div class="card">
     <div id="charCardBody"></div>
     <button class="closeBtn" data-close="charCardModal">关闭</button>
-  </div>
-</div>
-
-<!-- v0.3（E2）：序章层——新局开场整屏显示一次（读档不重放；无 meta.prologue 的关卡不显示）。
-     有意不用 .modal：序章只能由「跳过 / 开始」离开，免得点空白或按 Esc 把它关掉后进不了关。 -->
-<div id="prologueLayer" class="layer hidden">
-  <div class="card prologueCard">
-    <img id="prologueImg" class="prologueImg hidden" alt="开场图">
-    <div id="prologueLines" class="prologueLines"></div>
-    <div class="prologueBtns">
-      <button id="prologueSkip" class="prologueBtn ghost">跳过</button>
-      <button id="prologueStart" class="prologueBtn">开始</button>
-    </div>
   </div>
 </div>
 
