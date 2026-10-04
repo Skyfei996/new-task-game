@@ -44,6 +44,12 @@
       <div id="hintBar">高亮的位置可以点击前往 · 灰暗区域还没探索到 ｜ 拖拽 / 滚轮缩放</div>
     </div>
     <div id="calibBox" class="hidden"></div>
+    <!-- B132（§6.7）：CG 整屏层——场景区最上（编号/浮现/物品栏/提示条之上）；在 #stage 之外 ⇒ 不随舞台拖拽/缩放；
+         点击/拖拽/滚轮不穿透到底层；缺图由引擎整层隐藏（不留空框） -->
+    <div id="cgLayer" class="cgLayer hidden">
+      <div id="cgChip" class="cgChip hidden">点击继续</div>
+      <img id="cgImg" class="cgImg" alt="" draggable="false">
+    </div>
   </section>
 
   <aside id="panel">

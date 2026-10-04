@@ -911,4 +911,63 @@ VERDICT: pass
 4. 越界项：仅临时冒烟脚本 `prototype/_smoke.dom.mjs`／`_smoke2.dom.mjs`（创建后已删除，工作树无残留）；无其他越界。
 5. 设计档漂移：本轮 diff 触及的设计面（§7.7-13~16 判据、§11 追加块受影响文件表、§14-32 计数重算）**与实现一致**，未发现需要修订之处。
 
+### 追加 · B130 重订（撤调暗）＋B132 CG 整屏层 实现（eng-coder · 2026-10-04 午）
+
+**状态行**：实施完成 ｜ 终态 clean（内部偏离审计 1 轮：实现语义面零偏离＋2 条低危披露；代码评审 2 轮：轮 1 pass（2🟡／3🔵）→ fix round 1（§7.3 浮现淡入时序）→ 轮 2 pass（修正声明核实、无新 🔴）；三闸 569／2273／420 全绿）
+
+**口径**：唯一照抄件＝`docs/design-ui-v1.md` **v1.11** §2-B130／§6.7／§7.3／§10／§11 追加块、`docs/design-station-v1.md` **v3.24** §4.1／§7-E28；禁改面 `docs/**`、`art/**`、`tools/**`、`images/**` 全程未触碰。注：同任务上一轮因网络中断未做任何改动，本轮为首次执行。
+
+#### 5.1 交付物（文件清单＋改动摘要）
+
+| 文件 | 改动 | 行数 |
+|---|---|---|
+| `prototype/levels/station.js` | ① 撤调暗：删 `meta.sceneDim`＋17 房 `dim:true`（`mask:false` 保留）；② CG：7 节点 `cg`（3 medbay-closeup·once／5 jupiter-closeup·once／34 core-ignite／35 monitor-frame／41 ending-a·keep／42 ending-b·keep／43 ending-c·keep）＋`meta.prologue.image`＝`../images/station/cg/prologue-scene.jpg`；③ 头注与行注同步 | 1215→1228 |
+| `prototype/engine.js` | ① 撤调暗：删 `sceneEntry.dim`／`Core.sceneDimOn`／`DIM_TOKENS`／`dimTokenOk`／`#stage.dark` 类切换；② CG：`Core.cgOf`／`Core.markCgSeen`＋`st.cgSeen`（`newState`／`normalizeState`）＋DOM `applyCg`／`replayMomentFade`／`closeCg(replay)`／`bindCg`＋`renderAll` 接入＋`cgNodeId` 三处重置（新局／读档／重开）；③ 序章图缺图兜底（`showPrologue` onerror）；④ 头注同步 | 2253→2315 |
+| `prototype/index.html` | `#cgLayer`（场景区内、`#stage` 之外；含 `#cgImg`＋`#cgChip`「点击继续」） | 168→174 |
+| `prototype/style-ui.css` | 删 `--dim-blackout`＋`#stage.dark` 选择器＋过渡；新增 `.cgLayer`（`inset:0`／z-index **9**）／`.cgImg`（contain）／`.cgChip` | 169→175 |
+| `prototype/style.css` | `.prologueImg` `object-fit: cover`→`contain`（§6.7「用 `contain` 显示整图」；1 行改动；该档不在 §11 追加块文件表内——越界披露） | 411（行数不变） |
+| `prototype/test.station.mjs` | 删 §21-3 调暗块（−16 项）；新增 §22（§6.7 机检①~⑧：登记集／序章／层序与 contain／一次性与读档／缺图／回归／零残留＋§7.3 重放契约）；§21-2 示例关行去 sceneDim 断言（归 §22） | 3573→3627 |
+| `prototype/lab-docs.js` | 文档快照重导（`node tools/build-lab.mjs`：46 篇／987.7 KB）——消偏离审计披露项① | 工具面·生成物 |
+
+改动文件共 **7 个**（含工具面生成物）；`git status` 无其它改动、无未跟踪残留（临时 DOM 冒烟脚本用后已删；`.playtest/` 会话文件在 `.gitignore` 内）。
+
+#### 5.2 决策透明表（本轮关键口径决策）
+
+| # | 决策 | 依据 / 备选与否决 |
+|---|---|---|
+| 1 | CG 层 **z-index＝9** | 场景区内既有最高＝物品栏气泡 8（`.invBubble`），角标 6、校准层 5；取 9＝真「场景区最上」；层在 `#stage` 之外 ⇒ 不随舞台拖拽/缩放 |
+| 2 | §7.3「CG 关闭后再淡入浮现图」＝**点掉档关闭时重放浮现入场**（`replayMomentFade`＋`closeCg(true)`；换节点关闭不重放） | 同节点两者同时命中语义；换节点时新节点浮现图按常规入场（避旧节点退场图闪一下）。评审轮 1 的 🟡 项，fix round 1 落地 |
+| 3 | 序章图缺图＝`onerror` ⇒ 隐藏图＋一行告警（其余照旧） | §6.7 缺图兜底末句「序章图同口径」；此前 E2 无该兜底 |
+| 4 | `.prologueImg` contain 落在 `style.css`（而非 style-ui.css 覆盖） | 单一来源（同一属性不做双写）；该档不在 §11 文件表——越界披露 |
+| 5 | `st.cgSeen` 标记＋补写存档在「显示后」同步落（同 §7.3 `mSeen` 口径） | 到达后立即关页亦不失标记；旧档无该字段 ⇒ 归一整为空表（旧档首进 once 节点再显示一次——沿 §7.3 边缘口径，一次性、可接受） |
+| 6 | 缺图（含 once 档）⇒ 整层隐藏＋一行告警、**标记照落** | §6.7 明写；防「缺图 ⇒ 每次进都重试弹层」 |
+| 7 | `lab-docs.js` 重导执行（工具面） | §11 追加块列明；`tools/build-lab.mjs` 只写该生成物、不动 docs/** 源 |
+
+#### 5.3 验证读数（全部实跑）
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 引擎核心 | `node prototype/test.core.mjs` | 通过 **569** / 失败 0 |
+| 站关自测 | `node prototype/test.station.mjs` | 通过 **2273** / 失败 0（基线 2244） |
+| CLI 自测 | `node prototype/test.play.mjs` | 通过 **420** / 失败 0（零改动——CG 为网页呈现面） |
+| 冒烟①（示例关） | `node tools/play.mjs new dalim` ＋ `auto --steps 15 --seed 7` | 首屏 1 · 停车场（三选项）；auto 正常收尾「第 15 步／已探索 8 处」（与既有基线一致） |
+| 冒烟②（站关＋`--player`） | `node tools/play.mjs new station`＋`choose 1`＋`choose 3`；`node tools/play.mjs --player new station`＋`choose 1`＋`choose 3` | 1 食堂 → 18 中央大厅 → 3 医务室；`--player` 无编号/无场景 id 泄漏、氧气行照旧；CG 节点在 CLI 不呈现图像层（零改动、零新行） |
+| DOM 冒烟（临时·用后已删） | `node .playtest/b04-cg-smoke.mjs` | **46/0**：序章图＋缺图兜底／once 首访与落标记落档／同节点跨渲染驻留／点掉后不再弹／换节点再进不弹／非 once 读档还原／keep 点击不关／缺图整层隐藏＋一行告警（标记照落）／点·拖·滚不穿透＋对照探针／无 cg 节点不渲染／§7.3 关层后浮现重放（spy 计数） |
+| 变异探针（临时·用后已删） | 改 engine 副本复跑冒烟 | 去「跨渲染驻留＋落标记＋指针拦截」⇒ 8 红；去「§7.3 重放」⇒ 1 红（断言非空转） |
+| 不变量 | `git status`／diff 逐文件核对 | 改动面＝上表 7 文件；剧情语义/条件/数值/文案零改动；示例关 dalim 零改动；17 房 `mask:false` 保留 |
+
+#### 5.4 审计与代码评审（轮次 · 终态）
+
+- **偏离审计（explore · 1 轮）**：实现语义面＝无偏离（§6.7 机检①~⑧ 逐条「在」）；2 条低危披露——① `lab-docs.js` 快照未重导（**已补执行**）② `style.css` 一行（`.prologueImg` contain）不在 §11 文件表（**披露项**，见 5.2-4）。
+- **代码评审（advisor · code · 2 轮）**：轮 1＝**pass**（0🔴；2🟡 非阻断——§7.3 浮现淡入时序、批次档旧 B130 行文档滞后；3🔵 登记）→ **fix round 1**：实现 §7.3「CG 关闭后再淡入浮现图」（`closeCg(replay)`／`replayMomentFade`＋点掉路径 `closeCg(true)`）＋新增源码契约断言 → 轮 2＝**pass**（两条修正声明均在现文件状态成立；无新 🔴；余项为父侧文档层与可选加固）。
+- **终态**：**clean**（三闸＋两冒烟＋DOM 冒烟全绿；0🔴、0 must-fix 遗留）。
+
+#### 5.5 未做 / 披露（交父侧）
+
+1. `docs/batches` 旧轮交付表仍以「B130＝复电前调暗」为已交付口径（评审 🟡·report-only）——父侧文档层处置（设计档 D71 已重订；历史不回改）。
+2. `backToLevelSelect()` 未关 CG 层（🔵 观感项）；缺图错误路径 `closeCg()` 未重放浮现（🔵 可选）。
+3. DOM 行为腿仍以源码契约承载（评审 🔵 登记，沿 B122 既有裁定，不重开）。
+4. 设计档小笔误（父侧）：`design-ui-v1.md` §2-B132 与 v1.11 变更记录指「`design-station-v1.md` §7-E29」，实际登记号为 **E28**（station 档全档无 E29）。
+5. 越界披露：`prototype/style.css`（1 行 `.prologueImg` contain，§11 表未列）；`prototype/lab-docs.js` 重导（工具面生成物）。
+
 ## §6 验证与收口（父代理）

@@ -382,7 +382,7 @@ body {
   background: rgba(5, 10, 16, .93);
 }
 .prologueCard { max-width: 720px; text-align: center; }
-.prologueImg { width: 100%; max-height: 42vh; object-fit: cover; border-radius: 12px; margin-bottom: 16px; }
+.prologueImg { width: 100%; max-height: 42vh; object-fit: contain; border-radius: 12px; margin-bottom: 16px; }
 .prologueLines { font-size: 16.5px; line-height: 2; color: #eaf3fb; }
 .prologueLines p { margin: 6px 0; }
 .prologueBtns { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }

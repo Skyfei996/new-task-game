@@ -20,8 +20,9 @@
 //         挂条件 3 处／两处场景声明）＋§20-5 完备性扩表 20→36＋T73 medbay-awake 的 figures 回填（N24 无同角色双现）
 //       / B04 试玩系统复盘轮（B127~B131 · 2026-10-04 晨）：浮窗窗口与首访一次（§7.7-13：收窗 6／mOnce 2／
 //         撤注册 5——注册表 36→31、枚举 36→31、内景锚点 33→28）＋数字圈「可点即显」（§7.7-14；自指 pin＝
-//         校准锚点）＋遮罩楼层图专属（§7.7-15；17 房＋站外 mask=false）＋复电前调暗（§7.7-16；dim／token／
-//         选择器／读档／示例关零变化）＋B131 舱外两条（N19 收窗＋N39 零浮图、删冗余选项）
+//         校准锚点）＋遮罩楼层图专属（§7.7-15；17 房＋站外 mask=false）＋B131 舱外两条（N19 收窗＋N39 零浮图、删冗余选项）
+//       / B04 午 撤调暗＋CG 整屏层轮（B130 重订／B132 · 2026-10-04 午）：CG 登记集 7 行（once＝3·5／keep＝41~43）＋
+//         序章图（meta.prologue.image）＋层序与 contain 契约＋一次性与读档（§6.7 机检①~⑧）＋撤调暗零残留（数据/样式/引擎三面）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -3439,9 +3440,9 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
   P('B127：注册实盘 13/16（撤注册 3 在案）／锚点与呈现逐条／B127 收窗行（N8／N11／N12×2／N19——N4 见 §21）／场景声明 2 处／防双现注册点／默认集抽查／T73 回填（N24 无同框双现） 逐条通过');
 }
 
-/* ============ 21. B127~B131 复盘轮机检（§7.7-13／15／16 三组＋B131 抽查；§7.7-14 编号圈已在 §20-4） ============ */
+/* ============ 21. B127~B131 复盘轮机检（§7.7-13／15 两组＋B131 抽查；§7.7-14 编号圈已在 §20-4） ============ */
 console.log('');
-console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B130 调暗 ＋ B131 舱外两条（2026-10-04 晨复盘轮） ————');
+console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B131 舱外两条（2026-10-04 晨复盘轮） ————');
 
 /* --- 21-1 §7.7-13 浮窗窗口与首访一次（B127）＋ B131 抽查 --- */
 {
@@ -3509,8 +3510,8 @@ console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B
     'B129 §6.6-③：楼层图遮罩参与＋渲染集＝全部 pins（孔＝当前位置＋可达——数据面回归）');
   /* ④ 示例关零变化 */
   const dScenes = Object.keys(LEVELS.dalim.scenes);
-  eq([!(LEVELS.dalim.meta && LEVELS.dalim.meta.sceneDim), dScenes.every(sid => LEVELS.dalim.scenes[sid].mask === undefined)].join(','), 'true,true',
-    'B129 §6.6-④：示例关零变化（无 sceneDim／无 mask 字段）');
+  eq(dScenes.every(sid => LEVELS.dalim.scenes[sid].mask === undefined).toString(), 'true',
+    'B129 §6.6-④：示例关零变化（无 mask 字段——遮罩照旧；sceneDim 零残留见 §22）');
   const sD2 = C.newState('normal');
   C.selectLevel('dalim');
   const dalimMask = dScenes.map(sid => C.sceneEntry(sD2, sid).mask).join(',');
@@ -3520,50 +3521,105 @@ console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B
   P('遮罩：17 房＋站外 mask=false／楼层图字段缺省＋孔回归／示例关零变化 逐条通过');
 }
 
-/* --- 21-3 §7.7-16 场景调暗（B130） --- */
+/* --- 22-1 §6.7 机检①：登记集（cg 字段集／once／keep／file 与实盘对拍） --- */
 {
-  const ROOMS17 = Object.keys(D.scenes).filter(sid => /^room-/.test(sid));
-  /* ① dim === true 场景集＝17 房（楼层图与站外不参与） */
-  eq(Object.keys(D.scenes).filter(sid => D.scenes[sid].dim === true).sort().join(','), ROOMS17.slice().sort().join(','),
-    'B130 §6.7-①：dim=true 集＝17 房（站外与楼层图不参与——逐条枚举）');
-  /* ② token 在 :root、值域内；应用选择器含 #sceneImg／#momentLayer、不含 #pinLayer */
-  const rootBlock = (uiCssSrc.match(/:root \{([\s\S]*?)\}/) || [])[1] || '';
-  const tok = (rootBlock.match(/--dim-blackout:\s*([^;]+);/) || [])[1] || '';
-  const bri = Number((tok.match(/brightness\(([\d.]+)\)/) || [])[1]);
-  const sat = Number((tok.match(/saturate\(([\d.]+)\)/) || [])[1]);
-  ok(bri >= 0.45 && bri <= 0.6 && sat >= 0.6 && sat <= 0.85,
-    'B130 §6.7-②：--dim-blackout 在 :root 且值在域内（brightness ' + bri + '／saturate ' + sat + '——域 .45~.6／.6~.85）');
-  eq(D.meta.sceneDim.cond.noKnows, '全站复电', 'B130 §6.7：触发条件单源＝{noKnows: 全站复电}（meta.sceneDim）');
-  eq(D.meta.sceneDim.level, 'blackout', 'B130 §6.7：档名＝blackout（level→token 映射在引擎侧）');
-  const darkSel = (uiCssSrc.match(/(#stage\.dark[^{]*)\{/) || [])[1] || '';
-  ok(darkSel.indexOf('#sceneImg') >= 0 && darkSel.indexOf('#momentLayer') >= 0 && darkSel.indexOf('#pinLayer') < 0,
-    'B130 §6.7-②：应用选择器含 #sceneImg／#momentLayer、不含 #pinLayer（UI 面不入滤镜）');
-  ok(/filter:\s*var\(--dim-blackout\)/.test(uiCssSrc) && /#sceneImg, #momentLayer \{ transition: filter \.8s ease; \}/.test(uiCssSrc),
-    'B130 §6.7-②：filter 走 token＋基础选择器也挂过渡（加/去 .dark 双向同源动画）');
-  /* ③ cond 真 ⇒ 类在／假 ⇒ 无（同帧）：类切换＝DOM 冒烟；本层锁求值单源 */
-  const on = C.sceneEntry(C.newState('normal'), 'room-galley').dim;
-  const sOff = C.newState('normal'); sOff.learned['全站复电'] = true;
-  eq([on, C.sceneEntry(sOff, 'room-galley').dim].join(','), 'true,false',
-    'B130 §6.7-③：cond 真 ⇒ dim 真／假 ⇒ 假（同帧逐次求值；类切换＝DOM 冒烟）');
-  ok(engSrc.indexOf("$('stage').classList.toggle('dark', dark)") >= 0 && engSrc.indexOf("const DIM_TOKENS = { blackout: '--dim-blackout' }") >= 0,
-    'B130 §6.7：applyScene 挂类（#stage.dark）＋档名映射单源（源码契约）');
-  ok(engSrc.indexOf('场景调暗：档名未知') >= 0 && engSrc.indexOf('场景调暗：token 缺失') >= 0,
-    'B130 §6.7：两条 failure-safe 告警在案（档名未知／token 缺失 ⇒ 不套滤镜）');
-  /* ④ 读档归一（旧档无该概念 ⇒ 按当前 st 重算；零状态位） */
-  const old = { diff: 'normal', coins: 12, oxygen: 70, items: [], visited: {}, done: {}, learned: {}, chDone: {}, hist: [], loc: '1' };
-  const sv = C.normalizeState(old);
-  eq([sv.scene, C.sceneEntry(sv, sv.scene).dim].join('｜'), 'room-galley｜true', 'B130 §6.7-④：旧档读入 ⇒ 按当前 st 求值落位（零状态位）');
-  eq(C.sceneEntry(C.normalizeState(Object.assign({}, old, { learned: { '全站复电': true } })), 'room-galley').dim, false,
-    'B130 §6.7-④：复电后的存档读入 ⇒ 不调暗（同一口径——同帧恢复）');
-  /* ⑤ 回归：示例关零变化（无 sceneDim、无 dim 字段 ⇒ 无滤镜，逐场景核） */
-  const dScenes = Object.keys(LEVELS.dalim.scenes);
-  const sD3 = C.newState('normal');
+  const cgNode = id => D.nodes[id].cg || null;
+  const cgIds = Object.keys(D.nodes).filter(id => !!cgNode(id)).sort((a, b) => Number(a) - Number(b));
+  eq(cgIds.join(','), '3,5,34,35,41,42,43', 'B132 §6.7-①：cg 字段集＝{3／5／34／35／41／42／43}（逐条枚举、零多余）');
+  eq(cgIds.filter(id => cgNode(id).once === true).map(Number).join(','), '3,5', 'B132 §6.7-①：once===true 集＝{3／5}（同一存档一次）');
+  eq(cgIds.filter(id => (cgNode(id).dismiss || 'click') === 'keep').map(Number).join(','), '41,42,43',
+    "B132 §6.7-①：dismiss==='keep' 集＝{41／42／43}（其余缺省 click）");
+  const cgDir = path.join(dir, '../images/station/cg');
+  const cgFiles = fs.readdirSync(cgDir).sort();
+  eq(cgFiles.join(','), 'core-ignite.jpg,ending-a.jpg,ending-b.jpg,ending-c.jpg,jupiter-closeup.jpg,medbay-closeup.jpg,monitor-frame.jpg,prologue-scene.jpg',
+    'B132 §6.7：images/station/cg/ 实盘 8 张（逐张）');
+  eq(cgIds.map(id => id + ':' + path.basename(cgNode(id).file)).join('｜'),
+    '3:medbay-closeup.jpg｜5:jupiter-closeup.jpg｜34:core-ignite.jpg｜35:monitor-frame.jpg｜41:ending-a.jpg｜42:ending-b.jpg｜43:ending-c.jpg',
+    'B132 §6.7-①：展示点登记表 7 行逐条（节点 ↔ 文件）');
+  eq(cgIds.filter(id => !(cgNode(id).file.indexOf('../images/station/cg/') === 0 && cgFiles.indexOf(path.basename(cgNode(id).file)) >= 0)).join(','), '',
+    'B132 §6.7-①：每条 file 前缀＝cg 目录且文件在库（逐条）');
+
+  /* --- 22-2 §6.7 机检②：序章（走既有 meta.prologue.image 图位——零新机制） --- */
+  eq(D.meta.prologue.image, '../images/station/cg/prologue-scene.jpg', 'B132 §6.7-②：序章图＝meta.prologue.image（CG-08／T35）');
+  ok(fs.existsSync(path.join(dir, D.meta.prologue.image)), 'B132 §6.7-②：序章图文件在库（同一路径解析）');
+  eq(C.prologue().image, '../images/station/cg/prologue-scene.jpg', 'B132 §6.7-②：Core.prologue() 读得到序章图（E2 数据面）');
   C.selectLevel('dalim');
-  const dalimEntry = dScenes.map(sid => { const e = C.sceneEntry(sD3, sid); return e.mask + ':' + e.dim; }).join('｜');
+  eq(String(C.prologue()), 'null', 'B132 §6.7-②：无 prologue 的关卡照旧（示例关＝null）');
   C.selectLevel('station');                       // 口径面回切站关（后续检定仍按站关）
-  eq(dalimEntry, dScenes.map(() => 'true:false').join('｜'),
-    'B130 §6.7-⑤：示例关全场景 mask=true／dim=false（缺省口径——逐字零变化）');
-  P('场景调暗：17 房参与／token 域内＋选择器＋过渡／cond 求值（真→假）／读档归一 2 例／示例关零变化 逐条通过');
+
+  /* --- 22-3 §6.7 机检③：层序与呈现（结构／样式契约） --- */
+  const htmlCg = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  const sceneBlock = htmlCg.slice(htmlCg.indexOf('id="sceneWrap"'), htmlCg.indexOf('id="panel"'));
+  ok(sceneBlock.indexOf('id="cgLayer"') >= 0, 'B132 §6.7-③：#cgLayer 在场景区（#sceneWrap）内');
+  ok(htmlCg.indexOf('id="cgLayer"') > htmlCg.indexOf('id="calibBox"'),
+    'B132 §6.7-③：层为场景区末位（舞台/物品栏行/提示条/校准框之后——不随舞台拖拽缩放）');
+  ok(htmlCg.indexOf('id="cgImg"') > htmlCg.indexOf('id="cgLayer"') && htmlCg.indexOf('id="cgChip"') > htmlCg.indexOf('id="cgLayer"'),
+    'B132 §6.7-③：层内＝图＋提示片（#cgImg／#cgChip）');
+  ok(htmlCg.indexOf('点击继续') >= 0, 'B132 §6.7-③：可点掉档提示片文案＝「点击继续」');
+  const cgRule = (uiCssSrc.match(/\.cgLayer \{([\s\S]*?)\}/) || [])[1] || '';
+  const cgZ = Number((cgRule.match(/z-index:\s*(\d+)/) || [])[1]);
+  ok(cgRule.indexOf('inset: 0') >= 0 && cgZ >= 9,
+    'B132 §6.7-③：层覆盖全幅（inset:0）＋z-index ' + cgZ + ' ≥ 9（高于物品栏气泡 8／#sceneTag 6／校准层 5＝场景区最上）');
+  const cgImgRule = (uiCssSrc.match(/\.cgImg \{([^}]*)\}/) || [])[1] || '';
+  ok(cgImgRule.indexOf('object-fit: contain') >= 0, 'B132 §6.7-③：.cgImg＝object-fit:contain（整图可见、不裁边）');
+  ok(uiCssSrc.indexOf('.cgChip') >= 0, 'B132 §6.7-③：.cgChip 样式在案');
+  const baseCss = fs.readFileSync(path.join(dir, 'style.css'), 'utf8');
+  ok(/\.prologueImg \{[^}]*object-fit: contain/.test(baseCss), 'B132 §6.7：.prologueImg 用 contain 显示整图（序章层族同口径）');
+
+  /* --- 22-4 §6.7 机检④·⑤：行为契约与一次性/读档（Core 层单源） --- */
+  const locState = id => { const s = C.newState('normal'); s.loc = id; s.scene = C.sceneOfNode(id); return s; };
+  const s3 = locState('3');
+  eq(JSON.stringify(C.cgOf(s3)), JSON.stringify({ file: '../images/station/cg/medbay-closeup.jpg', once: true, dismiss: 'click' }),
+    'B132 §6.7-⑤：once 档首显 ⇒ 求值命中（file／once／dismiss 逐字）');
+  C.markCgSeen(s3, '3');
+  eq(String(C.cgOf(s3)), 'null', 'B132 §6.7-⑤：落标记 ⇒ 同存档不再显示');
+  const s3reload = C.normalizeState(JSON.parse(JSON.stringify(s3)));
+  eq(String(C.cgOf(s3reload)), 'null', 'B132 §6.7-⑤：标记随存档（读档回该节点 ⇒ 仍不显示）');
+  const fresh3 = C.newState('normal'); fresh3.loc = '3';
+  eq([Object.keys(fresh3.cgSeen).length, C.cgOf(fresh3) !== null].join('｜'), '0｜true',
+    'B132 §6.7-⑤：新局／重开本关 ⇒ cgSeen 重置为空表、首访画面照常（重开边界）');
+  const legacy5 = { diff: 'normal', coins: 20, oxygen: 100, items: [], visited: {}, done: {}, learned: {}, chDone: {}, hist: [], loc: '5' };
+  const norm5 = C.normalizeState(legacy5);
+  eq([JSON.stringify(norm5.cgSeen), C.cgOf(norm5) !== null].join('｜'), '{}｜true',
+    'B132 §6.7-⑤：旧档（无 cgSeen）补空表 ⇒ once 档照常首显');
+  const s34 = locState('34'); s34.cgSeen = { '34': true, '3': true };
+  eq(C.cgOf(s34) !== null, true, 'B132 §6.7-⑤：非 once 档（34／35／41~43）⇒ 读档回节点即显示（标记不影响）');
+  eq(['34', '35'].map(id => C.cgOf(locState(id)).dismiss).join(','), 'click,click',
+    'B132 §6.7-⑤：34／35＝到达即显示、点击关闭（非 once＝每次到达）');
+  eq(['41', '42', '43'].map(id => C.cgOf(locState(id)).dismiss).join(','), 'keep,keep,keep',
+    'B132 §6.7-⑤：41／42／43＝结局图常驻（点击不关）');
+  eq(['1', '18', '22', '44'].map(id => String(C.cgOf(locState(id)))).join('｜'), 'null｜null｜null｜null',
+    'B132 §6.7-⑦：无 cg 的节点 ⇒ 层不渲染（回归——场景区逐字零变化）');
+  ok(engSrc.indexOf('function applyCg()') >= 0 && engSrc.indexOf('if (nodeId !== cgNodeId)') >= 0,
+    'B132 §6.7-④：进节点求值一回＋换节点先关再求值（源码契约）');
+  ok(engSrc.indexOf('if (layer.dataset.node === nodeId) return;') >= 0, 'B132 §6.7-④：跨渲染驻留——同节点重渲染不重弹（源码契约）');
+  ok(/applyCg\(\);\s*\/\/ B132/.test(engSrc), 'B132 §6.7-④：renderAll 调 applyCg（每帧求值入口——源码契约）');
+  ok(/if \(layer\.dataset\.dismiss === 'keep'\) return;/.test(engSrc), 'B132 §6.7-④：keep 档点击不关（源码契约）');
+  ok(engSrc.indexOf("['pointerdown', 'wheel'].forEach") >= 0 && engSrc.indexOf('e.stopPropagation()') >= 0,
+    'B132 §6.7-④：点击/拖拽/滚轮不穿透（层上拦 pointerdown／wheel——源码契约）');
+  ok(/markCgSeen\(st, nodeId\)[\s\S]{0,160}save\(\)/.test(engSrc), 'B132 §6.7-⑤：once 落标记＋补写存档（源码契约）');
+  ok(engSrc.indexOf("console.warn('CG 缺图（整层隐藏）：'") >= 0,
+    'B132 §6.7-⑥：缺图 ⇒ 整层隐藏＋一行告警（不留框——源码契约）');
+  ok(engSrc.indexOf("console.warn('序章图缺图（已隐藏）：'") >= 0,
+    'B132 §6.7-⑥：序章图同口径——缺图 ⇒ 不显示图（退回无图态）＋一行告警（源码契约）');
+  ok(engSrc.indexOf('function replayMomentFade()') >= 0 && /if \(replay\) replayMomentFade\(\);/.test(engSrc) && /closeCg\(true\)/.test(engSrc),
+    'B132 §7.3：CG 关闭后再淡入浮现图——点掉档关闭时重放浮现入场（换节点关闭不重放——源码契约）');
+
+  /* --- 22-5 §6.7 机检⑧（B130 关）：零残留（数据／引擎／样式三面） --- */
+  const codeStrip = s => s.replace(/\/\*[\s\S]*?\*\//g, '');   // 去块注释：只查「代码面零残留」（注释里对旧面的历史记述不算残留）
+  const engCode2 = codeStrip(engSrc), uiCode2 = codeStrip(uiCssSrc);
+  ok(engCode2.indexOf('sceneDim') < 0 && engCode2.indexOf('DIM_TOKENS') < 0 && engCode2.indexOf('.dark') < 0 && engCode2.indexOf("'dark'") < 0,
+    'B130：引擎代码面零残留（无 sceneDim／DIM_TOKENS／.dark／dark 类切换）');
+  ok(uiCode2.indexOf('--dim-') < 0 && uiCode2.indexOf('stage.dark') < 0, 'B130：样式代码面零残留（无 --dim-* token 与 #stage.dark 选择器／过渡）');
+  const allLv = Object.keys(LEVELS);
+  eq(allLv.map(id => !(LEVELS[id].meta && LEVELS[id].meta.sceneDim)).join(','), allLv.map(() => 'true').join(','),
+    'B130：全关数据无 sceneDim（示例关与站关同口径）');
+  eq(allLv.map(id => Object.keys(LEVELS[id].scenes).filter(sid => LEVELS[id].scenes[sid].dim !== undefined).length).join(','),
+    allLv.map(() => '0').join(','), 'B130：全关场景无 dim 字段（17 房 dim 已清）');
+  eq(Object.keys(D.scenes).filter(sid => /^room-/.test(sid) && D.scenes[sid].mask === false).length, 17,
+    'B130：撤调暗不动遮罩口径（17 房 mask=false 仍在）');
+  P('§6.7 CG 整屏层：登记 7 行／序章图／层序与 contain／一次性与读档（once＝3·5、keep＝41~43）／缺图兜底 逐条通过');
+  P('B130 撤调暗：数据／样式／引擎三面零残留（示例关与站关同口径） 逐条通过');
 }
 
 /* ============ 汇总 ============ */

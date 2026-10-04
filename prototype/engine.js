@@ -75,16 +75,21 @@
  *   B124 覆盖确认同源（Core.coverAsk）：卡片侧与局内重开同一句（单一来源，不得各写一份）
  *   B125 每房自指 pin：pins[<本房节点号>]＝标记载体（点击＝空操作）；无浮图时承担「你在这里」标记与遮罩开孔（数据面）
  *
- * B127~B131 复盘轮改动（2026-10-04 晨；口径＝design-ui-v1.md §7.3／§6.5／§6.6／§6.7、design-station-v1.md §7-E27／E28）：
+ * B127~B131 复盘轮改动（2026-10-04 晨；口径＝design-ui-v1.md §7.3／§6.5／§6.6、design-station-v1.md §7-E27）：
  *   E27 浮现窗口与首访一次（B127）：Core.momentsOf 增 `mOnce` 过滤（同一存档内首次渲染后不再重现——新局重置；
  *       标记＝st.mSeen，表现层状态位、随存档，旧档缺省为空）＋Core.markMomentSeen（渲染后落库）；
  *       未声明 mOnce 的节点不读 st.mSeen（回归——既有节点输出逐字不变）；收窗行＝节点 mIf（数据面）
- *   E28 场景面三条：① B128 数字圈「可点＝显示、不可点＝隐藏」（Core.plainPins／Core.pinsVisible）——房间
- *       （room-*）与站外只渲染可点编号圈（零不可点圈、零「你在这里」；自指 pin 点击为空操作 ⇒ 不渲染，数据留作
- *       校准锚点）；楼层图与其余场景（含示例关）维持现形（回归）；② B129 遮罩楼层图专属（scenes[].mask=false
- *       ⇒ #dimSvg 整层不渲染）＋提示条随场景（Core.hintText——房间/站外无「灰暗区域」句）；
- *       ③ B130 复电前调暗（sceneEntry 增出 mask／dim＝meta.sceneDim.cond 逐帧求值；#stage.dark＋--dim-blackout；
- *       level 名未知／token 缺失 ⇒ 不套滤镜＋一行告警）
+ *   场景面两条：① B128 数字圈「可点＝显示、不可点＝隐藏」（Core.plainPins／Core.pinsVisible）——房间（room-*）
+ *       与站外只渲染可点编号圈（零不可点圈、零「你在这里」；自指 pin 点击为空操作 ⇒ 不渲染，数据留作校准锚点）；
+ *       楼层图与其余场景（含示例关）维持现形（回归）；② B129 遮罩楼层图专属（scenes[].mask=false ⇒ #dimSvg
+ *       整层不渲染）＋提示条随场景（Core.hintText——房间/站外无「灰暗区域」句）
+ *
+ * B04 午 撤调暗＋CG 整屏层轮（2026-10-04 午；口径＝design-ui-v1.md §2-B130／§6.7、design-station-v1.md §7-E28）：
+ *   B130 重订：亮度口径＝**全站正常亮度**——调暗机制（sceneEntry.dim／Core.sceneDimOn／DIM_TOKENS／
+ *       #stage.dark＋--dim-blackout）整批撤除（同批清零；示例关与站关同口径）
+ *   E28 CG 整屏层（B132）：Core.cgOf／Core.markCgSeen＋st.cgSeen（表现层状态位、随存档）；DOM 层 applyCg——
+ *       进节点求值一回、同节点跨渲染驻留（不重弹）、点掉后本节点不再弹、换节点先关再求值；`dismiss:'keep'`＝常驻
+ *       （结局屏点击不关）；once 档落标记＋补写存档；缺图 ⇒ 整层隐藏＋一行告警（标记照落）；层在场景区最上
  *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
@@ -243,6 +248,7 @@
         visited: {}, done: {}, learned: {},
         chDone: {},        // E6：做过的一次性选项标记（随存档；旧存档没有该字段 = 空）
         mSeen: {},         // B127（§7.3）：浮现图「首访一次」标记（node.mOnce——渲染后落库；旧档缺省为空）
+        cgSeen: {},        // B132（§6.7）：CG「首访一次」标记（node.cg.once——显示后落库；旧档缺省为空）
         wristband: 0,
         hist: [],
         loc: null,
@@ -264,7 +270,7 @@
       if (sid) st.scene = sid;
       if (!st.scene) st.scene = Core.defaultScene();
       ['items'].forEach(k => { if (!Array.isArray(st[k])) st[k] = []; });
-      ['visited', 'done', 'learned', 'chDone', 'mSeen'].forEach(k => { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; });   // B127：mSeen＝浮现图首访标记（旧档补空表）
+      ['visited', 'done', 'learned', 'chDone', 'mSeen', 'cgSeen'].forEach(k => { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; });   // B127：mSeen＝浮现图首访标记；B132：cgSeen＝CG 首访标记（旧档补空表）
       if (!Array.isArray(st.hist)) st.hist = [];
       if (st.wristband == null) st.wristband = 0;
       if (!st.diff) st.diff = 'normal';
@@ -511,18 +517,8 @@
         height: (hit && hit.height != null) ? hit.height : sc.height,
         figures: (hit && hit.figures != null) ? hit.figures : (sc.figures || null),
         /* B129（§6.6）：遮罩开关——缺省 true＝现行遮罩；房间/站外 `mask:false`（整图直接可看、无开孔） */
-        mask: sc.mask !== false,
-        /* B130（§6.7）：复电前调暗参与（条件驱动、零状态位——进房/读档按当前 st 重算即落位） */
-        dim: !!sc.dim && Core.sceneDimOn(st)
+        mask: sc.mask !== false
       };
-    },
-    /* B130（§6.7）：复电前调暗的触发条件（关卡级单源＝`meta.sceneDim={cond,level}`）——纯 cond 驱动；
-     * level→token 的解析与「token 缺失 ⇒ 不套滤镜」在样式面（DOM 层）；缺省不写＝无滤镜（示例关零变化）；
-     * 配置残缺（无 cond）也归「无滤镜」——不让一条漏写变成「17 房恒调暗且无告警」（与 failure-safe 口径对齐）。 */
-    sceneDimOn(st) {
-      const cfg = (D && D.meta && D.meta.sceneDim) || null;
-      if (!cfg || !cfg.cond || !st) return false;
-      return !!Core.condOk(st, cfg.cond);
     },
     /* ---- B128（§6.5 数字圈「可点＝显示、不可点＝隐藏」）----
      * 场景分类：房间（`room-*`）与站外（`exterior`）＝非地图场景 ⇒ 只渲染可点编号圈；
@@ -592,6 +588,23 @@
       if (!st || !nodeId) return;
       if (!st.mSeen || typeof st.mSeen !== 'object') st.mSeen = {};
       st.mSeen[nodeId] = true;
+    },
+    /* ---- B132（§6.7 CG 整屏层）：显示判据（Core 纯面；DOM 层与测试同源调用）----
+     * 判据＝`st.loc`＋`st.cgSeen`（零新增判定谓词）：无 `cg` 字段 ⇒ null；`once` 档已显示过（标记随存档）⇒ null；
+     * 其余 ⇒ { file, once, dismiss }（dismiss 缺省＝'click'＝点击关闭；'keep'＝常驻不关）。 */
+    cgOf(st) {
+      const nodeId = st && st.loc;
+      const n = (D && D.nodes && nodeId) ? D.nodes[nodeId] : null;
+      const cg = (n && n.cg) || null;
+      if (!cg || !cg.file) return null;
+      if (cg.once && st.cgSeen && st.cgSeen[nodeId]) return null;
+      return { file: cg.file, once: !!cg.once, dismiss: cg.dismiss === 'keep' ? 'keep' : 'click' };
+    },
+    /* B132（§6.7）：CG「首访一次」标记落库——DOM 层显示后调用（表现层状态位，随存档） */
+    markCgSeen(st, nodeId) {
+      if (!st || !nodeId) return;
+      if (!st.cgSeen || typeof st.cgSeen !== 'object') st.cgSeen = {};
+      st.cgSeen[nodeId] = true;
     },
     /* 注册表条目 → 场景像素布局：锚点＝原图像素（角色图＝底边中点、窗景＝窗区中心）；
      * 尺寸：角色图宽＝场景宽 × w（默认 0.22）；窗景＝窗区 × fit（默认 1.06）。
@@ -1010,6 +1023,7 @@
   let lastReach = {};      // 当前可达编号（渲染顺序：renderPins → renderNode 共用）
   let curScene = null;     // 当前已应用的场景 id（判断是否需要换图）
   let curLevelId = null;   // 当前关卡 id（存档键用）
+  let cgNodeId = null;     // B132（§6.7）：CG 层已求值的节点（换节点＝先关再求值；null＝尚未求值）
 
   /* B117（§1.1/D56）：存档写入——顺带记通关（win 节点）；记录＝独立键，失败不写、开新局不丢 */
   const save = () => {
@@ -1129,13 +1143,6 @@
 
   /* ---------- 场景（v1.2 双区域 → v0.2 多场景通用） ---------- */
   function sceneLabel(sid) { return Core.sceneLabel(sid); }   // B123：口径单源＝Core.sceneLabel（到达提示与角标同源）
-  /* B130（§6.7）：调暗档名 → CSS 变量名（样式面单源在 style-ui.css 的 :root）；未知档名 ⇒ 不套滤镜＋一行告警 */
-  const DIM_TOKENS = { blackout: '--dim-blackout' };
-  /* token 存在性检查：真浏览器读 :root 计算值；无 CSSOM 的环境（Node 冒烟桩）＝按存在处理 */
-  function dimTokenOk(tok) {
-    try { return !!String(getComputedStyle(document.documentElement).getPropertyValue(tok)).trim(); }
-    catch (e) { return true; }
-  }
   /* 同步当前场景：背景图 / 遮罩尺寸 / 舞台比例 / 场景角标；变化时复位视图并提示一次。
    * B122（§7.10）：图／宽高走 Core.sceneEntry（变体首匹配、逐帧求值——条件变化同帧生效，场景不变也重算）；
    *   变体图运行期加载失败 ⇒ 回落基础图渲染＋控制台一行告警（不空白、不破图）——同一失败图不重复重试。
@@ -1179,16 +1186,6 @@
     $('stage').style.setProperty('--scene-h', entry.height);
     /* B129（§6.6）：遮罩只属楼层图——mask=false 场景遮罩整层不渲染（房间/站外：整图直接可看） */
     $('dimSvg').classList.toggle('hidden', !entry.mask);
-    /* B130（§6.7）：复电前调暗——画面面（#sceneImg／#momentLayer）走 #stage.dark＋--dim-blackout；
-     * 编号层/角标/按钮/物品栏不入滤镜（UI 面恒清晰）；档名未知或 token 缺失 ⇒ 不套滤镜＋一行告警 */
-    let dark = false;
-    if (entry.dim) {
-      const tok = (D.meta && D.meta.sceneDim && D.meta.sceneDim.level) ? DIM_TOKENS[D.meta.sceneDim.level] : null;
-      if (!tok) console.warn('场景调暗：档名未知 —— 不套滤镜（' + ((D.meta.sceneDim || {}).level || '') + '）');
-      else if (!dimTokenOk(tok)) console.warn('场景调暗：token 缺失 —— 不套滤镜（' + tok + '）');
-      else dark = true;
-    }
-    $('stage').classList.toggle('dark', dark);
     /* B129（§6.5/§6.6）：提示条随场景（房间/站外＝无「灰暗区域」句） */
     $('hintBar').textContent = Core.hintText(sid);
     $('sceneTag').textContent = Core.sceneLabel(sid);
@@ -1316,12 +1313,17 @@
     renderAll();
     showFeedback(msgs);        // B04（§4）：开局进入效果也进反馈区（与 toast 同源）
   }
-  /* E2：序章层——新局开场整屏显示一次（读档不重放；没有 meta.prologue 的关卡不显示） */
+  /* E2：序章层——新局开场整屏显示一次（读档不重放；没有 meta.prologue 的关卡不显示）
+     B132（§6.7）：序章图＝CG-08 图位；缺图同 CG 口径——不显示图（退回无图态）、其余照旧＋一行告警。 */
   function showPrologue(pro) {
     $('prologueLines').innerHTML = pro.lines.map(t => '<p>' + esc(nm(t)) + '</p>').join('');
     const img = $('prologueImg');
-    if (pro.image) { img.src = pro.image; img.classList.remove('hidden'); }
-    else { img.removeAttribute('src'); img.classList.add('hidden'); }
+    if (pro.image) {
+      img.onerror = () => { console.warn('序章图缺图（已隐藏）：' + pro.image); img.classList.add('hidden'); };
+      img.src = pro.image;
+      img.classList.remove('hidden');
+    }
+    else { img.onerror = null; img.removeAttribute('src'); img.classList.add('hidden'); }
     const go = () => { $('prologueLayer').classList.add('hidden'); beginRun(); };   // 两个按钮都只负责进入关卡
     $('prologueSkip').onclick = go;
     $('prologueStart').onclick = go;
@@ -1339,6 +1341,7 @@
     if (store) Core.savePlayer(store, name);
     st = Core.newState(diff, name);
     curScene = null;
+    cgNodeId = null;                     // 新局：CG 层尚未求值（once 标记随 newState 重置）
     hudPrev = null;                      // 新局：不把上一局的值当变化来闪
     foldLoc = null;                      // 换关卡 = 折叠状态归零（foldLoc 在下方声明，执行时早已初始化）
     fbLoc = null;                        // 换局：反馈区不得留上一局的消息（§4「重开本关时清空」）
@@ -1351,6 +1354,7 @@
     st = Core.normalizeState(s);
     if (store && st.me) Core.savePlayer(store, st.me);
     curScene = null;
+    cgNodeId = null;                     // 读档：CG 层重新求值（非 once 档读档回节点即显示）
     hudPrev = null;                      // 读档：不把读入的值当变化来闪
     foldLoc = null;
     fbLoc = null;                        // 读档＝换局：反馈区清空（存档节点与上一局末节点相同也如此）
@@ -1362,6 +1366,7 @@
     if (!confirm(Core.coverAsk())) return;   // B124（§1.1）：与卡片侧同一采用句（单一来源）
     st = Core.newState(st ? st.diff : 'normal', st ? st.me : Core.playerName(store));
     curScene = null;
+    cgNodeId = null;                     // 重开：CG 层尚未求值（新局——once 档故地重游照常显示）
     hudPrev = null;
     foldLoc = null;
     fbLoc = null;                        // 重开本关 ⇒ 反馈区清空（§4）
@@ -1379,6 +1384,7 @@
     applyScene();   // 先同步场景（背景图 / 遮罩 / 舞台比例），再渲染
     hideAlertBar(); // 重绘即撤下上一条警示条（本次新发生的由 showFlash 在本函数之后重新弹出）
     renderHUD(); renderPins(); renderCharSpots(); renderMoments(); renderInv(); syncFeedback(); renderVisited(); renderNode();
+    applyCg();      // B132（§6.7）：CG 整屏层（进节点求值＋跨渲染驻留——层在场景区最上）
     if (Core.deadEnd(st)) showStuck();   // v0.2：卡死保险
   }
 
@@ -1448,7 +1454,7 @@
   }
 
   /* 场景遮罩（§6.6）：只在“当前位置 + 可达位置”开洞。孔洞半径按场景宽度等比缩放。
-   * 与 B130「调暗」区分：本函数＝未探索遮罩的孔洞；调暗（`#stage.dark`＋`--dim-blackout`）在 applyScene。 */
+   * （B130 重订：亮度＝全站正常亮度——本函数只管未探索遮罩，与亮度无关。） */
   function renderDim() {
     const sid = Core.sceneOf(st);
     const sc = D.scenes[sid];
@@ -1710,6 +1716,61 @@
       Core.markMomentSeen(st, st.loc);
       if (fresh) save();
     }
+  }
+
+  /* ---------- B132（§6.7）：CG 整屏层——进节点求值＋跨渲染驻留＋点掉＋落标记 ---------- */
+  /* §7.3（同节点两者同时命中）：**CG 关闭后再淡入浮现图**——点掉档关闭时，对当前在场的浮现图
+   * 重放一次入场（图已就位者）；图未加载完的不重放，加载完成时自会淡入（仍晚于 CG 关闭）。
+   * 换节点关闭不重放（新节点的浮现图按常规入场——避免旧节点退场图闪一下）。 */
+  function replayMomentFade() {
+    Object.keys(momentLive).forEach(id => {
+      const el = momentLive[id];
+      const img = (el && el.querySelector) ? el.querySelector('.momentImg') : null;
+      if (!img || !img.classList.contains('on')) return;
+      img.classList.remove('on');
+      void img.offsetWidth;                       // 强制重排：让入场动画能重新播放（同 HUD 闪动口径）
+      img.classList.add('on');
+    });
+  }
+  function closeCg(replay) {
+    $('cgLayer').classList.add('hidden');
+    if (replay) replayMomentFade();               // §7.3：CG 关闭后再淡入浮现图
+  }
+  function applyCg() {
+    if (!st || !D) { closeCg(); cgNodeId = null; return; }
+    const layer = $('cgLayer');
+    const nodeId = st.loc;
+    if (nodeId !== cgNodeId) {        // 换节点：先关（点掉的记忆归零），再按新节点求值
+      cgNodeId = nodeId;
+      closeCg();
+      layer.dataset.node = '';
+    }
+    const plan = Core.cgOf(st);       // 判据＝st.loc＋st.cgSeen（once 档已显示过 ⇒ null）
+    if (!plan) return;                // 无 cg 的节点：层保持关闭（回归——场景区逐字零变化）
+    if (layer.dataset.node === nodeId) return;   // 跨渲染驻留：同节点重渲染不重弹（含已点掉）
+    layer.dataset.node = nodeId;
+    layer.dataset.dismiss = plan.dismiss;        // 点掉判定用（once 档落标记后 cgOf＝null，不能靠它判）
+    const img = $('cgImg');
+    img.dataset.src = plan.file;
+    img.src = plan.file;                          // 路径只来自关卡数据（levels/*.js）
+    /* 缺图兜底（§6.7）：src 加载失败 ⇒ 整层隐藏＋一行告警（不空白、不留框；once 标记照落） */
+    img.onerror = () => { console.warn('CG 缺图（整层隐藏）：' + plan.file); closeCg(); };
+    $('cgChip').classList.toggle('hidden', plan.dismiss !== 'click');   // 常驻档（结局屏）无「点击继续」片
+    layer.classList.remove('hidden');
+    if (plan.once && !((st.cgSeen || {})[nodeId])) {
+      Core.markCgSeen(st, nodeId);   // once：落标记（表现层状态位、随存档）
+      save();                        // 补写一次存档（同 §7.3 mSeen 口径——到达后立即关页亦不失标记）
+    }
+  }
+  /* 点击/拖拽/滚轮不穿透到底层（编号、拖拽、校准点击、缩放）；点掉档点击 ⇒ 关闭（本节点内不再弹） */
+  function bindCg() {
+    const layer = $('cgLayer');
+    ['pointerdown', 'wheel'].forEach(ev => layer.addEventListener(ev, e => e.stopPropagation()));
+    layer.addEventListener('click', e => {
+      e.stopPropagation();
+      if (layer.dataset.dismiss === 'keep') return;   // 常驻档（结局屏）：点击不关
+      closeCg(true);                                  // 点掉档：关闭＋浮现图重放入场（§7.3）
+    });
   }
 
   /* ---------- B04（§5）：物品栏（地图下方横排；点选＝详情气泡；「使用」＝等价执行对应选项） ---------- */
@@ -2247,6 +2308,7 @@
       if (e.key === 'Escape') document.querySelectorAll('.modal').forEach(m => { if (m.id !== 'overlay') m.classList.add('hidden'); });
     });
     bindScene();
+    bindCg();
   }
   document.addEventListener('DOMContentLoaded', init);
 })();

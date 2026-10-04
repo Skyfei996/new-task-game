@@ -5,7 +5,7 @@
  * 引入：index.html 在 style.css 之后追加一条 <link>（层叠序在后——同权重规则以本档为准）；
  *       style.css 保持基础＋既有面（不跨 500 行），提示条归位一条自 style.css 外置到本档（§6.4）。
  * 分区：① 消息四类（§3）· ② 反馈区（§4）· ③ 物品栏（§5）· ④ 氧气数值（§6.1）
- *       ⑤ 浮现层（§7）· ⑥ 布局（物品栏行＋提示条归位）· ⑦ 场景调暗（B130 · §6.7）
+ *       ⑤ 浮现层（§7）· ⑥ 布局（物品栏行＋提示条归位）· ⑦ 选关页控件（§1.1）· ⑧ CG 整屏层（B132 · §6.7）
  * ==========================================================================*/
 
 /* ---------- ① 消息四类颜色（§3；机检：:root 四条 token，四类互不相同） ---------- */
@@ -14,8 +14,6 @@
   --msg-gain: #4cc9a0;   /* 获得 / 失去 */
   --msg-key:  #ffb703;   /* 关键线索 */
   --msg-fail: #ff7a59;   /* 未达（橙红；与危险红 #e63946 分位分色） */
-  /* B130（§6.7）：复电前调暗档（值域 brightness .45~.6／saturate .6~.85；出域＝机检红） */
-  --dim-blackout: brightness(.5) saturate(.7);
 }
 .msg { white-space: pre-wrap; }
 .msg-info { color: var(--msg-info); }
@@ -153,13 +151,21 @@
 .lcRecord.lcFailEnd { color: var(--dim); }
 .lcSaveNote { margin-top: 2px; font-size: 11.5px; color: var(--dim); }
 
-/* ---------- ⑦ 场景调暗（B130 · §6.7；零新图——复电前房间调暗、复电后自动恢复） ----------
-   门控＝引擎（#stage 挂 .dark——条件＝meta.sceneDim.cond 逐帧求值；档名/token 缺失 ⇒ 不加类）；
-   应用面＝画面面（#sceneImg／#momentLayer）——编号层/角标/按钮/物品栏不入滤镜（UI 面恒清晰）。 */
-#stage.dark #sceneImg,
-#stage.dark #momentLayer { filter: var(--dim-blackout); }
-/* 基础选择器也挂过渡 ⇒ 加/去 .dark 两个方向同源动画（复电瞬间「灯亮起来」由过渡承担） */
-#sceneImg, #momentLayer { transition: filter .8s ease; }
+/* ---------- ⑧ CG 整屏层（B132 · §6.7）：场景区最上、覆盖全幅；不随舞台拖拽/缩放（在 #stage 之外） ----------
+   层序：z-index 9——高于物品栏气泡(8)／#sceneTag(6)／校准层(5)／编号与浮现层／物品栏行与提示条 ⇒ 「场景区最上」；右栏不入层。
+   图片：`object-fit: contain`——整图可见、不裁边（留边由层底（近黑）承担，同序章层族）。 */
+.cgLayer {
+  position: absolute; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center;
+  background: #05080d; border-radius: 10px;
+}
+.cgLayer.hidden { display: none !important; }
+.cgImg { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.cgChip {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+  padding: 5px 14px; border-radius: 999px; font-size: 12.5px; color: #cfe0ee;
+  background: rgba(16, 24, 33, .85); border: 1px solid var(--line); pointer-events: none;
+}
+.cgChip.hidden { display: none !important; }
 
 @media (max-width: 900px) {
   #stage { width: min(100%, calc((52vh - 58px) * var(--scene-w, 1) / var(--scene-h, 1))); }
