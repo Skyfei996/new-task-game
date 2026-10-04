@@ -75,6 +75,17 @@
  *   B124 覆盖确认同源（Core.coverAsk）：卡片侧与局内重开同一句（单一来源，不得各写一份）
  *   B125 每房自指 pin：pins[<本房节点号>]＝标记载体（点击＝空操作）；无浮图时承担「你在这里」标记与遮罩开孔（数据面）
  *
+ * B127~B131 复盘轮改动（2026-10-04 晨；口径＝design-ui-v1.md §7.3／§6.5／§6.6／§6.7、design-station-v1.md §7-E27／E28）：
+ *   E27 浮现窗口与首访一次（B127）：Core.momentsOf 增 `mOnce` 过滤（同一存档内首次渲染后不再重现——新局重置；
+ *       标记＝st.mSeen，表现层状态位、随存档，旧档缺省为空）＋Core.markMomentSeen（渲染后落库）；
+ *       未声明 mOnce 的节点不读 st.mSeen（回归——既有节点输出逐字不变）；收窗行＝节点 mIf（数据面）
+ *   E28 场景面三条：① B128 数字圈「可点＝显示、不可点＝隐藏」（Core.plainPins／Core.pinsVisible）——房间
+ *       （room-*）与站外只渲染可点编号圈（零不可点圈、零「你在这里」；自指 pin 点击为空操作 ⇒ 不渲染，数据留作
+ *       校准锚点）；楼层图与其余场景（含示例关）维持现形（回归）；② B129 遮罩楼层图专属（scenes[].mask=false
+ *       ⇒ #dimSvg 整层不渲染）＋提示条随场景（Core.hintText——房间/站外无「灰暗区域」句）；
+ *       ③ B130 复电前调暗（sceneEntry 增出 mask／dim＝meta.sceneDim.cond 逐帧求值；#stage.dark＋--dim-blackout；
+ *       level 名未知／token 缺失 ⇒ 不套滤镜＋一行告警）
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
@@ -231,6 +242,7 @@
         items: [],
         visited: {}, done: {}, learned: {},
         chDone: {},        // E6：做过的一次性选项标记（随存档；旧存档没有该字段 = 空）
+        mSeen: {},         // B127（§7.3）：浮现图「首访一次」标记（node.mOnce——渲染后落库；旧档缺省为空）
         wristband: 0,
         hist: [],
         loc: null,
@@ -252,7 +264,7 @@
       if (sid) st.scene = sid;
       if (!st.scene) st.scene = Core.defaultScene();
       ['items'].forEach(k => { if (!Array.isArray(st[k])) st[k] = []; });
-      ['visited', 'done', 'learned', 'chDone'].forEach(k => { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; });
+      ['visited', 'done', 'learned', 'chDone', 'mSeen'].forEach(k => { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; });   // B127：mSeen＝浮现图首访标记（旧档补空表）
       if (!Array.isArray(st.hist)) st.hist = [];
       if (st.wristband == null) st.wristband = 0;
       if (!st.diff) st.diff = 'normal';
@@ -497,8 +509,40 @@
         image: (hit && hit.image != null) ? hit.image : sc.image,
         width: (hit && hit.width != null) ? hit.width : sc.width,
         height: (hit && hit.height != null) ? hit.height : sc.height,
-        figures: (hit && hit.figures != null) ? hit.figures : (sc.figures || null)
+        figures: (hit && hit.figures != null) ? hit.figures : (sc.figures || null),
+        /* B129（§6.6）：遮罩开关——缺省 true＝现行遮罩；房间/站外 `mask:false`（整图直接可看、无开孔） */
+        mask: sc.mask !== false,
+        /* B130（§6.7）：复电前调暗参与（条件驱动、零状态位——进房/读档按当前 st 重算即落位） */
+        dim: !!sc.dim && Core.sceneDimOn(st)
       };
+    },
+    /* B130（§6.7）：复电前调暗的触发条件（关卡级单源＝`meta.sceneDim={cond,level}`）——纯 cond 驱动；
+     * level→token 的解析与「token 缺失 ⇒ 不套滤镜」在样式面（DOM 层）；缺省不写＝无滤镜（示例关零变化）；
+     * 配置残缺（无 cond）也归「无滤镜」——不让一条漏写变成「17 房恒调暗且无告警」（与 failure-safe 口径对齐）。 */
+    sceneDimOn(st) {
+      const cfg = (D && D.meta && D.meta.sceneDim) || null;
+      if (!cfg || !cfg.cond || !st) return false;
+      return !!Core.condOk(st, cfg.cond);
+    },
+    /* ---- B128（§6.5 数字圈「可点＝显示、不可点＝隐藏」）----
+     * 场景分类：房间（`room-*`）与站外（`exterior`）＝非地图场景 ⇒ 只渲染可点编号圈；
+     * 楼层图（`deck*`）与其余场景（含示例关）＝地图语义 ⇒ 维持现形（可点高亮＋已探索灰显＋当前位置标记）。 */
+    plainPins(sid) { return !!sid && (sid === 'exterior' || /^room-/.test(sid)); },
+    /* 渲染集：房间/站外＝`reachablePins ∩ 本场景 pins`，并排除当前所在编号（点击＝空操作 ⇒ 不可点 ⇒ 不渲染；
+     * §6.5 机检② N3 抽查：无医疗包 ⇒ {18}、持医疗包 ⇒ {18,24}）；其余场景＝全部 pins（回归，逐字不变）。 */
+    pinsVisible(st, sid) {
+      const sc = (D && D.scenes[sid]) || null;
+      if (!sc) return [];
+      const all = Object.keys(sc.pins);
+      if (!Core.plainPins(sid)) return all;
+      const reach = Core.reachablePins(st);
+      return all.filter(x => x !== (st && st.loc) && !!reach[x]);
+    },
+    /* B129（§6.5/§6.6）：提示条随场景——房间/站外无「灰暗区域」句（遮罩只属楼层图）；其余＝现形。 */
+    hintText(sid) {
+      return Core.plainPins(sid)
+        ? '高亮的位置可以点击前往 ｜ 拖拽 / 滚轮缩放'
+        : '高亮的位置可以点击前往 · 灰暗区域还没探索到 ｜ 拖拽 / 滚轮缩放';
     },
     /* ---- B120（§7.3 同框全覆盖）：覆盖卡判定与几何（纯面；DOM 层与测试同源调用）----
      * 同框＝角色图 L2（id 首段 ∈ characters）指向角色 C，且 C ∈ 本场景 L1 可见角色（**生效** figures——
@@ -530,13 +574,24 @@
     boxOfPoints(a, b) {
       return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])];
     },
-    /* 节点 moments/mIf：先匹配者为准；命中行完整替换默认集；id 未注册 ⇒ 忽略该条 */
+    /* 浮现：节点 `moments` 默认集，或 `mIf` 首个命中行（行条件命中 ⇒ 整行替换默认集，§7.4）；未注册 id ⇒ 忽略。
+     * 前置条件（B127）：传进来的 node 必须是 `st.loc` 的节点——首访一次（mOnce）的标记以 `st.loc` 为键查询
+     * （node 对象本身不带 id 字段）；当前全部调用点均传 `D.nodes[st.loc]`，DOM 层与测试同源。 */
     momentsOf(st, node) {
       const n = node || (st && st.loc ? (D && D.nodes[st.loc]) : null);
       if (!n) return [];
+      /* B127（§7.3）：首访一次（`mOnce`）——同一存档内该节点首次渲染后不再重现、新局重置；
+       * 未声明 mOnce 的节点不读 st.mSeen（回归：既有节点输出逐字不变）。 */
+      if (n.mOnce && st && st.mSeen && st.mSeen[st.loc]) return [];
       const hit = ((n.mIf) || []).find(x => Core.condOk(st, x.cond));
       const ids = hit ? (hit.moments || []) : (n.moments || []);
       return ids.filter(id => !!Core.momentDef(id));
+    },
+    /* B127（§7.3）：浮现图「首访一次」标记落库——DOM 层渲染完成后调用（表现层状态位，随存档） */
+    markMomentSeen(st, nodeId) {
+      if (!st || !nodeId) return;
+      if (!st.mSeen || typeof st.mSeen !== 'object') st.mSeen = {};
+      st.mSeen[nodeId] = true;
     },
     /* 注册表条目 → 场景像素布局：锚点＝原图像素（角色图＝底边中点、窗景＝窗区中心）；
      * 尺寸：角色图宽＝场景宽 × w（默认 0.22）；窗景＝窗区 × fit（默认 1.06）。
@@ -1074,6 +1129,13 @@
 
   /* ---------- 场景（v1.2 双区域 → v0.2 多场景通用） ---------- */
   function sceneLabel(sid) { return Core.sceneLabel(sid); }   // B123：口径单源＝Core.sceneLabel（到达提示与角标同源）
+  /* B130（§6.7）：调暗档名 → CSS 变量名（样式面单源在 style-ui.css 的 :root）；未知档名 ⇒ 不套滤镜＋一行告警 */
+  const DIM_TOKENS = { blackout: '--dim-blackout' };
+  /* token 存在性检查：真浏览器读 :root 计算值；无 CSSOM 的环境（Node 冒烟桩）＝按存在处理 */
+  function dimTokenOk(tok) {
+    try { return !!String(getComputedStyle(document.documentElement).getPropertyValue(tok)).trim(); }
+    catch (e) { return true; }
+  }
   /* 同步当前场景：背景图 / 遮罩尺寸 / 舞台比例 / 场景角标；变化时复位视图并提示一次。
    * B122（§7.10）：图／宽高走 Core.sceneEntry（变体首匹配、逐帧求值——条件变化同帧生效，场景不变也重算）；
    *   变体图运行期加载失败 ⇒ 回落基础图渲染＋控制台一行告警（不空白、不破图）——同一失败图不重复重试。
@@ -1115,6 +1177,20 @@
     });
     $('stage').style.setProperty('--scene-w', entry.width);
     $('stage').style.setProperty('--scene-h', entry.height);
+    /* B129（§6.6）：遮罩只属楼层图——mask=false 场景遮罩整层不渲染（房间/站外：整图直接可看） */
+    $('dimSvg').classList.toggle('hidden', !entry.mask);
+    /* B130（§6.7）：复电前调暗——画面面（#sceneImg／#momentLayer）走 #stage.dark＋--dim-blackout；
+     * 编号层/角标/按钮/物品栏不入滤镜（UI 面恒清晰）；档名未知或 token 缺失 ⇒ 不套滤镜＋一行告警 */
+    let dark = false;
+    if (entry.dim) {
+      const tok = (D.meta && D.meta.sceneDim && D.meta.sceneDim.level) ? DIM_TOKENS[D.meta.sceneDim.level] : null;
+      if (!tok) console.warn('场景调暗：档名未知 —— 不套滤镜（' + ((D.meta.sceneDim || {}).level || '') + '）');
+      else if (!dimTokenOk(tok)) console.warn('场景调暗：token 缺失 —— 不套滤镜（' + tok + '）');
+      else dark = true;
+    }
+    $('stage').classList.toggle('dark', dark);
+    /* B129（§6.5/§6.6）：提示条随场景（房间/站外＝无「灰暗区域」句） */
+    $('hintBar').textContent = Core.hintText(sid);
     $('sceneTag').textContent = Core.sceneLabel(sid);
   }
   /* 换场景＝重试一次变体图（清失败记忆：T73~T79 直入目录后，重进房间即生效） */
@@ -1371,12 +1447,15 @@
     $('atkEl').textContent = '⚔ 武力值 ' + Core.atkOf(st);
   }
 
-  /* 场景遮罩：只在“当前位置 + 可达位置”开洞。孔洞半径按场景宽度等比缩放 */
+  /* 场景遮罩（§6.6）：只在“当前位置 + 可达位置”开洞。孔洞半径按场景宽度等比缩放。
+   * 与 B130「调暗」区分：本函数＝未探索遮罩的孔洞；调暗（`#stage.dark`＋`--dim-blackout`）在 applyScene。 */
   function renderDim() {
-    const sc = D.scenes[Core.sceneOf(st)];
+    const sid = Core.sceneOf(st);
+    const sc = D.scenes[sid];
     const k = sc.width / 800;
     const g = $('dimHoles');
     g.innerHTML = '';
+    if (!Core.sceneEntry(st, sid).mask) return;   // B129（§6.6）：房间/站外无遮罩（无孔；整层已隐藏）
     const add = (x, y, r) => {
       const c = document.createElementNS(NS, 'circle');
       c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', r);
@@ -1395,28 +1474,31 @@
   }
 
   function renderPins() {
-    const sc = D.scenes[Core.sceneOf(st)];
+    const sid = Core.sceneOf(st);
+    const sc = D.scenes[sid];
     const layer = $('pinLayer');
     layer.innerHTML = '';
     lastReach = Core.reachablePins(st);
     const hideCur = Core.currentMarkerHidden(st);   // B112（§7.3）：有浮现图的节点 ⇒ 当前位置标记整体不渲染
-    Object.keys(sc.pins).forEach(id => {
+    const plain = Core.plainPins(sid);              // B128（§6.5）：房间/站外 ⇒ 只渲染可点编号圈
+    Core.pinsVisible(st, sid).forEach(id => {
       const [x, y] = sc.pins[id];
       const isCur = st.loc === id;
-      /* B112：光环＋编号＋「你在这里」一起撤下（浮现图即「你在这里」的画面证据）；其余编号、遮罩开孔照旧 */
-      if (isCur && hideCur) return;
+      /* B112（楼层图守护）：光环＋编号＋「你在这里」一起撤下（浮现图即「你在这里」的画面证据）；其余编号照旧。
+       * B128：房间/站外不渲染当前位置标记——渲染集已排除当前编号，标记样式也只在楼层图成立（「你在这里」＝地图语义）。 */
+      if (!plain && isCur && hideCur) return;
       const canClick = FREE_MOVE || !!lastReach[id];
       const isVisited = !!st.visited[id];
       const b = document.createElement('button');
       b.className = 'pin'
-        + (isCur ? ' current' : '')
+        + (!plain && isCur ? ' current' : '')
         + (!isCur && canClick ? ' reach' : '')
         + (!isCur && !canClick ? (isVisited ? ' visited' : '') : '');
       b.dataset.id = id;
       b.style.left = (x / sc.width * 100) + '%';
       b.style.top = (y / sc.height * 100) + '%';
       b.innerHTML = '<span class="ring"></span><span class="num">' + id + '</span>'
-        + (isCur ? '<span class="hereTag">你在这里</span>' : '');
+        + (!plain && isCur ? '<span class="hereTag">你在这里</span>' : '');
       b.onclick = () => {
         if (calib || suppressClick || !canClick || st.loc === id) return;
         navViaPin(id);
@@ -1620,6 +1702,14 @@
       setTimeout(() => d.remove(), 260);
     });
     momentLive = next;
+    /* B127（§7.3）：首访一次（`mOnce`）——本节点本次真的渲染了浮现图 ⇒ 标记落库（同一存档内之后不再重现）；
+     * 未命中任何一张（收窗／条件未满足）不落标记：下次进入仍按条件求值。标记随即落档：
+     * 上游「先 save 后 renderAll」的顺序下，不补这一次写的话「到达后立即关页」续档时会再显示一次。 */
+    if (ids.length && (D.nodes[st.loc] || {}).mOnce) {
+      const fresh = !(st.mSeen || {})[st.loc];
+      Core.markMomentSeen(st, st.loc);
+      if (fresh) save();
+    }
   }
 
   /* ---------- B04（§5）：物品栏（地图下方横排；点选＝详情气泡；「使用」＝等价执行对应选项） ---------- */

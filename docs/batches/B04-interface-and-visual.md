@@ -525,7 +525,7 @@ VERDICT: pass
 - **实现范围**：`docs/design-ui-v1.md` §11 所列文件（engine.js／style.css（+新建 style-ui.css）／index.html／station.js／test.station.mjs／test.play.mjs／tools/play.mjs）＋ **美术未到货期间的兜底**（无图不留位、不影响可玩性）。**不变量**：剧情数据语义与数值不动（文案、条件、预算、断循环）；示例关（dalim）保住其光环位。
 
 ## §5 实施记录（eng-coder）
-**状态行**：实施完成（B120 覆盖卡追加轮（2026-10-04）：三闸 569／2094／420＋两冒烟（DOM 54/0、CLI 61/0）；内部审计 1 轮＋代码评审 2 轮，终态 pass、0🔴）
+**状态行**：实施完成（B127~B131 全量落地；三闸 core 569／station 2244／play 420 全绿；偏离审计 clean＋代码评审 pass（fix round 1））
 
 
 
@@ -811,5 +811,55 @@ VERDICT: pass
 3. `lab-docs.js` 重导未执行（生成物·工具面；快照早于本轮）——交父侧。
 4. 本轮未改引擎／样式／示例关（设计口径「引擎零改动」；示例关无 variants、无浮现层注册）。
 5. 观察（非本轮范围）：`images/station/moments/` 缺 `win-observation-jupiter.jpg`（T51，已登记的设计内兜底·批次档 :720 在案）；`images/station/rooms/` 3 张未跟踪新图（`maintenance-free`／`observation-catgone`／`warehouse-clear`，美术线）。
+
+**范围**：老板 2026-10-04 晨复盘轮 B127~B131（口径＝`docs/design-ui-v1.md` v1.10 §6.5~6.7／§7.3／§7.5／§7.7-13~16／§7.12／§9.1，`docs/design-station-v1.md` v3.23 §7-E27／E28）。禁改面 `docs/**`·`art/**`·`tools/**`·`images/**` 全程未触碰（`images/**` 仅只读核验资产在库）。
+
+**改动文件（4 个，全在执行清单内）**
+| 文件 | 改动 | 增量 |
+|---|---|---|
+| `prototype/levels/station.js` | 注册表 36→31（撤 5：`win-observation-jupiter`／`win-airlock-array`／`firstaid-open`／`robot-rescue`／`pods-check`，留档注）；节点 1／2 `mOnce`；收窗行 6（N4／N8／N11／N12×2／N19）；N9／N17 删 `mIf`；N37 只留 `helper-join`；N39 删 `moments`＋删冗余选项①；17 房 `dim:true, mask:false`＋`exterior mask:false`；`meta.sceneDim` | 注释同步 |
+| `prototype/engine.js` | `newState`／`normalizeState` 增 `mSeen`；`sceneEntry` 增 `mask`／`dim`；新增 `Core.sceneDimOn`／`plainPins`／`pinsVisible`／`hintText`／`markMomentSeen`；`momentsOf` 增 `mOnce` 过滤；`renderDim` 遮罩门控；`renderPins` 渲染集＋plain 分支；`applyScene` 遮罩隐藏／`#stage.dark`／提示条；`renderMoments` 落标记＋补写存档；头注 E27／E28 | 约 +110 行 |
+| `prototype/style-ui.css` | `:root --dim-blackout: brightness(.5) saturate(.7)`（值域内）；`#stage.dark #sceneImg, #stage.dark #momentLayer { filter: var(--dim-blackout); }`；`#sceneImg, #momentLayer { transition: filter .8s ease; }` | +3 行 |
+| `prototype/test.station.mjs` | §18-7（31 条／31 角色／24 anchored／窗景 0／30 节点＋N5 两断言）、§18-11（83 复核）、§19-2／§19-4（自指 pin＝校准锚点／28 张锚点）、§20-4（B128 机检①~③＋B129 门控＋提示条）、§20-5（枚举 36→31：覆盖卡 7／变体 2／对象时刻 11／无对应 11）、§20-6（注册实盘 13/16＋撤注册 3 在案＋收窗行＋默认集重算）、新增 §21（§7.7-13／15／16＋B131） | 约 +250 行（3389 → 3567） |
+
+**验证读数（全部实跑）**
+- `node prototype/test.core.mjs` → **通过 569 项，失败 0 项**
+- `node prototype/test.station.mjs` → **通过 2244 项，失败 0 项**
+- `node prototype/test.play.mjs` → **通过 420 项，失败 0 项**（基线不变）
+- 冒烟①：`node tools/play.mjs new dalim` ＋ `auto`（seed 62266，30 步）→ 正常跑完、无异常
+- 冒烟②：`node tools/play.mjs new station` ＋ `choose 1` ＋ `where` → 开局／移动／场景标正常
+- 临时 DOM 冒烟（真引擎接线：选关页→开始/继续→applyScene／renderPins／renderDim／renderMoments）：15/15 通过；engine.js 收尾改动后复跑 3/3 通过（mSeen 落档／首访一次／房间调暗＋遮罩不渲染）——**脚本用后即删、未入库**
+
+**交付表（逐验收点）**
+| # | 状态 | 验收点 |
+|---|---|---|
+| 1 | ✅ | B127 浮窗窗口与首访一次：收窗 6 行逐行对拍（条件命中 ⇒ 该 id 不在浮现集）＋默认集回归；N1／N2 首访一次（首访非空、二次为空、读档仍空、旧档空表照常）；未声明 `mOnce` 节点不读 `mSeen`（输出逐字不变）；注册集 36→31 与枚举 31 条一致 |
+| 2 | ✅ | B128 数字圈「可点即显」：房间/站外渲染集＝可达集（逐节点枚举零反例；零自指/当前位置）＋N3 抽查 `{18}`／`{18,24}`；楼层图三场景渲染集与改前逐字一致（回归）＋示例关零变化 |
+| 3 | ✅ | B129 遮罩楼层图专属：`mask===false` 集＝17 房＋站外（枚举、无多余），楼层图不写该字段；房间/站外 `#dimSvg` 整层不渲染且不开孔；楼层图孔半径 98／74×k 未动；提示条随场景；示例关零变化 |
+| 4 | ✅ | B130 复电前调暗：`dim===true` 集＝17 房；token 在 `:root`、值域内、选择器含 `#sceneImg`／`#momentLayer`、不含 `#pinLayer`、过渡在案；cond 真/假逐帧求值；读档归一 2 例；两条 failure-safe 告警在案；示例关零变化 |
+| 5 | ✅ | B131 舱外两条：N19 `panel-weld` 收窗（`knows 太阳能板已修好`）＋N39 删 `moments`（零浮图）；N39 删冗余选项①（仅留「爬回气闸舱。」→11，唯一出口） |
+| 6 | ✅ | 测试面计数重算：注册表／枚举（36→31）／内景锚点（33→28）／§19-2·§20-4 自指 pin 断言改写／N39 选项盘点断言 |
+
+**决策透明表**
+| 决策 | 依据 | 备选与否决理由 |
+|---|---|---|
+| `pinsVisible` **排除当前编号**（字面「可达∩pins」会得 `{3,18}`） | §6.5 机检②要求 N3＝`{18}`；「点击＝空操作 ⇒ 不可点 ⇒ 不渲染」与 §6.5 句义一致 | 纯字面∩：机检②必红，故不取。**张力已披露**——如需字面收口，建议在 §6.5 机检① 补「且 ≠ 当前编号」 |
+| 收窗行全部落在**数据面 `mIf`**（引擎不加开关） | §7.12「未增谓词」；与同节点 `tIf` 同源条件 | 引擎侧开关：新增谓词面、违 §7.12 |
+| `mOnce` 标记在渲染后落库，**并补写一次存档** | 「同一存档内之后不再重现」；上游是「先 save 后 renderAll」，不补写则「到达即关页」续档会再显一次 | 不补写：留一个可复现边缘（§14-31 取向相反） |
+| 窗景几何能力改用**合成探针**验证（T51／T52 不注册） | §7.5 注册状态＝不注册；资产留档在库 | 直接对拍注册条目：条目已撤，无法对拍 |
+| §20-5 variant 探针增补**场景变体条件合成** | @9 行条件撤除后，探针态需由场景变体条件承担才自洽 | 保持原探针：`safe-open` 会假红 |
+| `lab-docs.js` 文档快照重导未做 | 工具面（§11 列为「生成物重导」） | 本轮不做，留父侧另轮（**已披露**） |
+
+**审计与代码评审轮次与终态**
+- 内部偏离审计（explore，只读）**1 轮 → 终态 clean**：四类偏差（部分实现／静默简化／文档漂移／未披露越界）＝0；补充观察 O1~O6。已就地修复 O1（旧口径 `P()` 文案 33 节点/36 条 → 30 节点/31 条）、O3（`mSeen` 落档时序）、O4（注释-代码微差）；O2／O5／O6 属父侧（O5＝本段 §5，O6＝设计档 §6.5 字面收口建议）。
+- 内部代码评审（advisor · code）**1 轮 → VERDICT pass**（无 🔴、无 must-fix 🟡；5 条 🔵 加固项）：已修 #1（`momentsOf` 补前置条件注释：`mOnce` 以 `st.loc` 为键）／#3（`sceneDimOn` 缺 `cond` ⇒ 归「无滤镜」，与 failure-safe 对齐）／#4（`renderDim` 与 B130 调暗互指注释）；**保留** #2（首访标记按「浮现集非空」消费——与 §7.7-13② 明写判据一致，属设计边界）与 #5（DOM 行为腿以源码契约承载——沿用 B122 惯例且已在测试注释披露，行为证据由临时 DOM 冒烟提供）。
+- fix round＝**1**（远低于 5 轮上限）；修复后三闸复跑全绿，无回归。
+
+**口径张力／披露（留给评审与父侧）**
+1. §6.5 机检① 字面与②的差额（见决策表第 1 行）——实现按②，字面差额如实上报。
+2. `mOnce` 与「缺图/未标定」边缘：首访当次资源缺失时标记仍会消费（与 §7.7-13② 一致）；N1／N2 现图在库并已标定，零实际影响。
+3. DOM 行为类机检（§6.6②、§6.7③）在常驻套件中是源码契约，行为证据＝本轮临时 DOM 冒烟（已删除、未入库）——若评审要求常驻行为腿，可在后续轮补轻量 DOM 桩。
+4. 越界项：仅临时冒烟脚本 `prototype/_smoke.dom.mjs`／`_smoke2.dom.mjs`（创建后已删除，工作树无残留）；无其他越界。
+5. 设计档漂移：本轮 diff 触及的设计面（§7.7-13~16 判据、§11 追加块受影响文件表、§14-32 计数重算）**与实现一致**，未发现需要修订之处。
 
 ## §6 验证与收口（父代理）

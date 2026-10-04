@@ -5,7 +5,7 @@
  * 引入：index.html 在 style.css 之后追加一条 <link>（层叠序在后——同权重规则以本档为准）；
  *       style.css 保持基础＋既有面（不跨 500 行），提示条归位一条自 style.css 外置到本档（§6.4）。
  * 分区：① 消息四类（§3）· ② 反馈区（§4）· ③ 物品栏（§5）· ④ 氧气数值（§6.1）
- *       ⑤ 浮现层（§7）· ⑥ 布局（物品栏行＋提示条归位）
+ *       ⑤ 浮现层（§7）· ⑥ 布局（物品栏行＋提示条归位）· ⑦ 场景调暗（B130 · §6.7）
  * ==========================================================================*/
 
 /* ---------- ① 消息四类颜色（§3；机检：:root 四条 token，四类互不相同） ---------- */
@@ -14,6 +14,8 @@
   --msg-gain: #4cc9a0;   /* 获得 / 失去 */
   --msg-key:  #ffb703;   /* 关键线索 */
   --msg-fail: #ff7a59;   /* 未达（橙红；与危险红 #e63946 分位分色） */
+  /* B130（§6.7）：复电前调暗档（值域 brightness .45~.6／saturate .6~.85；出域＝机检红） */
+  --dim-blackout: brightness(.5) saturate(.7);
 }
 .msg { white-space: pre-wrap; }
 .msg-info { color: var(--msg-info); }
@@ -150,6 +152,14 @@
 .lcRecord { margin-top: 4px; font-size: 13px; line-height: 1.6; color: var(--msg-key); }
 .lcRecord.lcFailEnd { color: var(--dim); }
 .lcSaveNote { margin-top: 2px; font-size: 11.5px; color: var(--dim); }
+
+/* ---------- ⑦ 场景调暗（B130 · §6.7；零新图——复电前房间调暗、复电后自动恢复） ----------
+   门控＝引擎（#stage 挂 .dark——条件＝meta.sceneDim.cond 逐帧求值；档名/token 缺失 ⇒ 不加类）；
+   应用面＝画面面（#sceneImg／#momentLayer）——编号层/角标/按钮/物品栏不入滤镜（UI 面恒清晰）。 */
+#stage.dark #sceneImg,
+#stage.dark #momentLayer { filter: var(--dim-blackout); }
+/* 基础选择器也挂过渡 ⇒ 加/去 .dark 两个方向同源动画（复电瞬间「灯亮起来」由过渡承担） */
+#sceneImg, #momentLayer { transition: filter .8s ease; }
 
 @media (max-width: 900px) {
   #stage { width: min(100%, calc((52vh - 58px) * var(--scene-w, 1) / var(--scene-h, 1))); }
