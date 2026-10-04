@@ -5,6 +5,7 @@
 
 **在线体验（GitHub Pages）**：
 - 🎮 游戏：https://skyfei996.github.io/new-task-game/
+- 🗄 旧版存档（对照用，2026-10-01 版两个游戏）：https://skyfei996.github.io/new-task-game/archive.html
 - 🧪 管理台（纯文字试玩器 / 设计资料 / 美术需求）：https://skyfei996.github.io/new-task-game/prototype/lab.html
 - 📋 试玩报告：[docs/playtest-01-report.md](docs/playtest-01-report.md)
 

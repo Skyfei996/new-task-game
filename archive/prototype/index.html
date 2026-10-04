@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你有一个新任务！· 网页原型（多关卡）</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <section id="sceneWrap">
+    <div id="stage">
+      <img id="sceneImg" src="" alt="场景图" draggable="false">
+      <svg id="dimSvg" class="dimLayer" viewBox="0 0 800 800" aria-hidden="true">
+        <defs>
+          <radialGradient id="softHole">
+            <stop offset="45%" stop-color="black"/>
+            <stop offset="100%" stop-color="white"/>
+          </radialGradient>
+          <mask id="dimMask">
+            <rect id="maskRect" x="0" y="0" width="800" height="800" fill="white"/>
+            <g id="dimHoles"></g>
+          </mask>
+        </defs>
+        <rect id="dimRect" x="0" y="0" width="800" height="800" fill="#060a10" fill-opacity="0.6" mask="url(#dimMask)"/>
+      </svg>
+      <!-- 人物光环层（画在编号层下面，pointer-events:none，不挡编号点击） -->
+      <div id="charLayer"></div>
+      <div id="pinLayer"></div>
+    </div>
+    <div id="sceneTag"></div>
+    <div id="sceneCtrls">
+      <button id="zoomIn" title="放大">＋</button>
+      <button id="zoomOut" title="缩小">－</button>
+      <button id="zoomReset" title="复位">⌂</button>
+    </div>
+    <div id="hintBar">高亮的位置可以点击前往 · 灰暗区域还没探索到 ｜ 拖拽 / 滚轮缩放</div>
+    <div id="calibBox" class="hidden"></div>
+  </section>
+
+  <aside id="panel">
+    <div id="hud">
+      <!-- v0.2：全部资源由关卡数据声明（大里姆=萨瓦币；空间站=信用点+氧气），含低额预警 -->
+      <span id="resList"></span>
+      <span class="stat" id="atkEl">⚔ 武力值 0</span>
+      <span class="spacer"></span>
+      <button id="stuckBtn" title="走投无路？回到安全点 / 重开本关">🆘</button>
+      <button id="levelsBtn" title="返回关卡选择">🗂</button>
+      <button id="charsBtn" title="人物图鉴">👥</button>
+      <button id="bagBtn" title="背包">🎒</button>
+      <button id="helpBtn" title="玩法说明">❓</button>
+      <button id="restartBtn" title="重新开始本关">↺</button>
+    </div>
+    <!-- 被偷 / 被挡下的大号警示条（红色=被偷，绿色=被挡下） -->
+    <div id="alertBar" class="hidden"></div>
+    <div id="visitedRow"><span class="vlabel">已探索：</span><span id="visitedList"></span></div>
+    <div id="nodeCard">
+      <div id="nodeHead"><span id="locBadge">1</span><span id="locName"></span></div>
+      <div id="nodeText"></div>
+      <!-- 本处人物小卡（点开 = 人物卡弹层） -->
+      <div id="hereChars" class="hidden"></div>
+      <div id="choiceList"></div>
+    </div>
+    <div id="toasts"></div>
+  </aside>
+</div>
+
+<!-- v0.2：启动页 = 关卡选择（卡片：海报图 + 标题 + 一句话 + 难度与开局资源 + 继续上次进度） -->
+<div id="overlay" class="modal">
+  <div class="card wide">
+    <h1>你有一个新任务！</h1>
+    <p class="dim">选一个关卡开始冒险。你的名字会出现在任务点的对话里。</p>
+    <div class="playerRow">
+      <label for="playerName">👦 你的名字</label>
+      <input id="playerName" maxlength="10" value="林小晨" autocomplete="off">
+      <span class="dim small">默认「林小晨」，保存在这台电脑上</span>
+    </div>
+    <div id="levelList"></div>
+    <p class="dim small">键盘 C = 坐标校准模式 · Esc 关闭弹窗 · 🆘 = 走投无路时的求救面板</p>
+  </div>
+</div>
+
+<!-- v0.2：求救面板（走投无路检测触发：当前节点没有任何可执行动作） -->
+<div id="stuckModal" class="modal hidden">
+  <div class="card">
+    <h3>🆘 走投无路？</h3>
+    <p id="stuckText"></p>
+    <div class="diffRow">
+      <button id="stuckSafe">🏠 回到安全点<br><small id="stuckSafeName"></small></button>
+      <button id="stuckRestart">↺ 重开本关</button>
+    </div>
+    <button class="closeBtn" data-close="stuckModal">再想想（关闭）</button>
+  </div>
+</div>
+
+<div id="bagModal" class="modal hidden">
+  <div class="card">
+    <h3>🎒 你的背包 <span class="dim small">（红框道具不可出售；武力值加成见下）</span></h3>
+    <div id="bagGrid"></div>
+    <div id="bagFooter" class="dim"></div>
+    <button class="closeBtn" data-close="bagModal">关闭</button>
+  </div>
+</div>
+
+<div id="helpModal" class="modal hidden">
+  <div class="card">
+    <h3>❓ 玩法说明</h3>
+    <div id="helpBody"></div>
+    <button class="closeBtn" data-close="helpModal">知道了</button>
+  </div>
+</div>
+
+<!-- 人物图鉴（点一张看介绍；原创关卡立绘未到 → emoji 占位） -->
+<div id="charsModal" class="modal hidden">
+  <div class="card">
+    <h3>👥 人物图鉴 <span class="dim small">（点一张看介绍）</span></h3>
+    <div id="charsGrid"></div>
+    <button class="closeBtn" data-close="charsModal">关闭</button>
+  </div>
+</div>
+
+<!-- 人物卡弹层（画像/emoji + 名称 + 称号 + 介绍） -->
+<div id="charCardModal" class="modal hidden">
+  <div class="card">
+    <div id="charCardBody"></div>
+    <button class="closeBtn" data-close="charCardModal">关闭</button>
+  </div>
+</div>
+
+<!-- 关卡数据（按关卡注册表加载；新增关卡只需再加一行） -->
+<script src="levels/dalim.js"></script>
+<script src="levels/station.js"></script>
+<script src="engine.js"></script>
+</body>
+</html>
