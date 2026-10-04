@@ -146,7 +146,7 @@
         /* B122（§7.10/§7.11-T73）：站长已醒（pinsAll 24）⇒ L1 背景切「靠床头坐起」版（T73 免验收直入）；
          * 缺图 ⇒ 运行期回落基础图（零降级）；变体 figures＝苏醒姿轮廓框（B126：T73 到货同批标定回填——
          * §7.3 同框面表第 3 行「＝变体 medbay-awake 的 figures」；数据以标定值为准，C 键通道保留）。 */
-        variants: [ { cond: { pinsAll: ['24'] }, image: '../images/station/rooms/medbay-awake.jpg', width: 1659, height: 948,
+        variants: [ { cond: { pinsAll: ['24'] }, image: '../images/station/rooms/medbay-awake.jpg', width: 1660, height: 948,
                       figures: { yilanna: [695, 190, 230, 245] } } ],
         pins: { '18': [1330, 860],    // 出口＝右下门内地面（目测：门洞地面中线）
                 '24': [870, 470],     // 房内＝病床床头（阿雅换冰袋处——「把医疗包交给阿雅」→ 24 号委托）
