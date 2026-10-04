@@ -16,7 +16,7 @@
 | T02 | 中层剖面图 | **已入库**：`images/station/deck2-v1.jpg`（当前作中层游戏场景） | ✅ 已入库 | 同上 |
 | T03 | 底层剖面图 | **已入库**：`images/station/deck3-v1.jpg`（当前作底层游戏场景） | ✅ 已入库 | 同上 |
 | T04 | 站外·太空场景 | 游戏场景（EVA；用于替掉现占位图） | **已交付**（`deliveries/T04-eva-scene-v1.jpg`） | **入库并切换（2026-10-03 老板试玩验收）**：入库＝父侧执行（→ `images/station/eva-v1.jpg`）；数据切换＋19 号 pin 重校准＝实现轮（口径＝`docs/design-ui-v1.md` §9.1） |
-| T05 | 人物立绘 8 张 | 人物卡 | **已交付**（`deliveries/T05-crew-sheet-v1.jpg`） | 待验收 → 切图 → 入库 |
+| T05 | 人物立绘 8 张 | 人物卡 | **已交付**（`deliveries/T05-crew-sheet-v1.jpg`）；**已切图入库 `images/station/chars/`（8/8，2026-10-04）** | 验收随统一验收轮 |
 | T06 | 道具图标 20 个 | 背包/商店 | **已交付**（`deliveries/T06-item-icons-v1.jpg`） | 待验收 → 切图 → 入库；**待补 3 件**：监控回放 / 反应堆安全规程 / 站长的便条（演出表 §3 提出） |
 | **T07** | **顶层走廊大厅（内景）** | 游戏场景（顶层） | **已交付**（`deliveries/T07-corridor-deck1-v1.jpg`） | 待验收（重点核：门全部关闭、无文字、看不到房内） |
 | **T08** | **中层走廊大厅（内景）** | 游戏场景（中层） | **已交付**（`deliveries/T08-corridor-deck2-v1.jpg`） | 同上 |
@@ -24,7 +24,7 @@
 | **T10~T14** | **房间内景 5 张**（指挥舱/站长室/仓库/反应堆舱/气闸舱） | 游戏场景（进门揭晓） | **已交付**（`deliveries/T10…T14-room-*-v1.jpg`） | 待验收 |
 | T15~T26 | 其余 12 间房间内景 | 游戏场景（升级用） | **重开下发（2026-10-03 · 老板试玩验收轮）**（单：`tasks/T15-T26-room-interiors-batch2-v2.md`） | 原单已撤回（记录面）；重开规格＝`art/requirements-v1.md` §3（P2a＝T15~T21／P2b＝T22~T26）；美工复核 12 张 v1，补交 T15/T17/T20/T21 v2，详见 `deliveries/notes.md` |
 | T27 | 站外·壮观强化版（条件件） | 19/39（替 T04，仅当 T04 判返工时） | **未启用（条件件）** | 触发条件＝T04 验收判返工＋老板确认；不达标不启用 |
-| T28~T35 | 演出插图（CG-01~07＋序章图） | 3/5/34/35/41/42/43 与序章 | **待下发**（P3 演出插图波） | 单未出——出单后转「下发」；依赖各自风格衔接件（T05/T13/T19/T23/T26） |
+| T28~T35 | 演出插图（CG-01~07＋序章图） | 3/5/34/35/41/42/43 与序章 | **已交付＋已入库**（8/8 → `images/station/cg/`，2026-10-04） | CG 整屏层已接入（B132）；验收结论随统一验收轮回填（交付见 `deliveries/notes.md`） |
 | T36 | T06 图标补遗 3 件 | 12/35/45 入手物（物品栏） | **下发**（单：`tasks/T36-item-icons-ext.md`） | 依赖 T06 验收（同套风格）；现有 `deliveries/T36-item-icons-ext-v1.jpg` 已复核尺寸/格式，未重复生成 |
 
 ## B04 附批：人物浮现图与窗景（2026-10-03 · 人物呈现方案二）
@@ -87,12 +87,12 @@
 ## 策划方待办（图到手后）
 
 - [ ] 逐张验收 → 入库 `images/station/`（统一验收轮；T04~T14 状态不动）
-- [ ] 人物头像切片（T05 → `images/station/chars/`，8 张）
+- [x] 人物头像切片（T05 → `images/station/chars/`，8 张）——已落（2026-10-04）
 - [ ] 道具图标切片（T06 → `images/station/icons/`，20 件＋补遗 3 件）
 - [ ] 每个场景标定编号点坐标（走廊图 = 各扇门；内景 = 房内交互点）
 - [ ] 接进引擎（v0.2：关卡选择页 / 多场景切换 / 资源与失败条件 / 卡死保险；B04：物品栏 / 头像 / 氧气数值）
 - [ ] 浮现图锚点校准（T37~T56 到货后逐场景；口径＝`docs/design-ui-v1.md` §7.3）｜T14 舷窗几何测量、T19 窗区几何记录（窗景对齐前置）
-- [ ] **站外切换（实现轮）**：exterior → `images/station/eva-v1.jpg`（T04 入库＝父侧）＋19 号 pin 重校准＋测试口径四处同步（`docs/design-ui-v1.md` §9.1）
-- [ ] **T46-v2 到货** → 替换 `images/station/moments/aya-nurse.jpg`（父侧入库）
-- [ ] 扩图 T57~T72：**已全发（免验收直入 `images/station/moments/`，出图即生效）**；到货后注册＋锚点校准＝实现轮（口径＝`docs/design-ui-v1.md` §7.4.1／§7.7-9）
-- [ ] **背景状态变体 T73~T79**：已全发（免验收直入 `images/station/rooms/`，出图即生效）；到货后注册（`variants`）＋`figures` 标定＋同框抽查＝实现轮（口径＝`docs/design-ui-v1.md` §7.10；单＝`tasks/T73-T79-room-state-variants.md`）
+- [x] **站外切换（实现轮）**：exterior → `images/station/eva-v1.jpg`（T04 入库＝父侧）＋19 号 pin 重校准＋测试口径四处同步（`docs/design-ui-v1.md` §9.1）——已落（B04/B114）
+- [x] **T46-v2 到货** → 替换 `images/station/moments/aya-nurse.jpg`（父侧入库）——已替换（2026-10-04；患者＝女站长口径）
+- [x] 扩图 T57~T72：**已全发（免验收直入 `images/station/moments/`，出图即生效）**；**注册已落（登记 16/16；实盘 13/16——撤注册 3 在案）**；锚点校准待 C 键回填（口径＝`docs/design-ui-v1.md` §7.4.1／§7.7-9）
+- [x] **背景状态变体 T73~T79**：已全发（免验收直入 `images/station/rooms/`，出图即生效）；**注册（`variants` 7 条）＋`figures` 回填＋同框抽查已落**（`figures` 为目测值、待 C 键回填；口径＝`docs/design-ui-v1.md` §7.10；单＝`tasks/T73-T79-room-state-variants.md`）

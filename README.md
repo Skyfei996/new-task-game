@@ -37,8 +37,8 @@ prototype/            引擎与关卡数据（纯静态，无构建）
   levels/dalim.js     关卡数据：Demo《勇闯大里姆》
   levels/station.js   关卡数据：原创《空间站大停摆》
   test.core.mjs       自测：Demo 关卡 569 项断言
-  test.station.mjs    自测：原创关卡 1103 项断言
-  test.play.mjs       自测：无头试玩器 + 管理台数据源 375 项断言
+  test.station.mjs    自测：原创关卡 2273 项断言
+  test.play.mjs       自测：无头试玩器 + 管理台数据源 420 项断言
 images/               关卡素材（场景图、人物卡）
 docs/                 设计文档（关卡设计档、任务点网络、试玩指南、文档地图）
 art/                  与 AI 美工的协作目录（任务单 / 交付 / 状态表）
@@ -49,8 +49,8 @@ tools/                工具：试玩器 play.mjs、管理台数据源 build-lab
 
 ```bash
 node prototype/test.core.mjs       # Demo 关卡：569 项
-node prototype/test.station.mjs    # 原创关卡：1103 项
-node prototype/test.play.mjs       # 试玩器 + 管理台数据源：375 项
+node prototype/test.station.mjs    # 原创关卡：2273 项
+node prototype/test.play.mjs       # 试玩器 + 管理台数据源：420 项
 node tools/play.mjs new station    # 终端里试玩（无浏览器；用法见 docs/playtest-guide.md）
 node tools/build-lab.mjs           # 重生成管理台的文档数据源（node tools/build-public.mjs 会自动跑）
 node tools/build-public.mjs        # 打包体验版到 dist/（两关；顺带刷新文档与管理台）
