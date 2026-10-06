@@ -63,6 +63,8 @@
       <button id="levelsBtn" title="返回关卡选择">🗂</button>
       <button id="charsBtn" title="人物图鉴">👥</button>
       <button id="bagBtn" title="背包">🎒</button>
+      <!-- B136（§1.2 入口①）：存档 / 读档（多档位手动存·读·删）——弹窗 #saveModal -->
+      <button id="saveBtn" title="存档 / 读档">💾</button>
       <button id="helpBtn" title="玩法说明">❓</button>
       <button id="restartBtn" title="重新开始本关">↺</button>
     </div>
@@ -124,6 +126,17 @@
     <h3>❓ 玩法说明</h3>
     <div id="helpBody"></div>
     <button class="closeBtn" data-close="helpModal">知道了</button>
+  </div>
+</div>
+
+<!-- B136（§1.2）：存档 / 读档弹窗（多档位手动存·读·删）——工具栏 💾（局内：存/读/覆盖/删）
+     与卡片「存档位」行（卡片态：只有读/删）两处入口共用；开启时探测一次存储可用性（saveWarn 为不可用警示行） -->
+<div id="saveModal" class="modal hidden">
+  <div class="card">
+    <h3>💾 存档 / 读档 <span class="dim small">（3 个存档位；存在这台设备的浏览器里）</span></h3>
+    <div id="saveWarn" class="saveWarn hidden"></div>
+    <div id="saveRows"></div>
+    <button class="closeBtn" data-close="saveModal">关闭</button>
   </div>
 </div>
 
