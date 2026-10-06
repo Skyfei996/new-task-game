@@ -25,6 +25,8 @@
 //         序章图（meta.prologue.image）＋层序与 contain 契约＋一次性与读档（§6.7 机检①~⑧）＋撤调暗零残留（数据/样式/引擎三面）
 //       / B05 轮（B135／B136 · 2026-10-06）：29 号整屏图注册（defeat-ambush·keep）＋浮图 sangni-ambush 撤注册（登记集 9 张）＋
 //         多档位存档/读档（§1.2 机检①~⑦：键／结构／读档一致／旧档与三态回归／确认句／兜底／源码契约；帮助 11→12 条）
+//       / B06 轮（B137~B139 · 2026-10-06）：指路面板（§2-B137 机检①~⑪：阶梯表六态／文本约束三条／need 门／空态／
+//         dalim 降级／源码契约与死局两态／第二入口三条）＋地图点名字（§2-B138 ①~③）＋已探索分楼层（§2-B139 ①~③）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -105,7 +107,7 @@ ok(D.help.some(l => l.indexOf('氧气条旁边的数字') >= 0 && l.indexOf('普
   'B04：帮助资源行＝氧气条＋数值口径，并报开局数值（100/30——取代 B03「不报开局数值」；§8.1 第 2 条）');
 ok(D.help.some(l => l.indexOf('武力值＝装备加成＋伙伴加成') >= 0 && l.indexOf('焊接枪 +1') >= 0),
   'B69：帮助武力行含构成算式与四件装备');
-ok(D.help.some(l => l.indexOf('🧭') >= 0 && l.indexOf('剧情会告诉你为什么') >= 0), '帮助里有「选项」新哲学条（B03/R06）');
+ok(D.help.some(l => l.indexOf('👉') >= 0 && l.indexOf('剧情会告诉你为什么') >= 0), '帮助「选项」新哲学条（B03/R06；B06：第 9 条图标 🧭→👉——与指路图标消重）');
 /* 资源 id 不能和状态字段撞名（资源直接住在 state 的同名字段上） */
 ['diff', 'me', 'items', 'visited', 'done', 'learned', 'wristband', 'hist', 'loc',
  'bankrupt', 'zeroRes', 'scene', 'flash'].forEach(k =>
@@ -750,11 +752,11 @@ ok(!C.deadEnd(st), '食堂：有可执行选项 → 不误报');
 C.go(st, '12');
 ok(!C.deadEnd(st), '反应堆舱：至少「回底层大厅」可走 → 不误报');
 C.go(st, '41');
-ok(!C.deadEnd(st), '结局节点不触发求救面板');
+ok(!C.deadEnd(st), '结局节点不触发指路面板');
 st = C.newState('normal');
 st.oxygen = 1;
 C.go(st, '12');
-ok(st.bankrupt && !C.deadEnd(st), '资源归零的失败结算不触发求救面板');
+ok(st.bankrupt && !C.deadEnd(st), '资源归零的失败结算不触发指路面板');
 /* 造假节点：所有选项都带条件、且不满足 → 走投无路 */
 D.nodes['T9'] = { n: '测试点', t: '（测试用）', c: [{ l: '需要手电', cond: { item: '手电' }, to: '1' }] };
 st = C.newState('normal');
@@ -773,7 +775,7 @@ D.nodes['T9'] = { n: '测试点', t: '（测试用）', c: [{ l: '需要手电',
 st = C.newState('normal'); st.loc = 'T9'; st.scene = 'exterior'; st.hist = ['18'];
 ok(!C.deadEnd(st), '有「返回」选项 → 不算走投无路');
 delete D.nodes['T9'];
-/* 求救面板的两个出口：安全点配置 + 回到安全点后能继续玩 */
+/* 指路面板的两个出口：安全点配置 + 回到安全点后能继续玩 */
 st = C.newState('normal');
 eq(C.safeNodeId(), '18', '安全点 = 关卡 meta.safeNode');
 ok(D.nodes['18'].n.indexOf('中央大厅') >= 0, '18 号是中央大厅');
@@ -931,7 +933,7 @@ ok(fs.existsSync(path.join(dir, 'levels', 'dalim.js')) && fs.existsSync(path.joi
   '关卡数据都在 prototype/levels/ 目录');
 ok(!fs.existsSync(path.join(dir, 'data.js')), '老的 prototype/data.js 已迁走（单一数据源）');
 ok(htmlIds.has('playerName') && htmlIds.has('levelList') && htmlIds.has('overlay'), '启动页 = 玩家名 + 关卡选择');
-ok(htmlIds.has('stuckModal') && htmlIds.has('resList'), '页面里有求救面板与资源 HUD 容器');
+ok(htmlIds.has('stuckModal') && htmlIds.has('resList'), '页面里有指路面板与资源 HUD 容器');
 
 /* ============ 14. §8.7 十条自动断言（设计档 v1 §8.7） ============ */
 console.log('');
@@ -3769,7 +3771,7 @@ console.log('———— B136 多档位存档 / 读档（§1.2 机检①~⑦）
   const htmlS = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
   ok(/id="saveBtn"[^>]*>💾/.test(htmlS), 'B136 §1.2-⑦：工具栏含 💾（源码契约）');
   ok(htmlS.indexOf('id="bagBtn"') < htmlS.indexOf('id="saveBtn"') && htmlS.indexOf('id="saveBtn"') < htmlS.indexOf('id="helpBtn"'),
-    'B136 §1.2：工具栏次序 🆘 🗂 👥 🎒 💾 ❓ ↺');
+    'B136 §1.2：工具栏次序 🧭 🗂 👥 🎒 💾 ❓ ↺');
   ok(htmlS.indexOf('id="saveModal" class="modal hidden"') >= 0 && htmlS.indexOf('id="saveRows"') >= 0 && htmlS.indexOf('id="saveWarn"') >= 0,
     'B136 §1.2-⑦：#saveModal 在（既有 .modal 体系；含档位行容器＋警示行）');
   ['slotsKey', 'slotList', 'slotPut', 'slotDel', 'slotInfo', 'slotTime', 'slotsAvailable', 'slotAsk'].forEach(fn =>
@@ -3790,6 +3792,270 @@ console.log('———— B136 多档位存档 / 读档（§1.2 机检①~⑦）
   P('§1.2-⑦ 源码契约：💾／#saveModal／Core 助手／摘要行格式 逐条通过');
 }
 
+
+/* ============ 24. B06 迷路治理轮：指路面板／地图点名字／已探索分楼层（§2-B137 机检①~⑪／B138 ①~③／B139 ①~③） ============ */
+console.log('');
+console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字（B138 ①~③）／已探索分楼层（B139 ①~③） ————');
+
+/* --- 24-1 §2-B137 机检①：阶梯表（非空/有序/末行兜底/每行 text ≤40 汉字/条件语言） --- */
+{
+  const T = D.meta.targets;
+  ok(Array.isArray(T) && T.length === 6, 'B137 §2-B137-①：目标阶梯表非空（station 6 行 R1~R6）');
+  eq(T.map(r => r.cond === undefined ? 'fallback' : 'cond').join(','), 'cond,cond,cond,cond,cond,fallback',
+    'B137 §2-B137-①：有序且末行 cond 缺省（兜底行置末——任意状态必有目标、不空）');
+  const HAN = s => (String(s).match(/\p{Script=Han}/gu) || []).length;
+  eq(T.map(r => (typeof r.text === 'string' && r.text.trim() !== '' && HAN(r.text) <= 40)).join(','),
+    'true,true,true,true,true,true',
+    'B137 §2-B137-①：每行 text 非空且 ≤40 字（字数口径＝仅计汉字 \\p{Script=Han}——标点/破折号不计；实测 ' + T.map(r => HAN(r.text)).join('/') + '）');
+  const bad = [];
+  T.forEach((r, i) => (r.need || []).forEach(n => {
+    if (!n.done || typeof n.done !== 'object') { bad.push('R' + (i + 1) + '.done'); return; }
+    if (n.show != null && typeof n.show !== 'object') { bad.push('R' + (i + 1) + '.show'); return; }
+    try { C.condOk(C.newState('normal'), n.done); if (n.show != null) C.condOk(C.newState('normal'), n.show); }
+    catch (e) { bad.push('R' + (i + 1) + '.throw'); }
+  }));
+  eq(bad.join(','), '', 'B137 §2-B137-①：need[].done／show 全走条件语言（可被 condOk 求值——逐条不抛）');
+  P('§2-B137-① 阶梯表：6 行有序／末行兜底／每行 text 非空且 ≤40 汉字／done·show 全走条件语言 逐条通过');
+}
+
+/* --- 24-2 §2-B137 机检②：六态探针逐态＝期望行（文案逐字＝设计档 §2-B137 表） --- */
+{
+  const S = extra => { const s = C.newState('normal'); if (extra) Object.assign(s, extra); return s; };
+  const goal = extra => C.guideTarget(S(extra));
+  const R = [
+    '反应堆亮了——去应急逃生舱口，把最后的事收个尾。',
+    '电回来了——去反应堆舱，把它点亮。',
+    '电有来源了——回站里，去底层把主供电推上去。',
+    '电还差一截——外部阵列那一路断了，去把它接上。',
+    '重启反应堆要三样东西，还得先把电力找回来。',
+    '先摸清站里的状况——找找能用的东西，听听大家都是怎么说的；把反应堆点亮，才是正事。'
+  ];
+  eq([goal(), goal({ visited: { '6': true } }), goal({ visited: { '15': true } }), goal({ visited: { '19': true } }),
+      goal({ learned: { '太阳能板已修好': true } }), goal({ learned: { '全站复电': true } }), goal({ learned: { '反应堆已重启': true } })].join('｜'),
+    [R[5], R[4], R[3], R[3], R[2], R[1], R[0]].join('｜'),
+    'B137 §2-B137-②：六态探针逐态＝期望行（开局 R6／到过指挥舱 R5／到过控制室 R4／到过站外 R4／修板后 R3／复电后 R2／重启后 R1——文案逐字）');
+  eq([goal({ visited: { '19': true }, learned: { '太阳能板已修好': true } }),
+      goal({ visited: { '23': true } }),
+      goal({ visited: { '6': true }, learned: { '全站复电': true } }),
+      goal({ visited: { '6': true, '15': true, '19': true }, learned: { '太阳能板已修好': true, '全站复电': true, '反应堆已重启': true } })].join('｜'),
+    [R[2], R[4], R[1], R[0]].join('｜'),
+    'B137 §2-B137-②：组合态＝先匹配者为准（更晚状态在前——修板+到过19 ⇒ R3；到过 23 ⇒ R5；复电+到过6 ⇒ R2；重启 ⇒ R1）');
+  ok([S(), S({ visited: { '22': true } }), S({ items: ['控制芯片'] })].every(s => typeof C.guideTarget(s) === 'string' && C.guideTarget(s)),
+    'B137 §2-B137-②：末行兜底 ⇒ 任意状态必有目标（不空）');
+  P('§2-B137-② 六态探针：逐态命中行（文案逐字）／组合态先匹配者为准／兜底不空 逐条通过');
+}
+
+/* --- 24-3 §2-B137 机检③：文本约束三条（无数字／无道具名／无发现面名词）逐行扫（仅 text 字段） --- */
+{
+  const texts = D.meta.targets.map(r => r.text);
+  eq(texts.filter(t => /\d/.test(t)).length, 0, 'B137 §2-B137-③：逐行无数字（\\d 不出现——仅扫各行 text 字段）');
+  eq(texts.filter(t => D.itemOrder.some(it => t.indexOf(it) >= 0)).join(','), '',
+    'B137 §2-B137-③：逐行不含道具名（D.itemOrder 逐项扫——need 的 label 含道具名、不在扫描面）');
+  const NOUNS = ['维修爬道', '舱外', '蒸汽'].concat(L5_NOUNS.map(n => n.w));
+  eq(texts.filter(t => NOUNS.some(w => t.indexOf(w) >= 0)).join(','), '',
+    'B137 §2-B137-③：逐行不含发现面名词（词表＝§8.1 约束行＋L5_NOUNS 的 w 列——共 ' + NOUNS.length + ' 项）');
+  P('§2-B137-③ 文本约束：无数字／无道具名／无发现面名词（仅扫 text 字段） 逐条通过');
+}
+
+/* --- 24-4 §2-B137 机检④：need 门（show 不成立 ⇒ 不出／成立 ⇒ 出）＋勾选态随 done（持物/复电各一例） --- */
+{
+  const S = extra => { const s = C.newState('normal'); if (extra) Object.assign(s, extra); return s; };
+  const labels = s => C.guideNeeds(s).map(n => n.label + '=' + n.done).join(',');
+  eq(C.guideNeeds(S({ learned: { '全站复电': true } })).length, 0,
+    'B137 §2-B137-④：need.show 不成立 ⇒ 不出（合成探针：复电后、未到过指挥舱 6、未持物 ⇒ R2 三项全滤掉）');
+  eq(labels(S({ learned: { '全站复电': true }, visited: { '6': true } })),
+    '控制芯片=false,冷却剂罐=false,站长授权卡=false',
+    'B137 §2-B137-④：show 成立（到过指挥舱）⇒ R2 三项全出、勾选态＝未到手 false');
+  eq(labels(S({ learned: { '全站复电': true }, visited: { '6': true }, items: ['控制芯片'] })),
+    '控制芯片=true,冷却剂罐=false,站长授权卡=false',
+    'B137 §2-B137-④：勾选态随 done（持物例：控制芯片到手 ⇒ true，其余仍 false）');
+  eq(labels(S({ learned: { '全站复电': true }, items: ['冷却剂罐'] })), '冷却剂罐=true',
+    'B137 §2-B137-④：show 的「或已到手」半支（到过 6 或已到手本项）——未到过 6 也可出（仅本项）');
+  eq(labels(S({ visited: { '6': true } })), '控制芯片=false,冷却剂罐=false,站长授权卡=false,电力=false',
+    'B137 §2-B137-④：R5（到过指挥舱）四项恒显（无 show 门——本行前提已含「知情」）');
+  const power = D.meta.targets[4].need.find(n => n.label === '电力');
+  eq([C.condOk(S({ visited: { '6': true } }), power.done),
+      C.condOk(S({ visited: { '6': true }, learned: { '全站复电': true } }), power.done)].join(','), 'false,true',
+    'B137 §2-B137-④：复电例（R5 的「电力」行 done＝knows 全站复电）——done 条件随状态翻转（数据面直证；R5 当前时复电必未发生〔R2 先匹配〕⇒ 该行 ☑ 随 R2 态自然退场——接线正确性此处直证）');
+  P('§2-B137-④ need 门：不成立不出／成立出／已到手半支／勾选态随 done（持物＋复电） 逐条通过');
+}
+
+/* --- 24-5 §2-B137 机检⑤：空态（清空 learned ⇒ ②空态句；命中无 need 的行 ⇒ ③空态句） --- */
+{
+  const s0 = C.newState('normal');
+  eq(C.guideClues(s0).length, 0, 'B137 §2-B137-⑤：清空 learned ⇒ guideClues＝[]（面板②走空态句）');
+  eq(C.guideClues({ learned: { '甲': true, '乙': true, '丙': true } }).join(','), '甲,乙,丙',
+    'B137 §2-B137-⑤：线索＝st.learned 键序（获得先后——与 CLI「线索：」同源同字面）');
+  eq(C.guideNeeds(s0).length, 0, 'B137 §2-B137-⑤：命中无 need 的行（开局＝R6 兜底）⇒ guideNeeds＝[]（面板③走空态句）');
+  ['（还没记住什么——多问问、多看看。）', '（这一步没有要凑的东西。）', '（这一关没有设目标清单——随便逛逛吧。）'].forEach(t =>
+    ok(engSrc.indexOf(t) >= 0, 'B137 §2-B137-⑤：空态/降级句在案（' + t + '）'));
+  P('§2-B137-⑤ 空态：清空 learned ⇒ ②空态／无 need 行 ⇒ ③空态／三句在案 逐条通过');
+}
+
+/* --- 24-6 §2-B137 机检⑥：dalim 降级（无 targets ⇒ guideTarget null、其余块照常、无异常） --- */
+{
+  C.selectLevel('dalim');
+  const dSt = C.newState('normal'); dSt.learned['甲'] = true;
+  eq([String(C.guideTarget(dSt)), String(C.guideNeeds(dSt).length), C.guideClues(dSt).join(',')].join('｜'), 'null｜0｜甲',
+    'B137 §2-B137-⑥：dalim（无 targets）⇒ guideTarget＝null、guideNeeds＝[]、guideClues 照常（无异常）');
+  eq(String(LEVELS.dalim.meta.targets), 'undefined', 'B137 §2-B137-⑥：示例关数据零改动（无 meta.targets 字段）');
+  C.selectLevel('station');                       // 口径面回切站关（后续检定仍按站关）
+  P('§2-B137-⑥ 降级：guideTarget null／其余块照常；dalim 数据零改动 逐条通过');
+}
+
+/* --- 24-7 §2-B137 机检⑦：源码契约（Core.guide* 单源／deadEnd 自动弹出沿用／死局上下文行两态） --- */
+{
+  ok(engSrc.indexOf('Core.guideTarget(st)') >= 0 && engSrc.indexOf('Core.guideClues(st)') >= 0 && engSrc.indexOf('Core.guideNeeds(st)') >= 0,
+    'B137 §2-B137-⑦：面板渲染走 Core.guide* 单源（目标／线索／还差什么）');
+  ok(engSrc.indexOf("if (Core.deadEnd(st)) showStuck('dead');") >= 0,
+    'B137 §2-B137-⑦：deadEnd 自动弹出沿用（renderAll 调用点在案——自动弹出＝带死局上下文行）');
+  ok(engSrc.indexOf("$('stuckText').classList.toggle('hidden', !dead)") >= 0,
+    'B137 §2-B137-⑦：死局上下文行两态（仅自动弹出显示——手动点开＝隐藏）');
+  ok(engSrc.indexOf('这里已经没有你能做的事了——别急：看看下面，换个地方想想办法。') >= 0,
+    'B137 §2-B137-⑦：面板首行新句在案（更名清单 #5——原「这里已经没有你能做的事了。……」）');
+  eq(engSrc.split('function showStuck(').length - 1, 1,
+    'B137 §2-B137-⑦：面板打开函数恰一份（现名 showStuck，不改——单一来源；两处入口同走该函数）');
+  eq(engSrc.split("$('stuckModal').classList.remove('hidden')").length - 1, 1,
+    'B137 §2-B137-⑦：无第二份面板实现（#stuckModal 打开点恰一处）');
+  P('§2-B137-⑦ 源码契约：guide* 单源／自动弹出沿用／上下文行两态／面板函数恰一份 逐条通过');
+}
+
+/* --- 24-8 §2-B137 机检⑧：回归（无 targets 时其余块输出照常；guide* 纯读不改状态） --- */
+{
+  C.selectLevel('dalim');
+  const dSt = C.newState('normal'); dSt.loc = '11';
+  eq([String(C.guideTarget(dSt)), C.guideNeeds(dSt).length].join('｜'), 'null｜0',
+    'B137 §2-B137-⑧：无 targets ⇒ ①/③ 走降级与空态（输出照常、无异常）');
+  C.selectLevel('station');
+  const probe = C.newState('normal'); probe.loc = '1';
+  const snap = JSON.stringify([probe.learned, probe.visited, probe.items, probe.loc, probe.chDone]);
+  C.guideTarget(probe); C.guideNeeds(probe); C.guideClues(probe);
+  eq(JSON.stringify([probe.learned, probe.visited, probe.items, probe.loc, probe.chDone]), snap,
+    'B137 §2-B137-⑧：guide* 纯读（求值前后状态逐字不变）');
+  P('§2-B137-⑧ 回归：无 targets 输出照常／guide* 纯读 逐条通过');
+}
+
+/* --- 24-9 §2-B137 机检⑨：第二入口·DOM 契约与单一来源 --- */
+{
+  const htmlB = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  const sceneBlock = htmlB.slice(htmlB.indexOf('id="sceneWrap"'), htmlB.indexOf('id="panel"'));
+  ok(sceneBlock.indexOf('id="guideFab"') >= 0, 'B137 §2-B137-⑨：#guideFab 在 #sceneWrap 内（场景区）');
+  ok(htmlB.indexOf('id="guideFab"') > htmlB.indexOf('id="stage"'), 'B137 §2-B137-⑨：在 #stage 之后（#stage 之外——不随身拖拽/缩放）');
+  ok(/<button id="guideFab"[^>]*>🧭 指路<\/button>/.test(htmlB), 'B137 §2-B137-⑨：按钮文字＝「🧭 指路」（图标＋可见文字）');
+  eq(htmlB.split('指路：现在该做什么 / 已知线索 / 出口').length - 1, 2,
+    'B137 §2-B137-⑨：title 与工具栏同句（两处入口各一份）');
+  ok(engSrc.indexOf("$('guideFab').onclick = () => { if (st) showStuck(); };") >= 0
+    && engSrc.indexOf("$('stuckBtn').onclick = () => { if (st) showStuck(); };") >= 0,
+    'B137 §2-B137-⑨：两处入口同走同一入口函数（showStuck——同一面板、单一来源；if (st) 守卫）');
+  P('§2-B137-⑨ 第二入口·DOM 契约：在场景区内／在 #stage 后／文字与 title／同一入口函数 逐条通过');
+}
+
+/* --- 24-10 §2-B137 机检⑩：第二入口·层序与不挡（样式契约；行为面＝临时 DOM 冒烟，用后删） --- */
+{
+  const fabRule = (uiCssSrc.match(/#guideFab \{([\s\S]*?)\}/) || [])[1] || '';
+  ok(fabRule.indexOf('position: absolute') >= 0 && /right:\s*12px/.test(fabRule) && /bottom:\s*52px/.test(fabRule),
+    'B137 §2-B137-⑩：#guideFab 定位＝场景区右下角（right:12px; bottom:52px——抬到物品栏行上方）');
+  ok(fabRule.indexOf('inset') < 0 && fabRule.indexOf('width: 100%') < 0 && fabRule.indexOf('width:100%') < 0,
+    'B137 §2-B137-⑩：小尺寸、非全幅（无 inset／width:100%——指针事件只覆盖自身盒子）');
+  const fabZ = Number((fabRule.match(/z-index:\s*(\d+)/) || [])[1] || 0);
+  ok(fabZ < 9, 'B137 §2-B137-⑩：z 序低于 .cgLayer(9) 与 .modal(50)（规则无 z-index 或 < 9——CG/弹窗显示时被盖住、不可点）');
+  ok(uiCssSrc.indexOf('#guideFab') >= 0, 'B137 §2-B137-⑩：#guideFab 样式在案（新面外置 style-ui.css——style.css 不动）');
+  P('§2-B137-⑩ 层序与不挡：右下定位／非全幅／z 序低于 CG 与弹窗（样式契约＋实现轮临时 DOM 冒烟） 逐条通过');
+}
+
+/* --- 24-11 §2-B137 机检⑪：第二入口·两关一致（引擎通用） --- */
+{
+  const htmlB = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  eq(htmlB.split('id="guideFab"').length - 1, 1, 'B137 §2-B137-⑪：按钮 DOM 恰一份（静态常驻——不按关卡增删；两关同款）');
+  ok(engSrc.indexOf("$('guideFab').onclick = () => { if (st) showStuck(); };") >= 0,
+    'B137 §2-B137-⑪：!st 守卫在案（关卡选择页被 #overlay 覆盖、不可点——与 #stuckBtn 同款守卫）');
+  P('§2-B137-⑪ 两关一致：DOM 常驻恰一份／引擎通用／!st 守卫 逐条通过');
+}
+
+/* --- 24-12 §2-B138 机检①：判定（未到过 null／到过名／当前点名／plainPins 一律 null） --- */
+{
+  const s = C.newState('normal'); s.loc = '5'; s.visited['5'] = true; s.visited['18'] = true;
+  eq([C.pinLabel(s, '5', 'deck1'), C.pinLabel(s, '18', 'deck1')].join('｜'), '观景厅｜中央大厅（顶层）',
+    'B138 §2-B138-①：到过 ⇒ 名（抽查 5 观景厅／18 中央大厅（顶层）——与地点头/已探索 title 同源）');
+  eq(String(C.pinLabel(s, '1', 'deck1')), 'null', 'B138 §2-B138-①：未到过 ⇒ null（不渲染——只显示已知）');
+  eq(String(C.pinLabel(s, '5', 'room-observation')), 'null', 'B138 §2-B138-①：房间（room-*）⇒ 一律 null（内景交互点多含事件名）');
+  eq(String(C.pinLabel(s, '19', 'exterior')), 'null', 'B138 §2-B138-①：站外（exterior）⇒ 一律 null');
+  const cur = C.newState('normal'); cur.loc = '18'; cur.visited['18'] = true;
+  eq(C.pinLabel(cur, cur.loc, 'deck1'), '中央大厅（顶层）', 'B138 §2-B138-①：当前点有名（进入即落 st.visited——当前点必然已到过）');
+  P('§2-B138-① 判定：未到过 null／到过名（5/18）／当前点名／房间与站外一律 null 逐条通过');
+}
+
+/* --- 24-13 §2-B138 机检②：源码契约（renderPins 按 Core.pinLabel 写 .pname；.pname 不接收指针事件） --- */
+{
+  ok(/const pname = Core\.pinLabel\(st, id, sid\);/.test(engSrc), 'B138 §2-B138-②：renderPins 走 Core.pinLabel 单源');
+  ok(/\(pname \? '<span class="pname">' \+ esc\(pname\) \+ '<\/span>' : ''\)/.test(engSrc),
+    'B138 §2-B138-②：`.pname` 在 renderPins 落位（有名字才追加）');
+  const pnRule = (uiCssSrc.match(/\.pin \.pname \{([\s\S]*?)\}/) || [])[1] || '';
+  ok(pnRule.indexOf('pointer-events: none') >= 0, 'B138 §2-B138-②：`.pname` 不接收指针事件（不挡点击）');
+  ok(pnRule.indexOf('white-space: nowrap') >= 0 && pnRule.indexOf('text-overflow: ellipsis') >= 0,
+    'B138 §2-B138-②：`.pname` 单行＋超长省略（nowrap／ellipsis）');
+  P('§2-B138-② 源码契约：pinLabel 单源／.pname 落位／不接收指针事件／单行省略 逐条通过');
+}
+
+/* --- 24-14 §2-B138 机检③：回归（未到过的 pin 结构＝ring＋num 逐字不变——标签为纯追加） --- */
+{
+  ok(/b\.innerHTML = '<span class="ring"><\/span><span class="num">' \+ id \+ '<\/span>'/.test(engSrc),
+    'B138 §2-B138-③：pin 基础结构＝ring＋num 逐字不变（.pname 为条件追加——未到过 ⇒ 不出现）');
+  const s = C.newState('normal');
+  eq(['1', '2', '3'].map(id => String(C.pinLabel(s, id, 'deck1'))).join(','), 'null,null,null',
+    'B138 §2-B138-③：未到过点一律 null（渲染面不追加 .pname——结构回归）');
+  P('§2-B138-③ 回归：ring＋num 逐字不变（标签纯追加） 逐条通过');
+}
+
+/* --- 24-15 §2-B139 机检①：分组（混合探针：顶层/底层/站外各 2 点＋落空场景 1 点 ⇒ 「其它」置末） --- */
+{
+  const s = C.newState('normal');
+  ['1', '5', '12', '13', '19', '39'].forEach(id => { s.visited[id] = true; });
+  D.nodes['99'] = { n: '合成探针点' };             // 合成：无 scene、无 pin ⇒ sceneOfNode＝null ⇒ 「其它」（用后即删）
+  s.visited['99'] = true;
+  eq(String(C.sceneOfNode('99')), 'null', 'B139 §2-B139-①：落空场景探针＝sceneOfNode null（⇒ 「其它」）');
+  const g = C.visitedGroups(s);
+  eq(g.map(x => x.label + ':' + x.ids.join('/')).join('｜'), '顶层:1/5｜底层:12/13｜站外:19/39｜其它:99',
+    'B139 §2-B139-①：组序＝场景表键序（顶层→中层→底层→站外——空组不出）＋「其它」置末；组内编号升序');
+  delete D.nodes['99'];
+  ok(!Object.prototype.hasOwnProperty.call(D.nodes, '99'), 'B139 §2-B139-①：合成探针节点已清理（数据复原）');
+  P('§2-B139-① 分组：场景表键序＋「其它」置末＋组内升序（混合探针） 逐条通过');
+}
+
+/* --- 24-16 §2-B139 机检②：空态两态（无组；有组且某组为空 ⇒ 该组不出） --- */
+{
+  eq(JSON.stringify(C.visitedGroups(C.newState('normal'))), '[]',
+    'B139 §2-B139-②：无组（visited 空）⇒ []（调用方走既有空态句）');
+  const s = C.newState('normal'); s.visited['1'] = true;
+  eq(C.visitedGroups(s).map(x => x.label + ':' + x.ids.join('/')).join('｜'), '顶层:1',
+    'B139 §2-B139-②：有组且其余组为空 ⇒ 该组不出（仅顶层一组）');
+  P('§2-B139-② 空态：无组 ⇒ []／空组不出 逐条通过');
+}
+
+/* --- 24-17 §2-B139 机检③：回归（全空＝既有空态句；节点过滤集与改前一致；示例关＝一楼/负一层） --- */
+{
+  ok(engSrc.indexOf('（还没去过任何地方）') >= 0, 'B139 §2-B139-③：全空 ⇒ 既有空态句在案（renderVisited 沿用）');
+  const s = C.newState('normal');
+  ['1', '29', '41', '44'].forEach(id => { s.visited[id] = true; });
+  eq(C.visitedGroups(s).map(x => x.label + ':' + x.ids.join('/')).join('｜'), '顶层:1',
+    'B139 §2-B139-③：节点过滤集与改前一致（29／44＝fail、41＝win ⇒ 排除；仅 1 入组）');
+  C.selectLevel('dalim');
+  const d = C.newState('normal'); d.visited['1'] = true; d.visited['4'] = true;
+  eq(C.visitedGroups(d).map(x => x.label + ':' + x.ids.join('/')).join('｜'), '一楼:1｜负一层:4',
+    'B139 §2-B139-③：示例关分组＝一楼/负一层（组序＝场景表键序——随关卡自适应）');
+  C.selectLevel('station');                       // 口径面回切站关
+  P('§2-B139-③ 回归：全空句／过滤集一致（fail/win 排除）／示例关分组 逐条通过');
+}
+
+/* --- 24-18 §8.1 帮助同步（更名清单 #7：第 11 条新稿＋第 9 条 👉；条数仍 12） --- */
+{
+  eq(D.help.length, 12, 'B137 §8.1：帮助条数仍 12（第 11 条改写不抢 B05 第 12 条）');
+  eq(D.help[10], '🧭 迷路了？工具栏和场景区右下角的「指路」按钮，随时能点：当前目标、记下的线索、还差什么，一眼看全；下面还有「回到安全点」和「重开本关」。',
+    'B137 §8.1 第 11 条逐字（🧭 指路——两处入口＋四块名目；更名清单 #7）');
+  eq(D.help[8], '👉 选项：能做的事才会出现；拿不准的，尽管试——不行的时候，剧情会告诉你为什么。',
+    'B137 §8.1 第 9 条逐字（图标 👉——与指路图标消重；更名清单 #7 同批）');
+  P('§8.1 帮助同步：条数 12／第 11 条新稿逐字／第 9 条 👉 逐条通过');
+}
 
 /* ============ 汇总 ============ */
 console.log('');
