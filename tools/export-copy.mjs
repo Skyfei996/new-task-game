@@ -84,7 +84,7 @@ export function buildCopy(L, levelId) {
   out.push('|---|---|---|');
   for (const k of itemKeys) {
     const it = L.items[k] || {};
-    const tag = [it.atk ? '武力 +' + it.atk : '', it.nosell ? '**红框·不可卖**' : '', it.text ? '**可读**（正文见「道具正文」段）' : '', it.desc || ''].filter(Boolean).join('；');
+    const tag = [it.desc || '', it.atk ? '武力 +' + it.atk : '', it.nosell ? '**红框·不可卖**' : '', it.text ? '**可读**（正文见「道具正文」段）' : ''].filter(Boolean).join('；');   // B07：说明列＝介绍在前、属性/规则标记在后
     out.push('| ' + k + ' | ' + (it.icon || '') + ' | ' + (tag || '—') + ' |');
   }
   out.push('');

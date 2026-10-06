@@ -27,10 +27,12 @@
 //         多档位存档/读档（§1.2 机检①~⑦：键／结构／读档一致／旧档与三态回归／确认句／兜底／源码契约；帮助 11→12 条）
 //       / B06 轮（B137~B139 · 2026-10-06）：指路面板（§2-B137 机检①~⑪：阶梯表六态／文本约束三条／need 门／空态／
 //         dalim 降级／源码契约与死局两态／第二入口三条）＋地图点名字（§2-B138 ①~③）＋已探索分楼层（§2-B139 ①~③）
+//       / B07 轮（B140／B141 · 2026-10-06）：道具介绍（§2-B140 机检①~④：覆盖 23/22／句式／导出对拍／旧档）＋
+//         呈现口径（§2-B141 机检①③：源码契约／回归）；lint L5/L6 扫描面收 items[].desc
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const code = ['levels/dalim.js', 'levels/station.js', 'engine.js']
@@ -1345,7 +1347,7 @@ console.log('');
 console.log('———— §8.7-11 lint 五条（L1 同现 / L2 可见性两态 / L3 跨层 / L4 代价 / L5 名词）＋ L6 前提可知性 ————');
 
 /* —— 支撑表数据源（照 design-station-nodes.md §9.4；维护方＝叙事/系统线）——
- * 扫描面：node.t / tIf / 选项文案 / say / lockText / battle.loseSay / items.text / 序章 / 帮助（数据源头）；
+ * 扫描面：node.t / tIf / 选项文案 / say / lockText / battle.loseSay / items.text / items.desc（B07 纳入——§10.5-L5/L6） / 序章 / 帮助（数据源头）；
  * 导出文案稿 docs/station-copy-v1.md 是数据的产品面快照（重导归父侧收口——QA 轮改了文案后须重导，方与源头同源）。 */
 const L1_EVENT_CHARS = { '23': ['tangtang'], '24': ['aya', 'yilanna'], '25': ['laobu'], '26': ['tietou'], '27': ['tietou'], '28': ['yinhe'],
   '29': ['sangni'], '31': ['sangni'], '32': ['sangni'], '33': ['sangni'], '38': ['laobu'], '40': ['sangni', 'tietou'] };   // B04：24/25/26/27/38 补登记（与 design-station-nodes.md §9.4【角色在场表】同步）
@@ -1786,7 +1788,7 @@ function lintL5(L) {
   const bad = [], listing = [];
   const pro = ((L.meta.prologue && L.meta.prologue.lines) || []).join('\n');
   const help = (L.help || []).join('\n');
-  const itemTexts = Object.entries(L.items).map(([k, v]) => ['道具:' + k, v.text || '']);
+  const itemTexts = Object.entries(L.items).map(([k, v]) => ['道具:' + k, (v.text || '') + '\n' + (v.desc || '')]);   // B07：扫描面收 items[].desc（§10.5-L5）
   L5_NOUNS.forEach(({ w, intro, allow }) => {
     const occ = [];
     if (pro.indexOf(w) >= 0) occ.push('序章');
@@ -1845,7 +1847,7 @@ function providedFlags(L) {
   eq(noItem.join(','), '', 'L6① 静态：cond 引用的道具均有来源（选项发放／商店货架）');
   const dead = L5_NOUNS.filter(({ w, intro }) => {
     const pool = [((D.meta.prologue && D.meta.prologue.lines) || []).join(''), (D.help || []).join(''),
-      Object.values(D.items).map(v => v.text || '').join(''),
+      Object.values(D.items).map(v => (v.text || '') + (v.desc || '')).join(''),   // B07：扫描面收 items[].desc（§10.5-L6）
       Object.values(D.nodes).map(n => nodeTextOf(n)).join('')].join('\n');
     return !pool.includes(w) || !intro;
   }).map(x => x.w);
@@ -4055,6 +4057,90 @@ console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字�
   eq(D.help[8], '👉 选项：能做的事才会出现；拿不准的，尽管试——不行的时候，剧情会告诉你为什么。',
     'B137 §8.1 第 9 条逐字（图标 👉——与指路图标消重；更名清单 #7 同批）');
   P('§8.1 帮助同步：条数 12／第 11 条新稿逐字／第 9 条 👉 逐条通过');
+}
+
+/* ============ 25. B07 道具介绍（§2-B140 机检①~④／§2-B141 机检①③ · 2026-10-06） ============ */
+console.log('');
+console.log('———— B07 道具介绍：覆盖／句式／导出对拍／旧档／源码契约／回归 ————');
+
+/* --- 25-1 §2-B140 机检①：覆盖（station 23/23＋dalim 22/22——两关各断言；计数自证） --- */
+{
+  /* 长度口径＝Array.from(desc).length（码点、含标点）——B140 机检①原文；与 B137 机检①「仅计汉字」不同源（B07 评审轮次 2 #5） */
+  const bad = []; let maxLen = 0;
+  const check = (L, n, tag) => {
+    eq(L.itemOrder.length, n, 'B140 §2-B140-①：' + tag + ' itemOrder 逐件 ' + n + ' 件（计数自证）');
+    L.itemOrder.forEach(it => {
+      const d = (L.items[it] || {}).desc;
+      if (typeof d !== 'string' || d.trim() === '') { bad.push(tag + ':' + it + '(缺/非串)'); return; }
+      if (d.indexOf('\n') >= 0) bad.push(tag + ':' + it + '(多行)');
+      maxLen = Math.max(maxLen, Array.from(d).length);
+      if (Array.from(d).length > 40) bad.push(tag + ':' + it + '(超长 ' + Array.from(d).length + ')');
+    });
+  };
+  check(D, 23, 'station'); check(LEVELS.dalim, 22, 'dalim');
+  eq(bad.join(','), '', 'B140 §2-B140-①：两关全量逐件 desc 类型/非空/单行/≤40 码点（实测最长 ' + maxLen + '）');
+  P('§2-B140-① 覆盖：station 23/23＋dalim 22/22 逐件 desc 齐（非空/单行/≤40 码点，最长 ' + maxLen + '） 逐条通过');
+}
+
+/* --- 25-2 §2-B140 机检②：句式（两关无属性/规则词；station 另断发现面名词三词） --- */
+{
+  const bad = [];
+  const scan = (L, tag) => L.itemOrder.forEach(it => {
+    const d = (L.items[it] || {}).desc || '';
+    if (/武力|不可卖|红框/.test(d)) bad.push(tag + ':' + it + '(属性/规则词)');
+    if (tag === 'station' && /维修爬道|舱外|蒸汽/.test(d)) bad.push('station:' + it + '(发现面名词)');
+  });
+  scan(D, 'station');
+  scan(LEVELS.dalim, 'dalim');
+  eq(bad.join(','), '', 'B140 §2-B140-②：desc 不含「武力/不可卖/红框」（两关）且 station 不含发现面名词（维修爬道/舱外/蒸汽）');
+  P('§2-B140-② 句式：两关无属性/规则词＋station 无发现面名词 逐条通过');
+}
+
+/* --- 25-3 §2-B140 机检③：导出对拍（buildCopy ⇄ 数据面：desc 全文进 §四＋说明列「介绍在前」） --- */
+{
+  const mod = await import(pathToFileURL(path.join(dir, '..', 'tools', 'export-copy.mjs')).href);
+  const md = mod.buildCopy(D, 'station');
+  const rowOf = id => md.split('\n').find(l => l.indexOf('| ' + id + ' |') === 0) || '';
+  eq(D.itemOrder.filter(it => rowOf(it).indexOf(D.items[it].desc) < 0).join(','), '', 'B140 §2-B140-③：§四 23 件逐件含 desc 全文（对拍 buildCopy）');
+  const r1 = rowOf('焊接枪');   // 介绍＋武力＋红框三者并存 ⇒ 列序可判
+  ok(r1.indexOf(D.items['焊接枪'].desc) >= 0 && r1.indexOf(D.items['焊接枪'].desc) < r1.indexOf('武力 +1') && r1.indexOf('武力 +1') < r1.indexOf('红框·不可卖'), 'B140 §2-B140-③：说明列列序＝介绍在前、属性/规则标记在后（探针 焊接枪：desc < 武力 < 红框）');
+  ok(rowOf('桑尼的账本').indexOf(D.items['桑尼的账本'].desc) < rowOf('桑尼的账本').indexOf('**可读**'), 'B140 §2-B140-③：desc 与「可读」标记并存时介绍在前（探针 桑尼的账本）');
+  P('§2-B140-③ 导出对拍：23 件 desc 全文进 §四／列序（介绍在前） 逐条通过');
+}
+
+/* --- 25-4 §2-B140 机检④：旧档（desc 为关卡数据、不进存档；旧档零迁移） --- */
+{
+  const s = C.newState('normal');
+  ok(!('desc' in s) && JSON.stringify(s).indexOf('"desc"') < 0, 'B140 §2-B140-④：newState 键集不含 desc（desc 为关卡数据、不进存档）');
+  const norm = C.normalizeState({ diff: 'normal', coins: 15, oxygen: 90, items: ['手电', '桑尼的账本'], visited: {}, done: {}, learned: {}, chDone: {}, hist: [], loc: '1' });
+  eq(norm.items.join(','), '手电,桑尼的账本', 'B140 §2-B140-④：旧档（无 desc 概念）读入零迁移——道具照旧');
+  eq([C.itemDesc('手电') === D.items['手电'].desc, C.itemDesc('桑尼的账本') === D.items['桑尼的账本'].desc].join(','), 'true,true', 'B140 §2-B140-④：desc 纯读自关卡数据（与 st／存档无关）');
+  P('§2-B140-④ 旧档：键集不含 desc／读入零迁移／desc 纯读 逐条通过');
+}
+
+/* --- 25-5 §2-B141 机检①：源码契约（.biDesc 无条件渲染／.readable 判据／.ibDesc／desc 段先于 text 段） --- */
+{
+  const orBody = engSrc.slice(engSrc.indexOf('function openRead('), engSrc.indexOf('function renderBag('));
+  ok(/const canOpen = owned && \(desc \|\| text\);/.test(engSrc), 'B141 §2-B141-①：可点判据＝owned && (desc || text)（.readable 同判据）');
+  ok(/\(desc \? '<div class="biDesc">' \+ esc\(desc\) \+ '<\/div>' : ''\)/.test(engSrc), 'B141 §2-B141-①：背包格 .biDesc 无条件渲染（不按 owned——全部道具含未获得）');
+  ok(/r\.className = 'ibDesc';/.test(engSrc) && /r\.textContent = desc;/.test(engSrc), 'B141 §2-B141-①：物品栏气泡 .ibDesc 在案（标题下、正文按钮前）');
+  ok(orBody.indexOf("'<p class=\"rdDesc\">'") >= 0 && orBody.indexOf("'<p class=\"rdDesc\">'") < orBody.indexOf("nm(text).split('\\n')"), 'B141 §2-B141-①：openRead 介绍段（.rdDesc）先于正文段（text）');
+  ok(/const desc = Core\.itemDesc\(it\), text = Core\.itemText\(it\);/.test(engSrc) && /const desc = Core\.itemDesc\(id\);/.test(engSrc), 'B141 §2-B141-①：渲染走 Core.itemDesc 单源（renderBag／invBubble／openRead）');
+  ok(engSrc.indexOf('if (!desc && !text)') >= 0 && engSrc.indexOf('这件东西没什么可读的。') >= 0, 'B141 §2-B141-①：兜底句保留（desc 与 text 皆无分支）');
+  P('§2-B141-① 源码契约：.biDesc 无条件／.readable 判据／.ibDesc／desc 先于 text／单源／兜底 逐条通过');
+}
+
+/* --- 25-6 §2-B141 机检③：回归（属性/规则行与「可读」逐字／未获得格结构／看内容·使用／帮助 12 条） --- */
+{
+  ok(/\(meta\.atk \? '<div class="biAtk">武力 \+' \+ meta\.atk \+ '<\/div>' : ''\)/.test(engSrc)
+    && /\(meta\.nosell \? '<div class="biTag">不可卖<\/div>' : ''\)/.test(engSrc) && /\(owned && text \? '<div class="biRead">📖 可读<\/div>' : ''\)/.test(engSrc),
+    'B141 §2-B141-③：属性行/规则行/「📖 可读」逐字不变（「可读」仍＝有 text）');
+  ok(/d\.disabled = !owned;/.test(engSrc) && engSrc.indexOf(": '还没有获得';") >= 0, 'B141 §2-B141-③：未获得格结构照旧（不可点＋title 还没有获得）');
+  ok(engSrc.indexOf("b.textContent = '📖 看内容';") >= 0 && engSrc.indexOf("b.textContent = '使用';") >= 0, 'B141 §2-B141-③：物品栏「看内容」（有正文）/「使用」判据照旧');
+  ok(/<span class="sName">' \+ it \+ '<\/span>/.test(engSrc), 'B141 §2-B141-③：商店/回收行逐字不变（源码契约）');
+  eq(D.help.length, 12, 'B141 §2-B141-③：帮助条数仍 12（本批零改动）');
+  ok(D.help[4].indexOf('点一下看说明') >= 0, 'B141 §2-B141-③：帮助第 5 条「点一下看说明」与呈现一致（§8.2 H2）');
+  P('§2-B141-③ 回归：属性/规则行·可读逐字／未获得格／看内容·使用／商店回收行／帮助 12 条 逐条通过');
 }
 
 /* ============ 汇总 ============ */

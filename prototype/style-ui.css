@@ -8,6 +8,7 @@
  *       ⑤ 浮现层（§7）· ⑥ 布局（物品栏行＋提示条归位）· ⑦ 选关页控件（§1.1）· ⑧ CG 整屏层（B132 · §6.7）
  *       · ⑨ 存档 / 读档弹窗与卡片行（B136 · §1.2）
  *       · ⑩ 指路面板＋场景区第二入口＋地图点名字＋已探索分组（B06 · §2-B137/B138/B139）
+ *       · ⑪ 道具介绍（B07 · §2-B140／B141）
  * ==========================================================================*/
 
 /* ---------- ① 消息四类颜色（§3；机检：:root 四条 token，四类互不相同） ---------- */
@@ -234,3 +235,11 @@
 /* B139：已探索组标题（小字；组间留距——组内 chip 沿用 .vchip 既有样式） */
 #visitedList .vgLabel { margin: 0 5px 0 8px; font-size: 11px; color: var(--dim); }
 #visitedList .vgLabel:first-child { margin-left: 0; }
+
+/* ---------- ⑪ 道具介绍（B07 · §2-B140／B141）：背包格一行／物品栏气泡一行／详情面板介绍段 ---------- */
+/* 背包格：名称下的一行介绍（全部道具含未获得；未获得格随 opacity:.32 一起灰显——沿既有） */
+.biDesc { margin-top: 3px; font-size: 10.5px; line-height: 1.5; color: #a9c2d8; }
+/* 物品栏气泡：标题下的一行介绍（物品栏只列已持有） */
+.ibDesc { margin-top: 3px; line-height: 1.6; color: #cfe0ee; }
+/* 道具详情面板：介绍段在前、正文段随后（正文段 #readBody p 沿既有样式） */
+.rdDesc { margin: 0 0 10px; padding-left: 9px; border-left: 3px solid var(--line); color: #eaf3fb; }

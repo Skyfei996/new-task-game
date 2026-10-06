@@ -2,6 +2,7 @@
 // 覆盖：数据完整性 / 完整通关路径 / 战斗 / 商店 / 出售 / 抽奖奇偶 / 密码线索 / 偷窃 / 返回 / 区域切换（v1.2）
 //       + 货币底线（v1.3：金币钳 0 / 身无分文 / 购买守卫）+ 人物表与触发点（v1.3）+ DOM id 自检（v1.3）
 //       + 引擎 v0.3 新钩子 E1~E8（fail:null / 序章 / 道具正文 / hint / lockText / once+chDone / say / tIf）
+//       + B07：道具介绍 Core.itemDesc（E3 同口径——非字符串或空 ⇒ null；§2-B140）
 // ⚠ v0.2：关卡数据由 prototype/data.js 迁到 prototype/levels/dalim.js —— 本文件只改这一行加载路径，
 //         其余 525 项断言一字未动（引擎 v0.2 对示例关卡保持完全兼容）。
 import fs from 'node:fs';
@@ -494,7 +495,7 @@ globalThis.LEVELS['hooktest'] = {
     { id: 'coins', name: '测试币', unit: '枚', icon: '🪙', start: { normal: 1, hard: 0 }, fail: null },
     { id: 'oxy', name: '氧气', unit: '点', icon: '💨', start: { normal: 5, hard: 5 }, fail: { title: '缺氧', text: '没气了。' } }
   ],
-  items: { '钥匙': { icon: '🔑', text: '第一段\n第二段' }, '木棍': { icon: '🪵', atk: 1 } },
+  items: { '钥匙': { icon: '🔑', text: '第一段\n第二段', desc: '一把钥匙——能开很多门。' }, '木棍': { icon: '🪵', atk: 1 } },
   characters: {}, charOrder: [], help: [],
   nodes: {
     h1: { n: '钩子起点', t: '开场正文。', tIf: [{ cond: { chDone: '打过招呼' }, t: '打过招呼之后的正文。' }],
@@ -534,6 +535,10 @@ eq(C.fillName(pro.lines[0], C.newState('normal')), '你是林小晨。', 'E2：�
 /* --- E3 道具正文（items[].text） --- */
 eq(C.itemText('钥匙'), '第一段\n第二段', 'E3：道具正文可读（多段 \\n 原样保留）');
 eq(C.itemText('木棍'), null, 'E3：没有 text 的道具 → null（面板回「没什么可读的」）');
+/* --- B07（§2-B140）：道具介绍 Core.itemDesc（同 E3 itemText 口径——非字符串或空 ⇒ null） --- */
+eq(C.itemDesc('钥匙'), '一把钥匙——能开很多门。', 'B07：有 desc ⇒ 原样返回（纯读）');
+eq(C.itemDesc('木棍'), null, 'B07：没有 desc 的道具 → null（不显示）');
+LVH.items['木棍'].desc = ''; eq(C.itemDesc('木棍'), null, 'B07：空串 desc ⇒ null'); delete LVH.items['木棍'].desc;
 
 /* --- E4 hint 缺省 = vague --- */
 eq(C.choiceHint({}), 'vague', 'E4：不写 hint = vague');

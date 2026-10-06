@@ -109,6 +109,13 @@
  *   E32 已探索分楼层（§2-B139）：Core.visitedGroups——组＝sceneLabel(sceneOfNode(id))（缺省「其它」），
  *       组序＝场景表键序（「其它」置末）、组内编号升序；过滤与既有 renderVisited 一致（hidden/fail/win 排除）。
  *
+ * B07 轮（B140／B141 · 2026-10-06；口径＝docs/design-ui-v1.md §2-B140／B141、design-station-v1.md §7-E33）：
+ *   E33 道具介绍（B140／B141）：Core.itemDesc（纯读——同 E3 itemText 口径：非字符串或空 ⇒ null）；
+ *       呈现三处——背包格 `.biDesc`（**全部道具含未获得**；`.readable`／可点判据＝`owned && (desc || text)`）／
+ *       物品栏气泡 `.ibDesc`（「📖 看内容」照旧＝有 text；兜底行改判＝desc 与 text 皆无才出）／
+ *       道具详情面板升格（介绍段 `.rdDesc` 在前、正文段随后；两者皆无 ⇒ 兜底句保留）。
+ *       desc＝纯呈现数据（不进存档、不参与判定）；写作纪律＝§2-B140 机检②。
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/指路弹窗、坐标校准
@@ -492,6 +499,11 @@
     itemText(id) {
       const m = (D.items && D.items[id]) || {};
       return typeof m.text === 'string' && m.text ? m.text : null;
+    },
+    /* B07（E33 · §2-B140）：道具介绍：只读；没有 desc（或空串）= 不显示（同 itemText 口径） */
+    itemDesc(id) {
+      const m = (D.items && D.items[id]) || {};
+      return typeof m.desc === 'string' && m.desc ? m.desc : null;
     },
     atkOf(st) {
       let a = st.items.reduce((s, id) => s + ((D.items[id] && D.items[id].atk) || 0), 0);
@@ -2104,12 +2116,19 @@
       if (invOpen === id) bar.appendChild(invBubble(id, meta, use));
     });
   }
-  /* 详情气泡：图标/名称 ＋「可用于：<选项名>」＋「使用」（唯一命中）/「可用于 N 处」（多条）＋「看内容」 */
+  /* 详情气泡：图标/名称 ＋介绍（B07）＋「可用于：<选项名>」＋「使用」（唯一命中）/「可用于 N 处」（多条）＋「看内容」 */
   function invBubble(id, meta, use) {
     const node = D.nodes[st.loc];
+    const desc = Core.itemDesc(id);              // B07（§2-B141）：介绍一行（放在标题下；物品栏只列已持有）
     const d = document.createElement('div');
     d.className = 'invBubble';
     d.innerHTML = '<div class="ibTitle">' + (meta.icon || '❔') + ' ' + esc(id) + '</div>';
+    if (desc) {
+      const r = document.createElement('div');
+      r.className = 'ibDesc';
+      r.textContent = desc;
+      d.appendChild(r);
+    }
     if (use.count === 1) {
       const r = document.createElement('div');
       r.className = 'ibRow';
@@ -2129,9 +2148,9 @@
     if (Core.itemText(id)) {
       const b = document.createElement('button');
       b.textContent = '📖 看内容';
-      b.onclick = () => openRead(id);                                 // E3 既有只读面板
+      b.onclick = () => openRead(id);                                 // E3 既有只读面板（B07 升格＝介绍段＋正文段）
       d.appendChild(b);
-    } else {
+    } else if (!desc) {                            // B07：兜底行改判——desc 与 text 皆无才出
       const r = document.createElement('div');
       r.className = 'ibDim';
       r.textContent = '这件东西没什么可读的';
@@ -2421,12 +2440,14 @@
     renderShopFolds(box, node);
   }
 
-  /* ---------- 背包（E3：带正文的道具点开只读面板） ---------- */
+  /* ---------- 背包（E3：带正文的道具点开只读面板；B07 升格：介绍段在前、正文段随后） ---------- */
   function openRead(it) {
-    const text = Core.itemText(it);
-    if (!text) { toast('这件东西没什么可读的。'); return; }   // 无 text 的道具：明确说一句
+    const desc = Core.itemDesc(it), text = Core.itemText(it);
+    if (!desc && !text) { toast('这件东西没什么可读的。'); return; }   // 两者皆无：明确说一句（B07 本批数据不出现）
     $('readTitle').textContent = '📖 ' + it;
-    $('readBody').innerHTML = nm(text).split('\n').map(p => '<p>' + esc(p) + '</p>').join('');
+    $('readBody').innerHTML =
+      (desc ? '<p class="rdDesc">' + esc(desc) + '</p>' : '') +
+      (text ? nm(text).split('\n').map(p => '<p>' + esc(p) + '</p>').join('') : '');
     $('readModal').classList.remove('hidden');
   }
   function renderBag() {
@@ -2435,16 +2456,18 @@
     D.itemOrder.forEach(it => {
       const meta = D.items[it] || {};
       const owned = Core.hasItem(st, it);
-      const text = Core.itemText(it);
+      const desc = Core.itemDesc(it), text = Core.itemText(it);
+      const canOpen = owned && (desc || text);   // B07（§2-B141）：可点判据（已获得即有可看内容）
       const d = document.createElement('button');
       d.type = 'button';
       d.disabled = !owned;                     // 没拥有 = 点不开（阅读只针对已获得的东西）
-      d.className = 'bagItem' + (owned ? ' owned' : '') + (meta.nosell ? ' nosell' : '') + ((owned && text) ? ' readable' : '');
+      d.className = 'bagItem' + (owned ? ' owned' : '') + (meta.nosell ? ' nosell' : '') + (canOpen ? ' readable' : '');
       d.title = owned
-        ? ((text ? '点开看看 · ' : '') + (meta.nosell ? '红框道具：不可出售' : '可出售（1 枚）'))
+        ? ((canOpen ? '点开看看 · ' : '') + (meta.nosell ? '红框道具：不可出售' : '可出售（1 枚）'))
         : '还没有获得';
       d.innerHTML = '<div class="biIcon">' + (meta.icon || '❔') + '</div>' +
         '<div class="biName">' + it + '</div>' +
+        (desc ? '<div class="biDesc">' + esc(desc) + '</div>' : '') +     // B07：介绍行（全部道具含未获得）
         (meta.atk ? '<div class="biAtk">武力 +' + meta.atk + '</div>' : '') +
         (meta.nosell ? '<div class="biTag">不可卖</div>' : '') +
         (owned && text ? '<div class="biRead">📖 可读</div>' : '');

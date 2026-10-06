@@ -605,6 +605,13 @@ seq.forEach(s => console.log('  ' + s));
   const md2 = mod.buildCopy(D4, 'station');
   const t4 = Object.keys(D4.items).filter(id => C4.itemText(id));
   ok(t4.every(id => md2.indexOf(String(C4.itemText(id)).split('\n')[0].slice(0, 10)) >= 0), 'station 现数据：' + t4.length + ' 件道具正文全部进了导出稿');
+  /* B07（§2-B140 机检③）：说明列——desc 全文进稿＋列序＝介绍在前、属性/规则标记在后 */
+  const descIds = D4.itemOrder.filter(id => C4.itemDesc(id));
+  eq(descIds.length, 23, 'B07：station 23 件介绍齐（desc 非空）');
+  ok(descIds.every(id => md2.indexOf(C4.itemDesc(id)) >= 0), 'B07：desc 全文进导出稿（23 件）');
+  const row = md2.split('\n').find(l => l.indexOf('| 焊接枪 |') === 0) || '';
+  ok(row.indexOf(C4.itemDesc('焊接枪')) >= 0 && row.indexOf(C4.itemDesc('焊接枪')) < row.indexOf('武力 +1') && row.indexOf('武力 +1') < row.indexOf('红框·不可卖'),
+    'B07：说明列列序＝介绍在前、属性/规则标记在后（探针 焊接枪）');
 }
 
 /* ============ 汇总 ============ */
