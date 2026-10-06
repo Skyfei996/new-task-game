@@ -4,11 +4,11 @@
  * v1.1（按试玩反馈）：选项标注去向编号；移动跟随条目；场景灰暗遮罩
  * v1.2：双区域背景（一楼 ⇄ 负一层）+ 跨区提示 + 编号点击可选（含“返回”类）
  * v1.3：货币底线（金币钳 ≥0 / 降到 0 判失败 / 购买不许花光）；被偷强反馈；
- *       人物光环与图鉴；当前位置大光环；通关奖励
+ *       人物光环与图鉴；当前位置大光环；结算奖励框（v1.3 引入、B144 删除）
  *
  * v0.2 改动（多关卡架构 + 通用资源 + 卡死保险，配合 levels/*.js）：
  *   ① 关卡注册表：关卡数据住在 prototype/levels/*.js，挂到 G.LEVELS；启动页 = 关卡选择卡片
- *      （海报图 + 标题 + 一句话 + 难度与开局资源 + 难度单选（默认普通）+ 唯一「开始」——B115/§1.1）
+ *      （海报图 + 标题 + 一句话 + 难度与开局资源 + 难度单选（B147 起三档、默认中等）+ 唯一「开始」——B115/§1.1）
  *   ② 存档按关卡独立（mygame2.save.<levelId>.v1）；旧的 mygame2.market.save.v1 作为
  *      「勇闯大里姆」的存档读入（兼容）；玩家名全局存（mygame2.player.v1）
  *   ③ 通用资源：关卡声明 resources:[{id,name,icon,start:{normal,hard},fail:{title,text,node?},noSpendToZero?}]
@@ -100,8 +100,9 @@
  *       写入失败 ⇒ 行内提示＋toast（采用句）。B135（§6.7）：29 号 cg＋撤浮图（数据面，本层零改动）。
  *
  * B06 轮（B137~B139 · 2026-10-06；口径＝docs/design-ui-v1.md §2-B137~B139、design-station-v1.md §7-E30~E32）：
- *   E30 指路面板（原 🆘 升级更名「🧭 指路」）：Core.guideTarget／guideNeeds／guideClues（纯读——当前目标＝
- *       `meta.targets` 首条命中行；还差什么＝命中行 `need[]` 按 `show` 门过滤；已知线索＝`st.learned` 键序）；
+ *   E30 指路面板（原 🆘 升级更名「🧭 指路」）：Core.guideTarget／guideClues（纯读——当前目标＝
+ *       `meta.targets` 首条命中行；已知线索＝`st.learned` 键序；③块「还差什么」B146 起＝`meta.tasks`／
+ *       `Core.guideTasks`——见 B09 块）；
  *       两处入口（工具栏 #stuckBtn／场景区 #guideFab）→ 同一入口函数（面板打开函数恰一份——现名 showStuck，
  *       不改）；死局上下文行仅自动弹出（showStuck('dead')）显示；面板首行＝「这里已经没有你能做的事了——别急：……」。
  *   E31 编号圈地点名（§2-B138）：Core.pinLabel——已到过（st.visited）且地图场景（!plainPins）⇒ 节点名；
@@ -124,6 +125,14 @@
  *   E35 指路面板Ⅱ（B142）：面板底部仅「确认」；原两出口迁 #saveModal「🚪 出口」区块（id 不改；play 渲染／card 隐藏）；
  *       重开确认＝D65 采用句（💾 区块直调 Core.coverAsk；restart(noAsk)——既有绑定点一律箭头包装，不得直传事件对象）。
  *
+ * B09 轮（B144~B147 · 2026-10-06；口径＝docs/design-ui-v1.md §2-B144~B147、design-station-v1.md §8.2／§8.4）：
+ *   E38 多结局提示（B144）：Core.moreEndings()＝本关 win 节点数 ≥2（零新字段）——结算屏 win 档 `.endMore`＋
+ *       序章层 `.proMore` 两行（引擎常量；单结局关不出）；结算奖励框与奖励字段删除（失效即删）。
+ *   E37 ③块任务清单（B146）：Core.guideTasks（`meta.tasks`——show 门控、done 任务不出、need ☑/☐）；
+ *       `guideNeeds` 退役（`targets.need` 同）；空态句＝「（眼下没有要凑的东西。）」——多任务在身不出空态。
+ *   E36 难度三档（B147）：`easy`/`normal`/`hard`（默认中等）；Core.startValue／diffLabel 单源；HUD 条基准＝
+ *       `start[st.diff]`（含 lowThreshold／档位色）；卡片三行资源＋三单选；档位词全处三档（旧「普通模式」删除）。
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/指路弹窗、坐标校准
@@ -135,6 +144,10 @@
   const FREE_MOVE = false;                    // true = 旧版“满地图自由点击”模式
   const PLAYER_KEY = 'mygame2.player.v1';     // 玩家名（全局，跨关卡共用）
   const DEFAULT_PLAYER = '林小晨';            // 默认玩家名（设计档：主角林小晨）
+  /* B144（§2-B144 · 2026-10-06）：多结局提示两行（引擎常量——文案＝station-story-bible.md §7.50 逐字）。
+   * 结算屏 win 档＝`.endMore`；序章层＝`.proMore`；两处共用判据 `Core.moreEndings()`（本关 win 数 ≥2）。 */
+  const MORE_END_TEXT = '🔀 还有别的结局——换一条路、换一种做法，故事会有不一样的收尾。';
+  const MORE_PRO_TEXT = '结局不止一个——你做的每个选择，都会把故事带向不同的收尾。';
 
   let D = null;        // 当前关卡数据（selectLevel 绑定；同步给 G.GAME_DATA，旧代码/旧测试仍可读）
   let levelId = null;  // 当前关卡 id
@@ -171,6 +184,22 @@
       if (!p || !Array.isArray(p.lines) || !p.lines.length) return null;
       return { lines: p.lines, image: p.image || null };
     },
+
+    /* ---- B144／B147（引擎常量与判据；口径＝docs/design-ui-v1.md §2-B144／B147） ---- */
+    /* B144（§2-B144）：多结局判据＝本关 win 节点数 ≥ 2（零新字段；两关同判——station 41/42/43 ⇒ true；
+     * 示例关仅 57 ⇒ false，「多结局」不成立不硬写）。结算屏 `.endMore` 与序章层 `.proMore` 共用该判据。 */
+    moreEndings() {
+      if (!D || !D.nodes) return false;
+      return Object.keys(D.nodes).filter(k => D.nodes[k] && D.nodes[k].win).length >= 2;
+    },
+    /* B147（§2-B147 · D91~D92）：难度三档的开局值与档位词——`start[st.diff]` 单源（键缺省回落 normal；
+     * 旧档 diff ∈ {normal, hard} 照读）。数值权威＝design-station-v1.md §8.2。 */
+    startValue(r, diff) {
+      const s = (r && r.start) || {};
+      const d = (diff === 'easy' || diff === 'hard') ? diff : 'normal';
+      return (s[d] != null ? s[d] : (s.normal != null ? s.normal : 0)) || 0;
+    },
+    diffLabel(d) { return d === 'easy' ? '简单模式' : d === 'hard' ? '困难模式' : '中等模式'; },
 
     /* ---- 场景：编号点属于哪个场景 = 它印在哪张图上（单一数据源） ---- */
     /* 同一编号点出现在多张图的 pins 里（如电梯井）→ 无固定场景，返回 null（保持当前场景不换图） */
@@ -228,6 +257,10 @@
       return hit ? hit.id : (rs[0] ? rs[0].id : 'coins');
     },
     resOf(st, id) { const v = st ? st[id] : 0; return typeof v === 'number' && isFinite(v) ? v : 0; },
+    /* B147（§2-B147 · D92）：HUD 条与档位色的纯判据（DOM 层与测试同源）——基准＝本档开局值（start[st.diff]）；
+     * 条＝round(值÷基准×10) 格（0~10 钳位）；档位色＝比例口径 ≥50% ok／20~49% warn／<20% danger。 */
+    barFill(v, base) { return Math.max(0, Math.min(10, Math.round(base > 0 ? v / base * 10 : 0))); },
+    barTierOf(v, base) { const k = base > 0 ? v / base : 0; return k >= 0.5 ? 'ok' : k >= 0.2 ? 'warn' : 'danger'; },
     /* 资源变动的唯一入口（钱 / 氧气 / 将来的任何资源都走这里）：① 钳在 ≥0；② 归零 = 失败结算 */
     applyRes(st, id, delta, log) {
       log = log || [];
@@ -273,7 +306,7 @@
 
     /* ---- 状态 ---- */
     newState(diff, me) {
-      const d = diff === 'hard' ? 'hard' : 'normal';
+      const d = (diff === 'easy' || diff === 'hard') ? diff : 'normal';   // B147：三档（旧值 normal/hard 照读）
       const st = {
         diff: d,
         me: Core.cleanName(me),
@@ -290,9 +323,7 @@
         zeroRes: null,     // 是哪个资源归零的（决定失败结算文案）
         scene: Core.defaultScene()
       };
-      Core.resources().forEach(r => {
-        st[r.id] = (r.start && (r.start[d] != null ? r.start[d] : r.start.normal)) || 0;
-      });
+      Core.resources().forEach(r => { st[r.id] = Core.startValue(r, d); });   // B147：开局值走 startValue 单源
       return st;
     },
     /* 读档兜底（旧存档没有 scene / zeroRes / me；资源钳在 ≥0，为 0 即判失败）
@@ -313,7 +344,7 @@
       let zero = null;
       Core.resources().forEach(r => {
         const v = Number(st[r.id]);
-        st[r.id] = Math.max(0, isFinite(v) ? v : ((r.start && (r.start[st.diff] != null ? r.start[st.diff] : r.start.normal)) || 0));
+        st[r.id] = Math.max(0, isFinite(v) ? v : Core.startValue(r, st.diff));   // B147：缺值按本档开局值补（旧档照读）
         if (st[r.id] <= 0 && !zero && !Core.resNoFail(r)) zero = r.id;   // E1：fail:null 归零不算失败
       });
       st.zeroRes = zero;
@@ -487,7 +518,7 @@
       const nodeName = Core.endDisplayName(Core.fillName(String((node && node.n) || ''), s));
       const resLine = (L.resources || []).map(r => (r.icon ? r.icon + ' ' : '') + (r.name || r.id) + ' ' + Core.resOf(s, r.id)).join(' · ');
       return n + ' · ' + Core.slotTime(slot.savedAt) + ' ｜ ' + (s.loc != null ? s.loc : '?') + ' · ' + nodeName
-        + ' ｜ ' + resLine + ' ｜ ' + (s.diff === 'hard' ? '困难模式' : '普通模式');
+        + ' ｜ ' + resLine + ' ｜ ' + Core.diffLabel(s.diff);   // B147：档位词三档（简单／中等／困难模式）
     },
     /* 存储可用性探测（打开弹窗时探一次）：探针写入＋删除；不可用 ⇒ false（警示行＋按钮全部禁用，玩法照常） */
     slotsAvailable(store) {
@@ -776,14 +807,20 @@
       const hit = rows.find(r => Core.condOk(st, r.cond));
       return (hit && typeof hit.text === 'string' && hit.text) ? hit.text : null;
     },
-    /* B137（§2-B137）：「还差什么」＝当前目标行的 need[]——`show` 不成立者不出（缺省恒显）；返回 [{label, done}]；
-     * 行无 need ／ 全被 show 滤掉 ／ 无 targets ⇒ []（面板③块走空态句）。 */
-    guideNeeds(st) {
-      const rows = (D && D.meta && Array.isArray(D.meta.targets)) ? D.meta.targets : null;
+    /* B146（§2-B146）：「还差什么」＝`meta.tasks` 任务清单（`guideNeeds` 退役——`targets.need` 同步退役）：
+     * 逐任务 `[{ id, name, needs: [{label, done}] }]`——`show` 不成立不出（「只显示已知」）／`done` 成立整条不出
+     * （已收尾不占位）；`need[].show` 门控逐项（缺省恒显）；无 `tasks`（示例关）⇒ []（面板③块走空态句）。 */
+    guideTasks(st) {
+      const rows = (D && D.meta && Array.isArray(D.meta.tasks)) ? D.meta.tasks : null;
       if (!rows) return [];
-      const hit = rows.find(r => Core.condOk(st, r.cond));
-      const need = (hit && Array.isArray(hit.need)) ? hit.need : [];
-      return need.filter(n => Core.condOk(st, n.show)).map(n => ({ label: n.label, done: Core.condOk(st, n.done) }));
+      return rows
+        .filter(t => Core.condOk(st, t.show))
+        .filter(t => !(t.done && Core.condOk(st, t.done)))
+        .map(t => ({
+          id: t.id, name: t.name,
+          needs: ((Array.isArray(t.need) ? t.need : []).filter(n => Core.condOk(st, n.show)))
+            .map(n => ({ label: n.label, done: Core.condOk(st, n.done) }))
+        }));
     },
     /* B137（§2-B137）：已知线索＝st.learned 的键序（获得先后——与 CLI「线索：」同源同字面） */
     guideClues(st) { return (st && st.learned) ? Object.keys(st.learned) : []; },
@@ -809,13 +846,14 @@
       });
       return { clues: clues, records: records };
     },
-    /* B143（R5）：面板内容签名＝①块文本＋②块条目 id／key:态序列＋③块 label:done 序列（写入 st.gSeen 后比对差异） */
+    /* B143（R5）：面板内容签名＝①块文本＋②块条目 id／key:态序列＋③块逐任务 id:need:done 序列（B146 改版——
+     * 任务出现／☑ 翻转 ⇒ 圆点；写入 st.gSeen 后比对差异） */
     guideSig(st) {
       const parts = ['G:' + (Core.guideTarget(st) || '')];
       const g = Core.guideNotes(st);
       g.clues.forEach(c => parts.push('C:' + c.key));
       g.records.forEach(r => parts.push('R:' + r.id + (r.state ? ':' + r.state : ':-')));
-      Core.guideNeeds(st).forEach(n => parts.push('N:' + n.label + ':' + (n.done ? '1' : '0')));
+      Core.guideTasks(st).forEach(t => parts.push('T:' + t.id + ':' + t.needs.map(n => n.label + ':' + (n.done ? '1' : '0')).join(',')));
       return parts.join('|');
     },
     /* B143（R5）：有更新＝签名≠上次打开时的签名（旧档／新局无基线 ⇒ 视为有更新——一次性「请看一眼」） */
@@ -1418,7 +1456,7 @@
   /* B117（§1.1 老板 2026-10-04 裁定）：读档功能恢复——卡片三态：无存档「开始」／未结束「继续＋重新开始」／
    * 已结束（通关／失败终止）「重玩」（不出现「继续」）；记录块（通关记录·独立键＋上局失败终止行）；
    * 覆盖＝开新局前统一一句确认（取消＝不动存档）；脚注＝本机存档口径。判定与文案同源＝Core.cardInfo。
-   * B115（2026-10-03）：难度＝单选（默认普通）；「继续上次进度」不出现（入口名＝「继续」）。 */
+   * B115（2026-10-03）：难度＝单选（B147 起三档、默认中等）；「继续上次进度」不出现（入口名＝「继续」）。 */
   function levelCard(id, lv) {
     const meta = lv.meta || {};
     const card = document.createElement('div');
@@ -1446,38 +1484,36 @@
     tag.textContent = meta.tagline || '';
     body.appendChild(tag);
 
-    /* 两种难度的开局资源（从 resources 表读，不写死） */
+    /* 三档难度的开局资源（从 resources 表读，不写死；B147——缺键回落 normal） */
     const resBox = document.createElement('div');
     resBox.className = 'lcRes';
-    ['normal', 'hard'].forEach(d => {
-      const bits = (lv.resources || []).map(r => {
-        const v = r.start && r.start[d] != null ? r.start[d] : (r.start && r.start.normal);
-        return (r.icon || '') + (r.name || r.id) + ' ' + v;
-      });
+    ['easy', 'normal', 'hard'].forEach(d => {
+      const bits = (lv.resources || []).map(r =>
+        (r.icon || '') + (r.name || r.id) + ' ' + Core.startValue(r, d));
       const row = document.createElement('div');
       row.className = 'lcResRow';
-      row.textContent = (d === 'normal' ? '普通模式' : '困难模式') + '：' + bits.join('　');
+      row.textContent = Core.diffLabel(d) + '：' + bits.join('　');
       resBox.appendChild(row);
     });
     body.appendChild(resBox);
 
     const btns = document.createElement('div');
     btns.className = 'lcBtns';
-    /* B115（§1.1）：难度单选（默认选中普通）——切换即决定开局难度档 */
+    /* B115＋B147（§1.1）：难度单选三档（简单／中等／困难，默认中等）——切换即决定开局难度档 */
     const diffRow = document.createElement('div');
     diffRow.className = 'lcDiff';
     const picked = { diff: 'normal' };
-    [['normal', '普通模式'], ['hard', '困难模式']].forEach(([d, label]) => {
+    ['easy', 'normal', 'hard'].forEach(d => {
       const lab = document.createElement('label');
       lab.className = 'lcDiffOpt';
       const r = document.createElement('input');
       r.type = 'radio';
       r.name = 'lcDiff-' + id;                 // 同一卡片内一组；多卡片互不串
       r.value = d;
-      r.checked = (d === 'normal');            // 默认选中普通
+      r.checked = (d === 'normal');            // 默认选中中等（B147）
       r.onchange = () => { if (r.checked) picked.diff = d; };
       const tx = document.createElement('span');
-      tx.textContent = label;
+      tx.textContent = Core.diffLabel(d);
       lab.appendChild(r);
       lab.appendChild(tx);
       diffRow.appendChild(lab);
@@ -1546,6 +1582,11 @@
      B132（§6.7）：序章图＝CG-08 图位；缺图同 CG 口径——不显示图（退回无图态）、其余照旧＋一行告警。 */
   function showPrologue(pro) {
     $('prologueLines').innerHTML = pro.lines.map(t => '<p>' + esc(nm(t)) + '</p>').join('');
+    /* B144（§2-B144）：序章层多结局提示——正文行之下一行 `.proMore`（判据＝本关 win 数 ≥2；单结局关不出；
+     * 不进序章 111 字计数——字数口径＝正文 `lines`）。 */
+    const more = $('prologueMore');
+    if (Core.moreEndings()) { more.textContent = MORE_PRO_TEXT; more.classList.remove('hidden'); }
+    else { more.textContent = ''; more.classList.add('hidden'); }
     const img = $('prologueImg');
     if (pro.image) {
       img.onerror = () => { console.warn('序章图缺图（已隐藏）：' + pro.image); img.classList.add('hidden'); };
@@ -1745,22 +1786,20 @@
   }
 
   /* HUD：全部资源（含低额预警）+ 武力值 */
-  function lowThreshold(r) {
+  function lowThreshold(r, diff) {
     if (r.low != null) return r.low;
-    const s0 = (r.start && (r.start.normal || 0)) || 0;
+    const s0 = Core.startValue(r, diff);   // B147：低额线随本档开局值（20%）
     return Math.max(1, Math.round(s0 * 0.2));
   }
   /* ---------- HUD 资源（B04：氧气＝条＋数值；其余资源＝计数） ---------- */
   /* bar:true 的资源按「余量读数」口径呈现（design-ui-v1.md §6.1／设计档 §8.3，B04 重订）：
-   * 分段填充条＋具体数值（数值＝余量原值，单位「点」；条＝round(值÷基准×10) 格、基准＝普通开局值）；
+   * 分段填充条＋具体数值（数值＝余量原值，单位「点」；条＝round(值÷基准×10) 格、基准＝本档开局值（`start[st.diff]`——B147）；
    * 档位色 = ≥50 正常（ok）／20~49 警示（warn）／<20 危险（danger·呼吸感）——数字与条同色。
    * 两者同源同帧：同一处渲染，条与数字永不脱节；hudPrev = 上一次渲染值：有变 → 条与数字一起闪。 */
   const BAR_SEGMENTS = 10;
   let hudPrev = null;
-  function barTier(r, v) {
-    const base = (r.start && r.start.normal) || 100;
-    const k = base > 0 ? v / base : 0;
-    return k >= 0.5 ? 'ok' : k >= 0.2 ? 'warn' : 'danger';
+  function barTier(r, v, diff) {
+    return Core.barTierOf(v, Core.startValue(r, diff));   // B147（D92）：基准＝本档开局值（单一判据在 Core）
   }
   function renderHUD() {
     const box = $('resList');
@@ -1768,14 +1807,14 @@
     const prev = hudPrev, next = {};
     Core.resources().forEach(r => {
       const v = Core.resOf(st, r.id);
-      const low = v <= lowThreshold(r);
+      const low = v <= lowThreshold(r, st.diff);
       next[r.id] = v;
       if (r.bar) {                     // B04（§6.1）：氧气＝分段填充条＋数值
-        const base = (r.start && r.start.normal) || 100;
-        const filled = Math.max(0, Math.min(BAR_SEGMENTS, Math.round(base > 0 ? v / base * BAR_SEGMENTS : 0)));
+        const base = Core.startValue(r, st.diff);   // B147（D92）：基准＝本档开局值（start[st.diff]）
+        const filled = Math.max(0, Math.min(BAR_SEGMENTS, Core.barFill(v, base)));
         const hit = prev && prev[r.id] != null && prev[r.id] !== v;
         const s = document.createElement('span');
-        s.className = 'stat res bar ' + barTier(r, v) + (hit ? ' hit' : '');
+        s.className = 'stat res bar ' + barTier(r, v, st.diff) + (hit ? ' hit' : '');
         s.dataset.res = r.id;
         s.title = (r.name || r.id) + '：' + v;
         const ic = document.createElement('span');
@@ -2459,18 +2498,20 @@
     const box = $('choiceList');
     box.innerHTML = '';
 
-    /* ① 结局（通关 / 失败）：复用失败界面 + 结局标签 + 通关奖励 */
+    /* ① 结局（通关 / 失败）：复用失败界面 + 结局标签 + 多结局提示（B144——结算奖励框与奖励字段已删） */
     if (node.fail || node.win) {
       const d = document.createElement('div');
       d.className = 'endBanner ' + (node.win ? 'win' : 'fail');
       /* B04（§6.2）：玩家可见的结局名一律去字母（「结局 A · 圆满」→「结局 · 圆满」）；数据面 endTag 不动 */
       d.textContent = node.endTag ? ('🏁 ' + Core.endDisplayName(nm(node.endTag))) : (node.win ? '🏆 闯关成功！' : '💀 闯关失败');
       box.appendChild(d);
-      if (node.win && D.meta.winReward) {
-        const r = document.createElement('div');
-        r.className = 'rewardBox';
-        r.textContent = '🎁 通关奖励：' + D.meta.winReward;
-        box.appendChild(r);
+      /* B144（§2-B144）：多结局提示（win 档、结局横幅下、出口按钮前）——判据＝本关 win 数 ≥2；
+       * 失败结算（29/44）不出；文案＝引擎常量（bible §7.50 逐字）。 */
+      if (node.win && Core.moreEndings()) {
+        const m = document.createElement('div');
+        m.className = 'endMore';
+        m.textContent = MORE_END_TEXT;
+        box.appendChild(m);
       }
       box.appendChild(endButtons());
       return;
@@ -2539,11 +2580,11 @@
   /* ---------- 走投无路（v0.2 卡死保险）：指路面板（B137 更名；B08 改版＝三块＋出口在 💾） ----------
    * 两处入口（工具栏 #stuckBtn／场景区 #guideFab）→ 同一入口函数（面板打开函数恰一份）；
    * 死局上下文行仅自动弹出（showStuck('dead')）时显示——手动点开＝该行隐藏（§2-B137 入口表）。
-   * 面板纯读 st（三块＝Core.guideTarget／guideNotes／guideNeeds）；唯一写＝B08（§2-B143）的 st.gSeen
+   * 面板纯读 st（三块＝Core.guideTarget／guideNotes／guideTasks）；唯一写＝B08（§2-B143）的 st.gSeen
    * 签名位（打开面板时落档）；②块＝「线索与记录」两分组（条目展收、「新」标——B143）。 */
   const GUIDE_FALLBACK = '（这一关没有设目标清单——随便逛逛吧。）';    // ① 降级句（无 targets——示例关）
   const GUIDE_CLUES_EMPTY = '（还没记住什么——多问问、多看看。）';      // ② 空态句
-  const GUIDE_NEEDS_EMPTY = '（这一步没有要凑的东西。）';              // ③ 空态句
+  const GUIDE_TASKS_EMPTY = '（眼下没有要凑的东西。）';                // ③ 空态句（B146 替换——旧句删除）
   function guideDimLine(text) {
     const d = document.createElement('div');
     d.className = 'guideDim';
@@ -2611,16 +2652,24 @@
       cb.appendChild(guideGroupHead('记录'));
       g.records.forEach(r => cb.appendChild(guideItemEl(r.title, r.text, r.state, r.isNew)));
     }
-    /* ③ 还差什么（当前目标行 need[]——show 不成立者不出；done 成立＝☑） */
+    /* ③ 还差什么（B146：任务清单——`meta.tasks` 逐任务 `name`＋need 逐项 ☐/☑；show 门控、done 任务不出）；
+     * 空态句只在「真无可见任务」时出——多任务在身不得出空态句（老板④正断言）。
+     * 容器 id 沿用 `#guideNeeds`（id 不改，沿 B137 先例——B146 更名留痕，函数已改 `guideTasks`）。 */
     const nb = $('guideNeeds');
     nb.innerHTML = '';
-    const needs = Core.guideNeeds(st);
-    if (!needs.length) nb.appendChild(guideDimLine(GUIDE_NEEDS_EMPTY));
-    needs.forEach(n => {
-      const d = document.createElement('div');
-      d.className = 'guideLine' + (n.done ? ' done' : '');
-      d.textContent = (n.done ? '☑ ' : '☐ ') + n.label;
-      nb.appendChild(d);
+    const tasks = Core.guideTasks(st);
+    if (!tasks.length) nb.appendChild(guideDimLine(GUIDE_TASKS_EMPTY));
+    tasks.forEach(t => {
+      const tt = document.createElement('div');
+      tt.className = 'tdTitle';
+      tt.textContent = t.name;
+      nb.appendChild(tt);
+      t.needs.forEach(n => {
+        const d = document.createElement('div');
+        d.className = 'guideLine tdNeed' + (n.done ? ' done' : '');
+        d.textContent = (n.done ? '☑ ' : '☐ ') + n.label;
+        nb.appendChild(d);
+      });
     });
   }
   function showStuck(dead) {

@@ -270,3 +270,12 @@
 }
 /* 出口区块标题行（#saveModal「🚪 出口」——B142） */
 .opsTitle { margin: 14px 0 0; font-size: 12.5px; letter-spacing: .5px; color: var(--dim); }
+
+/* ---------- ⑬ B09（B144／B146）：结算·序章多结局提示／③块任务清单标题与缩进 ---------- */
+/* 结算屏多结局提示（win 档、结局横幅下、出口按钮前——dim 小字） */
+.endMore { margin: 4px 0 12px; text-align: center; font-size: 12.5px; line-height: 1.7; color: var(--dim); }
+/* 序章层多结局提示（正文行之下一行——dim 小字；居中随 .prologueCard） */
+.proMore { margin: 10px 0 2px; font-size: 13px; line-height: 1.7; color: var(--dim); }
+/* ③块任务清单：任务名行＋ need 项缩进（勾选态沿用 .guideLine.done） */
+.tdTitle { margin-top: 7px; font-size: 13.5px; line-height: 1.7; color: #eaf3fb; }
+.tdNeed { padding-left: 16px; }

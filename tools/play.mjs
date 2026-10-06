@@ -3,8 +3,8 @@
 // 规则来自同一份 engine.js 的纯核心 Core —— 与网页版完全一致，这里不重写任何规则。
 //
 // 用法（在项目根目录跑）：
-//   node tools/play.mjs new station            开新局（默认普通模式，玩家名「林小晨」）
-//   node tools/play.mjs new station --hard --name 小豆
+//   node tools/play.mjs new station            开新局（默认中等难度，玩家名「林小晨」）
+//   node tools/play.mjs new station --easy|--hard --name 小豆
 //   node tools/play.mjs choose 3               执行当前可见选项里的第 3 个（1 起）
 //   node tools/play.mjs buy 1 | buy 通行证      在商店买东西（序号见屏幕上的「商店」块）
 //   node tools/play.mjs sell 毛绒玩具           在废料回收点卖东西（红框道具不能卖）
@@ -32,6 +32,8 @@ const SESSION_FILE = path.join(SESSION_DIR, 'session.json');               // �
 const PLAYER_SESSION_FILE = path.join(SESSION_DIR, 'player-session.json');  // --player：体验师独立会话（E10）
 /* B03 工具面：用法提示行按当前档位输出——照抄提示就能用（玩家模式必须带 --player，会话才不串） */
 function usageFor(player, rest) { return 'node tools/play.mjs ' + (player ? '--player ' : '') + rest; }
+/* B147：难度档位词（短形——CLI 面；网页端＝Core.diffLabel 全形「…模式」）——三档 */
+function diffWord(d) { return d === 'easy' ? '简单' : d === 'hard' ? '困难' : '中等'; }
 
 class CliError extends Error {}
 
@@ -208,7 +210,6 @@ function renderScreen(C, sess, player) {
   L.push('');
   if (node.win) {
     L.push('🏁 ' + (node.endTag ? disp(node.endTag) : '闯关成功！'));
-    if (D.meta.winReward) L.push('🎁 通关奖励：' + D.meta.winReward);
     L.push('（重开一局：node tools/play.mjs ' + (player ? '--player ' : '') + 'new ' + sess.level + '）');
   } else if (node.fail || st.bankrupt) {
     const info = st.bankrupt ? C.failInfo(st.zeroRes) : null;
@@ -245,20 +246,21 @@ function devChoiceLine(C, st, c) {
  * 例外：战斗选项保留与真实玩家一模一样的「你的武力值 X ≥/< Y」对照＋构成行（白名单③，§8.3/B80）。
  * 规范：docs/design-station-v1.md §7-E10、§8.3；简报见 docs/playtest-guide.md §二。 */
 const PLAYER_TIER = {
-  /* 氧气：§8.3 的 ≥50 / 20~49 / <20 三档（基准 = 普通开局 100，即绝对值 50 / 20） */
-  oxygen: v => (v >= 50 ? '还好' : v >= 20 ? '有点闷' : '快喘不上气')
+  /* 氧气：§8.3 的 ≥50% / 20~49% / <20% 三档（比例口径；基准＝本档开局值 `start[st.diff]`——B147） */
+  oxygen: (v, base) => (v >= base * 0.5 ? '还好' : v >= base * 0.2 ? '有点闷' : '快喘不上气')
 };
 /* 定性档位／数值：带条的资源＝条＋数值＋档位词（B04）；其余资源（星币）＝数字式（B78） */
 function playerResText(C, st, r) {
   const name = (r.icon ? r.icon + ' ' : '') + (r.name || r.id);
   const v = C.resOf(st, r.id);
+  const base = C.startValue(r, st.diff);   // B147：基准＝本档开局值（start[st.diff]）
   /* B04（§6.1）：氧气＝同构文本条＋数值＋档位词；与网页 HUD 同一口径（数值＝余量原值） */
-  if (r.bar) return name + ' ' + playerBar(v, (r.start && r.start.normal) || 100) + ' ' + v + ' ' + (PLAYER_TIER[r.id] ? PLAYER_TIER[r.id](v) : '');
+  if (r.bar) return name + ' ' + playerBar(C, v, base) + ' ' + v + ' ' + (PLAYER_TIER[r.id] ? PLAYER_TIER[r.id](v, base) : '');
   return name + ' ' + v;
 }
-/* B03：氧气文本条（与网页分段条同构）——10 格，满= 普通开局值 */
-function playerBar(v, base) {
-  const filled = Math.max(0, Math.min(10, Math.round(base > 0 ? v / base * 10 : 0)));
+/* B03：氧气文本条（与网页分段条同构）——10 格，满= 本档开局值（`start[st.diff]`——B147） */
+function playerBar(C, v, base) {                       // B147（§6.1）：条算式单源＝Core.barFill（网页／CLI 同源同值）
+  const filled = C.barFill(v, base);
   return '█'.repeat(filled) + '░'.repeat(10 - filled);
 }
 /* B03 复检收口（R2 ①）：玩家模式不带节点编号——场景号与选项里的地图锚点（「（1）」等）一律不上屏。
@@ -305,7 +307,7 @@ function playerStateText(C, st) {
     : '（空）';
   const clues = Object.keys(st.learned).length ? Object.keys(st.learned).join('、') : '（还没有）';
   return '状态：' + res + ' ｜ 物品：' + items + ' ｜ 线索：' + clues
-    + '\n难度 ' + (st.diff === 'hard' ? '困难' : '普通') + ' ｜ 玩家 ' + st.me;
+    + '\n难度 ' + diffWord(st.diff) + ' ｜ 玩家 ' + st.me;
 }
 
 function stateText(C, sess) {
@@ -317,7 +319,7 @@ function stateText(C, sess) {
     + ' ｜ 物品（' + st.items.length + '）：' + items
     + ' ｜ 线索：' + clues
     + '\n进度：第 ' + sess.steps + ' 步 ｜ 已探索 ' + visitedIds(C, st).length + ' 处 ｜ 难度 '
-    + (st.diff === 'hard' ? '困难' : '普通') + ' ｜ 玩家 ' + st.me;
+    + diffWord(st.diff) + ' ｜ 玩家 ' + st.me;
 }
 
 function detailText(C, sess) {
@@ -417,8 +419,7 @@ function buildPayload(C, sess, extra) {
       visited: visitedIds(C, st).length,
       deadEnd: C.deadEnd(st),
       ended,
-      endTag: node.endTag || null,
-      winReward: node.win ? (D.meta.winReward || null) : null
+      endTag: node.endTag || null
     }
   }, extra.fields || {});
 }
@@ -427,15 +428,15 @@ function buildPayload(C, sess, extra) {
 function cmdNew(ctx) {
   const { flags, pos, say, player, sessFile } = ctx;
   const levelId = pos[1];
-  if (!levelId) throw new CliError('用法：' + usageFor(player, 'new <关卡id> [--hard] [--name 名字]') + '（可用：' + listLevels().join(' / ') + '）');
+  if (!levelId) throw new CliError('用法：' + usageFor(player, 'new <关卡id> [--easy|--hard] [--name 名字]') + '（可用：' + listLevels().join(' / ') + '）');
   const C = loadEngine(levelId);
   const D = C.currentLevel();
-  const st = C.newState(flags.hard === true ? 'hard' : 'normal', typeof flags.name === 'string' ? flags.name : undefined);
+  const st = C.newState(flags.easy === true ? 'easy' : flags.hard === true ? 'hard' : 'normal', typeof flags.name === 'string' ? flags.name : undefined);
   const ev = C.go(st, D.start.node);
   const sess = newSession(levelId, st);
-  logEntry(sess, 'new', null, '开局 · ' + ((D.meta && D.meta.title) || levelId) + '（' + (st.diff === 'hard' ? '困难' : '普通') + '）· 玩家 ' + st.me, ev);
+  logEntry(sess, 'new', null, '开局 · ' + ((D.meta && D.meta.title) || levelId) + '（' + diffWord(st.diff) + '）· 玩家 ' + st.me, ev);
   writeSession(sess, sessFile);
-  say('🎬 开局：' + ((D.meta && D.meta.title) || levelId) + '（' + levelId + '）· ' + (st.diff === 'hard' ? '困难' : '普通') + '模式 · 玩家 ' + st.me);
+  say('🎬 开局：' + ((D.meta && D.meta.title) || levelId) + '（' + levelId + '）· ' + diffWord(st.diff) + '模式 · 玩家 ' + st.me);
   ev.forEach(x => say('  · ' + x));
   say('');
   say(renderScreen(C, sess, player));
@@ -749,7 +750,7 @@ function helpText(player) {
     '',
     '用法：node tools/play.mjs [--json|--player] <子命令> [参数]',
     '',
-    '  new <关卡id> [--hard] [--name 名字]   开新局并打印首屏（关卡：' + listLevels().join(' / ') + '）',
+    '  new <关卡id> [--easy|--hard] [--name 名字]   开新局并打印首屏（关卡：' + listLevels().join(' / ') + '）',
     '  choose <序号>                          执行当前可见选项里的第 <序号> 个（1 起）',
     '  buy <编号|道具名>                  在商店买东西（编号看屏幕上的「商店」块）',
     '  sell <道具名>                      在废料回收点卖东西（红框关键道具不能卖）',

@@ -29,6 +29,9 @@
 //         dalim 降级／源码契约与死局两态／第二入口三条）＋地图点名字（§2-B138 ①~③）＋已探索分楼层（§2-B139 ①~③）
 //       / B07 轮（B140／B141 · 2026-10-06）：道具介绍（§2-B140 机检①~④：覆盖 23/22／句式／导出对拍／旧档）＋
 //         呈现口径（§2-B141 机检①③：源码契约／回归）；lint L5/L6 扫描面收 items[].desc
+//       / B09 轮（B144~B147＋⑦ · 2026-10-06）：多结局提示（§2-B144 机检①~④⑥）／记录线头（§2-B145 ①~④）／
+//         任务清单（§2-B146 机检①~⑨）／难度三档（§2-B147 机检①~⑤）／10 号呼应版（老板⑦）；
+//         资源与预算断言换三档（§1／§6／§8／§14：氧气 500/200/80、星币 25/20/15；可得 590/280/150）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -72,7 +75,8 @@ eq(D.meta.poster, '../images/station/station-map-ai-v1.jpg', '海报图＝L0 总
 ok(D.meta.tagline.length > 10, '有一句话简介');
 eq(D.start.node, '1', '起点 1 号（食堂）');
 eq(D.meta.safeNode, '18', '安全点 18 号（顶层中央大厅）');
-ok((D.meta.winReward || '').length > 0, '有通关奖励文案');
+eq(String(D.meta.winReward), 'undefined', 'B144 §2-B144-①：结算奖励字段已删（无下一关——失效即删；旧「有通关奖励文案」断言随之作废）');
+eq(C.moreEndings(), true, 'B144 §2-B144-①：本关多结局判据成立（win 节点 41／42／43＝ 3 个 ≥ 2）');
 eq(D.meta.atkFromClues['机器人小帮手'], 1, '收编机器人 = 武力 +1');
 
 eq(D.resources.length, 2, '两种资源（星币 + 氧气）');
@@ -81,14 +85,14 @@ const oxygen = D.resources.find(r => r.id === 'oxygen');
 ok(!!coins && !!oxygen, '资源表里有 coins 与 oxygen 两条');
 eq(coins.name, '星币', '货币名 = 星币（R02）');
 eq(coins.icon, '🪙', '星币的图标');
-eq(coins.start.normal, 20, '星币普通开局 20');
-eq(coins.start.hard, 15, '星币困难开局 15');
+eq([coins.start.easy, coins.start.normal, coins.start.hard].join('/'), '25/20/15',
+  'B147 §2-B147-①：星币三档开局＝简单 25／中等 20／困难 15（旧「普通 20／困难 15」两档随之作废）');
 eq(coins.fail, null, '星币 fail: null（花光不判失败，E1）');
 eq(coins.noSpendToZero, undefined, 'noSpendToZero 已移除（可以花到 0）');
 eq(oxygen.name, '氧气', '氧气的名字');
 eq(oxygen.icon, '💨', '氧气的图标');
-eq(oxygen.start.normal, 100, '氧气普通开局 100');
-eq(oxygen.start.hard, 30, '氧气困难开局 30（D2：80→30）');
+eq([oxygen.start.easy, oxygen.start.normal, oxygen.start.hard].join('/'), '500/200/80',
+  'B147 §2-B147-①：氧气三档开局＝简单 500／中等 200／困难 80（旧「普通 100／困难 30」两档随之作废）');
 eq(oxygen.fail.node, '44', '氧气归零 → 44 号失败结算');
 ok(oxygen.fail.text.indexOf('眼前一黑') >= 0, '氧气失败文案（设计档原文）');
 ok(oxygen.fail.text.indexOf('晨星号') >= 0 && oxygen.fail.text.indexOf('中继站') < 0, '失败文案站名 = 晨星号（R13）');
@@ -105,8 +109,10 @@ ok(D.help[11] === '💾 存档 / 读档：进度会自动存在这台设备上�
   'B136 §8.1 第 12 条：存档行逐字（帮助 11→12 条——H2：💾 与三个存档位在）');
 ok(D.help.every(l => typeof l === 'string' && l.length > 10), '帮助每一条都是完整句子');
 ok(D.help.some(l => l.indexOf('星币') >= 0 && l.indexOf('20') >= 0), '帮助里有星币条目（R02）');
-ok(D.help.some(l => l.indexOf('氧气条旁边的数字') >= 0 && l.indexOf('普通开局 100') >= 0 && l.indexOf('困难 30') >= 0),
-  'B04：帮助资源行＝氧气条＋数值口径，并报开局数值（100/30——取代 B03「不报开局数值」；§8.1 第 2 条）');
+ok(D.help.some(l => l.indexOf('氧气条旁边的数字') >= 0 && l.indexOf('简单开局 500') >= 0 && l.indexOf('中等 200') >= 0 && l.indexOf('困难 80') >= 0),
+  'B147 §2-B147-④：帮助第 2 条＝三档开局数值（500/200/80——取代「普通开局 100、困难 30」；§8.1 第 2 条）');
+ok(D.help[0].indexOf('简单开局 25 枚、中等 20 枚、困难 15 枚') >= 0,
+  'B147 §2-B147-④：帮助第 1 条＝三档开局数值（简单 25／中等 20／困难 15 枚）');
 ok(D.help.some(l => l.indexOf('武力值＝装备加成＋伙伴加成') >= 0 && l.indexOf('焊接枪 +1') >= 0),
   'B69：帮助武力行含构成算式与四件装备');
 ok(D.help.some(l => l.indexOf('👉') >= 0 && l.indexOf('剧情会告诉你为什么') >= 0), '帮助「选项」新哲学条（B03/R06；B06：第 9 条图标 🧭→👉——与指路图标消重）');
@@ -115,11 +121,10 @@ ok(D.help.some(l => l.indexOf('👉') >= 0 && l.indexOf('剧情会告诉你为�
  'bankrupt', 'zeroRes', 'scene', 'flash'].forEach(k =>
   ok(!D.resources.some(r => r.id === k), '资源 id 不与状态字段撞名：' + k));
 /* 开局数值走资源表 */
-const stN = C.newState('normal'), stH = C.newState('hard');
-eq(stN.coins, 20, '普通开局星币 20');
-eq(stN.oxygen, 100, '普通开局氧气 100');
-eq(stH.coins, 15, '困难开局星币 15');
-eq(stH.oxygen, 30, '困难开局氧气 30');
+const stN = C.newState('normal'), stH = C.newState('hard'), stE = C.newState('easy');
+eq([stE.coins, stN.coins, stH.coins].join('/'), '25/20/15', 'B147 §2-B147-②：星币开局＝startValue 单源（简单／中等／困难）');
+eq([stE.oxygen, stN.oxygen, stH.oxygen].join('/'), '500/200/80', 'B147 §2-B147-②：氧气开局＝startValue 单源（简单／中等／困难）');
+eq([C.newState('x').diff, C.newState().diff].join('｜'), 'normal｜normal', 'B147 §2-B147-②：难度缺省／未识别值 ⇒ 中等（旧值 normal 照读）');
 eq(stN.me, '林小晨', '默认玩家名 = 林小晨');
 ok(!stN.bankrupt && stN.zeroRes === null, '开局没有失败标记');
 
@@ -457,38 +462,38 @@ function runMainRoute(diff) {
 {
   const { meals, T } = runMainRoute('normal');
   eq(meals, 4, '普通：开局 20 星币买得起 4 盒料理');
-  eq(T['开局食堂'].ox, 95, '1 食堂：黑暗摸索 −5（100→95）');
-  eq(T['买满吃掉'].ox, 135, '买 4 盒吃掉 +40（95→135）');
+  eq(T['开局食堂'].ox, 195, '1 食堂：黑暗摸索 −5（200→195）');
+  eq(T['买满吃掉'].ox, 235, '买 4 盒吃掉 +40（195→235）');
   eq(T['买满吃掉'].coins, 0, '星币花光到 0（不判失败）');
-  eq(T['睡眠舱'].ox, 145, '睡眠舱应急包净 +10（135→145）');
+  eq(T['睡眠舱'].ox, 245, '睡眠舱应急包净 +10（235→245）');
   ok(C.hasItem(st, '手电') && C.hasItem(st, '工牌') && C.hasItem(st, '氧气瓶'), '睡眠舱拿到 手电 / 工牌 / 氧气瓶');
-  eq(T['健身房'].ox, 140, '健身房撬急救箱 −5（140）');
+  eq(T['健身房'].ox, 240, '健身房撬急救箱 −5（240）');
   ok(!C.hasItem(st, '医疗包'), '医疗包在 3① 交给阿雅时被消耗（不留在背包）');
-  eq(T['医务室'].ox, 145, '医务室氧气站净 +5（145）');
+  eq(T['医务室'].ox, 245, '医务室氧气站净 +5（245）');
   ok(C.hasItem(st, '站长授权卡'), '拿到站长授权卡（路径①：阿雅）');
-  eq(T['见胖胖'].ox, 140, '观景厅打招呼（钻沙发 −5）');
+  eq(T['见胖胖'].ox, 240, '观景厅打招呼（钻沙发 −5）');
   ok(C.hasItem(st, '站猫罐头') || C.hasItem(st, '桑尼的账本'), '观景厅礼物 / 账本到手');
-  eq(T['换到账本'].ox, 140, '换账本不耗氧');
+  eq(T['换到账本'].ox, 240, '换账本不耗氧');
   ok(C.hasItem(st, '桑尼的账本'), '拿到桑尼的账本（证据① → 揭发可用）');
-  eq(T['中层补给柜'].ox, 145, '中层补给柜 +5');
-  eq(T['吃掉赠的料理'].ox, 155, '吃掉胖胖给的料理 +10');
-  eq(T['翻零件堆'].ox, 150, '16⑤ 翻零件堆 −5');
+  eq(T['中层补给柜'].ox, 245, '中层补给柜 +5');
+  eq(T['吃掉赠的料理'].ox, 255, '吃掉胖胖给的料理 +10');
+  eq(T['翻零件堆'].ox, 250, '16⑤ 翻零件堆 −5');
   ok(C.hasItem(st, '万能扳手') && C.hasItem(st, '焊接枪'), '维修区翻出 万能扳手 + 焊接枪');
-  eq(T['爬道到实验室'].ox, 140, '16④ 爬道 −10');
-  eq(T['拆到芯片'].ox, 135, '7② 拆芯片 −5');
+  eq(T['爬道到实验室'].ox, 240, '16④ 爬道 −10');
+  eq(T['拆到芯片'].ox, 235, '7② 拆芯片 −5');
   ok(C.hasItem(st, '控制芯片'), '拿到控制芯片（路径②：自己拆）');
-  eq(T['进冷却塔'].ox, 130, '13 号进入 −5');
-  eq(T['关阀'].ox, 125, '13① 关阀 −5');
+  eq(T['进冷却塔'].ox, 230, '13 号进入 −5');
+  eq(T['关阀'].ox, 225, '13① 关阀 −5');
   ok(C.hasItem(st, '冷却剂罐'), '拿到冷却剂罐（冷却塔备件）');
-  eq(T['舱外'].ox, 105, '11② 开舱门 −5、19 进入 −15（125→120→105）');
-  eq(T['焊好'].ox, 100, '19 进入 −15、39 焊接 −5（120→105→100）');
+  eq(T['舱外'].ox, 205, '11② 开舱门 −5、19 进入 −15（225→220→205）');
+  eq(T['焊好'].ox, 200, '19 进入 −15、39 焊接 −5（220→205→200）');
   ok(st.learned['太阳能板已修好'], '太阳能板已修好（电力前置的第一半）');
-  eq(T['复电'].ox, 95, '15① 合闸 −5');
+  eq(T['复电'].ox, 195, '15① 合闸 −5');
   ok(st.learned['全站复电'], '全站复电（电力前置的第二半）');
-  eq(T['进反应堆舱'].ox, 85, '12 号进入 −10（→85，主线段完）');
+  eq(T['进反应堆舱'].ox, 185, '12 号进入 −10（→185，主线段完）');
   eq(T['结局 A'].loc, '41', '抵达结局 A · 圆满');
   ok(!!D.nodes['41'].win, '41 号标记为通关');
-  eq(T['结局 A'].ox, 85, 'A 路线结束时氧气 85（= 180 − 95，结余 47.2%）');
+  eq(T['结局 A'].ox, 185, 'A 路线结束时氧气 185（= 280 − 95，结余 66.1%——B147 新档）');
   ok(st.coins === 0 && !st.bankrupt, 'A 路线把钱花光但并不失败（结束时 ' + st.coins + ' 枚）');
 }
 
@@ -527,15 +532,15 @@ ok(C.nodeText(st, D.nodes['7']) !== D.nodes['7'].t, '7 号两段正文不同');
 st = C.newState('normal');
 st.items = ['焊接枪'];             // 武力 1，够赢铁头（武力 1）
 C.go(st, '4');
-eq(st.oxygen, 100, '4 号 B03 探索化：进入不再自动扣氧（旧 en 已删）');
+eq(st.oxygen, 200, '4 号 B03 探索化：进入不再自动扣氧（旧 en 已删）');
 goPick('4', '掰手腕'); eq(st.loc, '26', '4→26（挑战铁头）');
 goPick('26', '用力'); eq(st.loc, '27', '战斗胜利 → 27（铁头开门）');
-eq(st.oxygen, 95, '26① 掰手腕 −5 氧（唯一载体；4① 不另扣）');
+eq(st.oxygen, 195, '26① 掰手腕 −5 氧（唯一载体；4① 不另扣）');
 ok(st.learned['铁头已开门'], '铁头开门');
 C.go(st, '10');
 goPick('10', '直接动手搬'); eq(st.loc, '31', '10→31（硬拿冷却剂）');
 ok(C.hasItem(st, '冷却剂罐'), '拿到冷却剂罐（路径①：硬拿）');
-eq(st.oxygen, 90, '10① 搬冷却剂 −5 氧（B08）');
+eq(st.oxygen, 190, '10① 搬冷却剂 −5 氧（B08）');
 eq(st.coins, 12, '被桑尼的无人机抢走 8 枚星币（20→12）');
 const theft = C.takeFlash(st);
 ok(theft && theft.kind === 'theft' && theft.thief === '桑尼的无人机' && theft.amount === 8,
@@ -546,17 +551,17 @@ eq(C.takeFlash(st), null, '提示事件取走后不重复');
 st = C.newState('normal');
 st.items = ['万能扳手'];
 C.go(st, '13');
-eq(st.oxygen, 95, '冷却塔泄漏区每次进入 −5 氧');
+eq(st.oxygen, 195, '冷却塔泄漏区每次进入 −5 氧');
 goPick('13', '用万能扳手拧上总阀'); eq(st.loc, '21', '13→21');
-eq(st.oxygen, 90, '关阀再 −5 氧');
+eq(st.oxygen, 190, '关阀再 −5 氧');
 ok(C.hasItem(st, '冷却剂罐'), '拿到冷却剂罐（路径③：冷却塔备件）');
 
 /* 冷却剂·路径④（R12）：硬穿蒸汽也有收获，不再是零收益纯亏 */
 st = C.newState('normal');
 C.go(st, '13');
-eq(st.oxygen, 95, '进冷却塔 −5 氧');
+eq(st.oxygen, 195, '进冷却塔 −5 氧');
 goPick('13', '冲过蒸汽'); eq(st.loc, '21', '13→21（硬穿）');
-eq(st.oxygen, 85, '硬穿 −10 氧');
+eq(st.oxygen, 185, '硬穿 −10 氧');
 ok(C.hasItem(st, '冷却剂罐'), '硬穿也能拿到冷却剂（R12）');
 
 /* 冷却剂·路径②：账本把柄（28 换账本 → 10② → 32） */
@@ -594,7 +599,7 @@ ok(C.condOk(st, D.nodes['9'].c[0].cond), '有密码 + 工牌 → 可以开保险
 C.go(st, '9');
 goPick('9', '转动密码盘'); eq(st.loc, '45', '9→45（保险柜事件）');
 ok(C.hasItem(st, '站长授权卡') && C.hasItem(st, '站长的便条'), '拿到站长授权卡 + 站长的便条（文本道具）');
-eq(st.oxygen, 90, 'B65：开柜 −10 氧（100→90）');
+eq(st.oxygen, 190, 'B65：开柜 −10 氧（200→190）');
 ok(C.choiceDone(st, D.nodes['9'].c[0], 0, '9'), '9① 的 once 标记已记录（开过保险柜）');
 goPick('45', '把东西收好'); eq(st.loc, '20', '45→20（回中层大厅）');
 C.go(st, '9');
@@ -605,7 +610,7 @@ st = C.newState('normal');
 C.go(st, '5');
 eq(C.nodeText(st, D.nodes['5']), D.nodes['5'].t, '未打招呼 → 用场景正文');
 goPick('5', '钻到沙发后面');
-eq(st.oxygen, 95, '钻过沙发 −5 氧');
+eq(st.oxygen, 195, '钻过沙发 −5 氧');
 ok(C.hasItem(st, '合成料理') && C.hasItem(st, '站猫罐头'), '打招呼拿到料理 + 罐头');
 ok(C.nodeText(st, D.nodes['5']) !== D.nodes['5'].t, '打过招呼 → 正文分叉');
 ok(C.visibleChoices(st).every(x => (x.label || '').indexOf('钻到沙发') < 0), '一次性选项做过即隐藏（E6）');
@@ -668,20 +673,22 @@ let BUDGET = null;
   ok(posOnce, '三处补给都是一次性（once）');
   /* 热食：赠 1 份 + 购买上限（普通 4 盒 / 困难 3 盒，看开局星币） */
   const price = D.nodes['1'].shop.price;
-  const mealsN = Math.floor(coins.start.normal / price), mealsH = Math.floor(coins.start.hard / price);
-  eq(mealsN, 4, '普通最多买 4 盒料理（20÷5）');
+  const mealsE = Math.floor(coins.start.easy / price), mealsN = Math.floor(coins.start.normal / price), mealsH = Math.floor(coins.start.hard / price);
+  eq(mealsE, 5, '简单最多买 5 盒料理（25÷5）');
+  eq(mealsN, 4, '中等最多买 4 盒料理（20÷5）');
   eq(mealsH, 3, '困难最多买 3 盒料理（15÷5）');
-  const NORMAL = 100 + 30 + (10 + mealsN * 10), HARD = 30 + 30 + (10 + mealsH * 10);
-  eq(NORMAL, 180, '普通可得 100 + 30 + 50 = 180');
-  eq(HARD, 100, '困难可得 30 + 30 + 40 = 100');
-  ok(COSTS <= 0.7 * NORMAL, '简单：95 ≤ 0.7 × 180 = 126');
-  ok(COSTS <= 0.95 * HARD, '困难：95 ≤ 0.95 × 100 = 95（取等）');
-  const marginN = (NORMAL - COSTS) / NORMAL, marginH = (HARD - COSTS) / HARD;
-  ok(marginN >= 0.3, '普通结余 ≥ 30%');
-  ok(marginH <= 0.05, '困难结余 ≤ 5%');
-  BUDGET = { COSTS, NORMAL, HARD, marginN, marginH, dataPos, deck };
-  console.log('预算验算：消耗 ' + COSTS + ' ｜ 可得 普通 ' + NORMAL + ' / 困难 ' + HARD +
-    ' ｜ 结余 普通 ' + (marginN * 100).toFixed(1) + '% / 困难 ' + (marginH * 100).toFixed(2) + '%');
+  const EASY = 500 + 30 + (10 + mealsE * 10), NORMAL = 200 + 30 + (10 + mealsN * 10), HARD = 80 + 30 + (10 + mealsH * 10);
+  eq(EASY, 590, '简单可得 500 + 30 + 60 = 590');
+  eq(NORMAL, 280, '中等可得 200 + 30 + 50 = 280');
+  eq(HARD, 150, '困难可得 80 + 30 + 40 = 150');
+  ok(COSTS <= 0.7 * NORMAL, '中等：95 ≤ 0.7 × 280 = 196');
+  ok(COSTS <= 0.95 * HARD, '困难：95 ≤ 0.95 × 150 = 142.5');
+  const marginE = (EASY - COSTS) / EASY, marginN = (NORMAL - COSTS) / NORMAL, marginH = (HARD - COSTS) / HARD;
+  eq([(marginE * 100).toFixed(1), (marginN * 100).toFixed(1), (marginH * 100).toFixed(1)].join('/'), '83.9/66.1/36.7',
+    'B147 §2-B147-①：三档结余＝简单 83.9%／中等 66.1%／困难 36.7%（旧「≤5%」紧口径随三档重订作废）');
+  BUDGET = { COSTS, EASY, NORMAL, HARD, marginE, marginN, marginH, dataPos, deck };
+  console.log('预算验算：消耗 ' + COSTS + ' ｜ 可得 简单 ' + EASY + ' / 中等 ' + NORMAL + ' / 困难 ' + HARD +
+    ' ｜ 结余 简单 ' + (marginE * 100).toFixed(1) + '% / 中等 ' + (marginN * 100).toFixed(1) + '% / 困难 ' + (marginH * 100).toFixed(1) + '%');
   console.log('  分层支出：顶层 ' + deck['顶层'] + ' ｜ 中层 ' + deck['中层'] + ' ｜ 底层 ' + deck['底层'] + ' ｜ 站外 ' + deck['站外']);
   /* 每段主线都有补给可达（数据层：补给点在 1~2 步之内） */
   const step = (a, b) => (D.nodes[a].c || []).some(ch => ch.to === b);
@@ -745,7 +752,7 @@ C.applyRes(st, 'oxygen', -1);
 ok(st.bankrupt && st.zeroRes === 'oxygen' && st.coins === 20, '氧气归零 → 本关结束，星币不受影响');
 st = C.newState('normal');
 C.applyRes(st, 'coins', -20);
-ok(!st.bankrupt && st.coins === 0 && st.oxygen === 100, '星币归零 → 不结束，氧气不受影响');
+ok(!st.bankrupt && st.coins === 0 && st.oxygen === 200, '星币归零 → 不结束，氧气不受影响');
 
 /* ============ 10. 卡死保险（走投无路检测） ============ */
 st = C.newState('normal');
@@ -1019,36 +1026,40 @@ function goPickVisible(id, part, allowFail) {
 
 /* --- 14-2 预算：消耗 95 ｜ 可得 普通 180 / 困难 100 ｜ 结余 47.2% / 5.00% --- */
 {
-  P('预算：消耗 ' + BUDGET.COSTS + ' ｜ 可得 普通 ' + BUDGET.NORMAL + ' / 困难 ' + BUDGET.HARD +
-    ' ｜ 结余 普通 ' + (BUDGET.marginN * 100).toFixed(1) + '% / 困难 ' + (BUDGET.marginH * 100).toFixed(2) + '%');
+  P('预算：消耗 ' + BUDGET.COSTS + ' ｜ 可得 简单 ' + BUDGET.EASY + ' / 中等 ' + BUDGET.NORMAL + ' / 困难 ' + BUDGET.HARD +
+    ' ｜ 结余 简单 ' + (BUDGET.marginE * 100).toFixed(1) + '% / 中等 ' + (BUDGET.marginN * 100).toFixed(1) + '% / 困难 ' + (BUDGET.marginH * 100).toFixed(1) + '%');
   eq(BUDGET.COSTS, 95, '主线消耗合计 95');
-  eq(BUDGET.NORMAL, 180, '普通可得 180（100 + 30 + 50）');
-  eq(BUDGET.HARD, 100, '困难可得 100（30 + 30 + 40）');
-  eq((BUDGET.marginN * 100).toFixed(1), '47.2', '普通结余 47.2%');
-  eq((BUDGET.marginH * 100).toFixed(2), '5.00', '困难结余 5.00%');
+  eq(BUDGET.EASY, 590, '简单可得 590（500 + 30 + 60）');
+  eq(BUDGET.NORMAL, 280, '中等可得 280（200 + 30 + 50）');
+  eq(BUDGET.HARD, 150, '困难可得 150（80 + 30 + 40）');
+  eq((BUDGET.marginE * 100).toFixed(1), '83.9', '简单结余 83.9%');
+  eq((BUDGET.marginN * 100).toFixed(1), '66.1', '中等结余 66.1%');
+  eq((BUDGET.marginH * 100).toFixed(1), '36.7', '困难结余 36.7%');
   ok(BUDGET.deck['顶层'] > 0 && BUDGET.deck['中层'] > 0 && BUDGET.deck['底层'] > 0 && BUDGET.deck['站外'] > 0,
     '四个区段每段都有支出（顶层 25 / 中层 10 / 底层 40 / 站外 20）');
 }
 
-/* --- 14-3 主线跑通（简单 + 困难）+ 困难「保险柜短线」反例 --- */
+/* --- 14-3 主线跑通（三档）+ 保险柜短线（B147 三档重订） --- */
 {
   const n = runMainRoute('normal');
-  eq(n.meals, 4, '简单：开局 20 星币买得起 4 盒料理');
-  eq(n.T['结局 A'].loc, '41', '简单：主线跑通到结局 A');
-  ok(!st.bankrupt, '简单：全程不触失败');
-  eq(n.T['结局 A'].ox, 85, '简单：结束氧气 85（结余 47.2%）');
+  eq(n.meals, 4, '中等：开局 20 星币买得起 4 盒料理');
+  eq(n.T['结局 A'].loc, '41', '中等：主线跑通到结局 A');
+  ok(!st.bankrupt, '中等：全程不触失败');
+  eq(n.T['结局 A'].ox, 185, '中等：结束氧气 185（结余 66.1%）');
   const h = runMainRoute('hard');
   eq(h.meals, 3, '困难：开局 15 星币买得起 3 盒料理');
   eq(h.T['结局 A'].loc, '41', '困难：主线跑通到结局 A');
   ok(!st.bankrupt, '困难：全程不触失败');
-  eq(h.T['结局 A'].ox, 5, '困难：结束氧气 5（结余 5.00%）');
-  P('主线跑通：简单 85 → 41 ｜ 困难 5 → 41（均不触失败）');
+  eq(h.T['结局 A'].ox, 55, '困难：结束氧气 55（结余 36.7%）');
+  const e = runMainRoute('easy');
+  eq(e.meals, 5, '简单：开局 25 星币买得起 5 盒料理');
+  eq(e.T['结局 A'].loc, '41', '简单：主线跑通到结局 A');
+  ok(!st.bankrupt, '简单：全程不触失败');
+  eq(e.T['结局 A'].ox, 495, '简单：结束氧气 495（结余 83.9%）');
+  P('主线跑通：简单 495 → 41 ｜ 中等 185 → 41 ｜ 困难 55 → 41（均不触失败）');
 }
-/* 反例：困难走「保险柜短线」（不撬箱、跳过医务室、改走 9 号开柜）→ 进 12 号触底
- * B02 数据口径（父侧 2026-10-02 裁定「按事实走」）：B03 把 4 号 −5 从 en 移到 4③ 后，短线可避这 5 点——
- *   ① 不带医务室：12 号入口前 10 → 入内后 0 触底（不可通，原口径不变）；
- *   ② 补上医务室：12 号入口前 15 → 入内后 5（可通——原设计「也恰好归 0」已按设计档 v3.4 同步为可通）；
- *   ③ 普通难度同口径（§8.2「同口径 85 − 5 = 80」）：无医务室 90 → 80、补上医务室 95 → 85（均可通）。 */
+/* 反例：保险柜短线（不撬箱、跳过医务室、改走 9 号开柜）——B147 三档重订：开局值上调后三档均可通
+ * （旧的「困难触底（不可通）」反例随之作废）；下表钉住「进 12 号前余量」与「入内后余量」（12 号每次进入 −10）。 */
 function cabinetShortcut(withMedical, diff) {
   diff = diff || 'hard';
   st = C.newState(diff);
@@ -1079,25 +1090,28 @@ function cabinetShortcut(withMedical, diff) {
   return { oxBefore, loc: st.loc, bankrupt: st.bankrupt, zeroRes: st.zeroRes, oxygen: st.oxygen };
 }
 {
-  /* B65（设计档 §8.2/§8.7-3）：9① 开柜 −10 ⇒ 困难下**两变体均不可通**（老板 2026-10-02 裁定恢复） */
+  /* B147（§2-B147）：三档开局值上调 ⇒ 保险柜短线三档均可通（可通性判据＝12 号入口前余量 > 10） */
+  const noMedE = cabinetShortcut(false, 'easy');
+  eq(noMedE.oxBefore, 495, '简单·保险柜短线（不带医务室）：进 12 号前 495 氧');
+  ok(!noMedE.bankrupt && noMedE.zeroRes === null && noMedE.loc === '12' && noMedE.oxygen === 485,
+    '简单：入内 −10 → 余 485（可通）');
+  const withMedE = cabinetShortcut(true, 'easy');
+  eq(withMedE.oxBefore, 500, '简单·保险柜短线（补上医务室）：进 12 号前 500 氧');
+  eq(withMedE.oxygen, 490, '简单：入内后余 490（可通）');
   const noMed = cabinetShortcut(false);
-  ok(noMed.bankrupt && noMed.zeroRes === 'oxygen' && noMed.loc === '44',
-    '困难·保险柜短线（不带医务室）：进 12 号前 ' + noMed.oxBefore + ' 氧 → 12 号 −10 → 触底失败（不可通）');
-  eq(noMed.oxBefore, 5, '困难·保险柜短线（不带医务室）：进 12 号前恰好 5 氧（−10 → 触底）');
+  eq(noMed.oxBefore, 55, '困难·保险柜短线（不带医务室）：进 12 号前 55 氧');
+  ok(!noMed.bankrupt && noMed.zeroRes === null && noMed.loc === '12' && noMed.oxygen === 45,
+    '困难：入内 −10 → 余 45（可通——旧「触底不可通」随 B147 三档作废）');
   const withMed = cabinetShortcut(true);
-  ok(withMed.bankrupt && withMed.zeroRes === 'oxygen' && withMed.loc === '44',
-    '困难·保险柜短线（补上医务室）：进 12 号前 ' + withMed.oxBefore + ' 氧 → 入内后 ' + withMed.oxygen + ' 触底（不可通——B65 恢复）');
-  eq(withMed.oxBefore, 10, '补上医务室：进 12 号前 10 氧');
-  eq(withMed.oxygen, 0, '补上医务室：入 12 号 −10 → 恰好 0 触底（不可通）');
-  /* 普通难度同口径（设计档 §8.2：普通 85 → 75 ｜ 90 → 80——两变体均可通） */
+  eq(withMed.oxBefore, 60, '困难·保险柜短线（补上医务室）：进 12 号前 60 氧');
+  eq(withMed.oxygen, 50, '困难：入内后余 50（可通）');
   const nNoMed = cabinetShortcut(false, 'normal');
-  eq(nNoMed.oxBefore, 85, '普通·保险柜短线（不带医务室）：进 12 号前 85 氧');
-  ok(!nNoMed.bankrupt && nNoMed.zeroRes === null && nNoMed.loc === '12' && nNoMed.oxygen === 75,
-    '普通·保险柜短线（不带医务室）：入内 −10 → 余 ' + nNoMed.oxygen + '（可通）');
+  eq(nNoMed.oxBefore, 185, '中等·保险柜短线（不带医务室）：进 12 号前 185 氧');
+  ok(!nNoMed.bankrupt && nNoMed.oxygen === 175, '中等：入内 −10 → 余 175（可通）');
   const nWithMed = cabinetShortcut(true, 'normal');
-  eq(nWithMed.oxBefore, 90, '普通·保险柜短线（补上医务室）：进 12 号前 90 氧');
-  eq(nWithMed.oxygen, 80, '普通·保险柜短线（补上医务室）：入内后余 80（可通）');
-  P('反例：保险柜短线 —— 困难：5 → 触底（不可通）｜10 → 0 触底（不可通）；普通：85 → 75 ｜ 90 → 80（均可通）');
+  eq(nWithMed.oxBefore, 190, '中等·保险柜短线（补上医务室）：进 12 号前 190 氧');
+  eq(nWithMed.oxygen, 180, '中等：入内后余 180（可通）');
+  P('保险柜短线（B147 三档）：简单 495／500、中等 185／190、困难 55／60——三档均可通');
 }
 
 /* --- 14-4 结局 C 前置：未满足即锁死 --- */
@@ -1386,7 +1400,7 @@ const L5_NOUNS = [
   { w: '账本', intro: '8', allow: ['8', '10', '28', '32', '40', '41'] },
   { w: '调令牌', intro: '14 / 35', allow: ['14', '35'] },
   { w: '小帮手', intro: '37', allow: ['14', '19', '37', '39'] },
-  { w: '监控回放', intro: '35', allow: ['35', '41'] }
+   { w: '监控回放', intro: '35', allow: ['10', '35', '41'] }   // B09（老板⑦）：10 号 tIf 第四条＝持物条件句（item 监控回放 ⇒ 才出现——迟引不成立）；引入点仍 35
 ];
 
 /* 扫描助手：节点的可见文案面 */
@@ -2020,10 +2034,10 @@ function providedFlags(L) {
   /* 反向：真实跨节点进入仍按「每次进入」扣费（12/13/19），别把维修口一并关了 */
   const s1 = C.newState('normal'); s1.loc = '21'; C.go(s1, '12'); const o1 = s1.oxygen;
   C.go(s1, '21'); C.go(s1, '12');
-  ok(o1 === 90 && s1.oxygen === 80, 'B03 反向：12 号「每次进入 −10」仍在（21→12 两次：90 → 80）');
+  ok(o1 === 190 && s1.oxygen === 180, 'B03 反向：12 号「每次进入 −10」仍在（21→12 两次：190 → 180）');
   const s2 = C.newState('normal'); s2.loc = '18'; C.go(s2, '13');
   const s3 = C.newState('normal'); s3.loc = '20'; C.go(s3, '19');
-  ok(s2.oxygen === 95 && s3.oxygen === 85, 'B03 反向：13 号 −5、19 号 −15 的每次进入费仍在（95 / 85）');
+  ok(s2.oxygen === 195 && s3.oxygen === 185, 'B03 反向：13 号 −5、19 号 −15 的每次进入费仍在（195 / 185）');
   P('失败条零代价（行为面）：' + n.length + ' 条实跑零变化；跨节点每次进入费不受影响');
 }
 
@@ -2064,7 +2078,7 @@ function providedFlags(L) {
   eq(rLose.to, '4', '掰手腕败北 → 回健身房');
   C.go(s, rLose.to);
   eq(s.loc, '4', '败北停留原地：回健身房后还在 4（不是大厅）');
-  eq(s.oxygen, 95, '掰手腕败北也扣 −5（败了也费，B18）');
+  eq(s.oxygen, 195, '掰手腕败北也扣 −5（败了也费，B18）');
   P('战斗失败：4 场 loseSay＋原地（14/16/26）＋登记迁移（40③→42）；26① 唯一载体');
 }
 
@@ -2085,7 +2099,7 @@ function providedFlags(L) {
   ok(C.condOk(st4, help.cond), 'B03：去过 26 ⇒ ④ 可点');
   C.choose(st4, D.nodes['4'].c.indexOf(help));
   ok(C.hasItem(st4, '医疗包'), 'B03：④ 拿到医疗包');
-  eq(st4.oxygen, 100, 'B03：④ 代劳不扣自己的氧（0）');
+  eq(st4.oxygen, 200, 'B03：④ 代劳不扣自己的氧（0）');
   ok(!C.visibleChoices(st4).some(x => (x.label || '').indexOf('撬开墙上的急救箱') >= 0), 'B03：④ 走过后 ③ 同步隐藏（共享标记）');
   /* B03 复盘修正：已开门态（27 = 铁头把仓库门打开了）下——④ 与其失败条齐隐、③ 仍在（把解释摆到已发生之后） */
   const st5 = C.newState('normal'); st5.loc = '4'; st5.visited['26'] = true; st5.learned['铁头已开门'] = true;
@@ -2454,15 +2468,15 @@ console.log('———— B04 界面批：帮助新稿 / 消息四类 / 反馈�
 const uiCssSrc = fs.readFileSync(path.join(dir, 'style-ui.css'), 'utf8');
 const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
 
-/* --- 18-1 §8.1 帮助新稿（11 条）＋§8.2 H1：帮助里出现的每个数字＝数据面现值 --- */
+/* --- 18-1 §8.1 帮助新稿（11→12 条）＋§8.2 H1：帮助里出现的每个数字＝数据面现值 --- */
 {
   const H = D.help.join('\n');
   const RES = id => D.resources.find(r => r.id === id) || {};
   const wash = (D.nodes['1'].c || []).find(ch => (ch.l || '').indexOf('洗碗') >= 0) || {};
   const eat1 = (D.nodes['1'].c || []).find(ch => ch.hint === 'exact') || {};
   const H1_ROWS = [
-    ['星币开局 20/15', H.indexOf('普通开局 20 枚、困难 15 枚') >= 0, RES('coins').start.normal === 20 && RES('coins').start.hard === 15],
-    ['氧气开局 100/30', H.indexOf('普通开局 100、困难 30') >= 0, RES('oxygen').start.normal === 100 && RES('oxygen').start.hard === 30],
+    ['星币开局 25/20/15', H.indexOf('简单开局 25 枚、中等 20 枚、困难 15 枚') >= 0, RES('coins').start.easy === 25 && RES('coins').start.normal === 20 && RES('coins').start.hard === 15],
+    ['氧气开局 500/200/80', H.indexOf('简单开局 500、中等 200、困难 80') >= 0, RES('oxygen').start.easy === 500 && RES('oxygen').start.normal === 200 && RES('oxygen').start.hard === 80],
     ['料理 5 枚一盒', H.indexOf('合成料理 5 枚一盒') >= 0, D.nodes['1'].shop.price === 5],
     ['备用电池 5 枚', H.indexOf('备用电池 5 枚') >= 0, D.nodes['1'].shop.stock.indexOf('备用电池') >= 0],
     ['应急包 +10', H.indexOf('应急包 +10') >= 0, D.nodes['2'].en.oxygen === 10],
@@ -2576,17 +2590,29 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   P('物品栏：内容＝st.items×itemOrder ／「使用」判据 7 组抽查 ／ 等效执行逐字一致 逐条通过');
 }
 
-/* --- 18-5 §6.1 氧气＝条＋数值（对拍 / 同帧 / 档位） --- */
+/* --- 18-5 §6.1 氧气＝条＋数值（对拍 / 同帧 / 档位；B147：基准＝本档开局值） --- */
 {
-  const obase = (D.resources.find(r => r.id === 'oxygen') || { start: {} }).start.normal;
-  const fill = v => Math.max(0, Math.min(10, Math.round(v / obase * 10)));
-  [[100, 10], [58, 6], [30, 3], [20, 2], [19, 2], [5, 1], [0, 0]].forEach(([v, k]) =>
-    eq(fill(v), k, 'B04 §6.1：条填充 round(' + v + '/' + obase + '×10)＝' + k + ' 格'));
+  const OXY = D.resources.find(r => r.id === 'oxygen') || { start: {} };
+  const obase = C.startValue(OXY, C.newState('normal').diff);
+  eq(obase, 200, 'B147 §2-B147-③：HUD 条基准＝本档开局值（中等 200——取代固定基准 100）');
+  [[200, 10], [116, 6], [60, 3], [40, 2], [38, 2], [10, 1], [0, 0]].forEach(([v, k]) =>
+    eq(C.barFill(v, obase), k, 'B147 §2-B147-③：条填充 round(' + v + '/' + obase + '×10)＝' + k + ' 格'));
+  eq([C.barFill(500, C.startValue(OXY, 'easy')), C.barFill(80, C.startValue(OXY, 'hard'))].join('/'), '10/10',
+    'B147 §2-B147-③：简单（500/500）与困难（80/80）开局条均满格——基准随档');
+  eq([C.startValue({ start: { normal: 20 } }, 'easy'), C.startValue({ start: { normal: 20 } }, 'x'), C.startValue({ start: { easy: 25, normal: 20 } }, 'easy')].join('/'),
+  '20/20/25', 'B147 §2-B147-②：startValue 单一取值口（缺键回落 normal；三档键在＝取值；旧文档 _entry() 作废）');
   ok(/num\.textContent = v/.test(engSrc) && engSrc.indexOf('s.appendChild(num);') >= 0,
     'B04 §6.1：HUD 数值＝余量原值，与条同一处渲染（同帧更新）');
-  ok(/k >= 0\.5 \? 'ok' : k >= 0\.2 \? 'warn' : 'danger'/.test(engSrc), 'B04 §6.1：档位 ≥50／20~49／<20');
+  eq([C.barFill(39, C.startValue(OXY, 'hard')), C.barTierOf(39, C.startValue(OXY, 'hard'))].join('/'), '5/warn',
+    'B147 §2-B147 机检④：困难 39 ⇒ 5 格＋警示色（比例探针：39÷80＝48.75% ⇒ warn、round(4.875)＝5）');
+  eq(C.barTierOf(40, obase), 'warn', 'B147 §2-B147 机检④：中等 40／200＝20% ⇒ 临界 warn（≥20% 口径）');
+  eq([C.barTierOf(100, 200), C.barTierOf(99, 200), C.barTierOf(40, 200), C.barTierOf(39, 200)].join(','), 'ok,warn,warn,danger',
+    'B147 §2-B147 机检④：比例色档边界（50% ok／＜50% warn／20% warn／＜20% danger——≥ / ＜ 口径）');
+  ok(/k >= 0\.5 \? 'ok' : k >= 0\.2 \? 'warn' : 'danger'/.test(engSrc), 'B04 §6.1：档位 ≥50／20~49／<20（比例口径——单一判据在 Core.barTierOf）');
+  ok(engSrc.indexOf('Core.startValue(r, st.diff)') >= 0 && engSrc.indexOf('Core.barFill(v, base)') >= 0,
+    'B147 §2-B147-③：条与档位基准走 Core.startValue 单源（源码契约）');
   ok(uiCssSrc.indexOf('.barNum') >= 0 && uiCssSrc.indexOf('.bar.ok .barNum') >= 0, 'B04 §6.1：数字与条同色（CSS）');
-  P('氧气读数：条填充对拍 7 组／同帧渲染／档位边界／同色 逐条通过');
+  P('氧气读数（B147 三档）：条填充对拍 7 组／三档满格／startValue 两探针／同帧渲染／档位边界／同色 逐条通过');
 }
 
 /* --- 18-6 §6.2 结局名去字母（网页端渲染层） --- */
@@ -2751,19 +2777,21 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   P('当前位置标记抑制：N5／N14 抑制 ＋ N18／N20／N21 回归 ＋ 条件重算（N14 退场即恢复） 逐条通过');
 }
 
-/* --- 18-10 B115/B117 选关页（难度单选默认普通；按钮三态；「继续上次进度」退场） --- */
+/* --- 18-10 B115/B117/B147 选关页（难度三档单选默认中等；按钮三态；「继续上次进度」退场） --- */
 {
   const engCode = engSrc.replace(/\/\*[\s\S]*?\*\//g, '');   // 去块注释：只查「代码面零残留」（注释里对旧面的历史记述不算残留）
   const uiCode = uiCssSrc.replace(/\/\*[\s\S]*?\*\//g, '');
   ok(engSrc.indexOf("r.type = 'radio'") >= 0 && engSrc.indexOf("r.checked = (d === 'normal')") >= 0,
-    'B115：难度＝单选控件、默认选中普通（源码契约；行为由 DOM 冒烟演示验证）');
+    'B115＋B147：难度＝单选控件、默认选中中等（源码契约；行为由 DOM 冒烟演示验证）');
+  ok(engSrc.indexOf("['easy', 'normal', 'hard'].forEach") >= 0 && engSrc.indexOf('Core.diffLabel(d)') >= 0,
+    'B147 §2-B147-⑤：难度三档（简单／中等／困难）与档位词单源（Core.diffLabel——卡片单选与资源行同源）');
   ok(engSrc.indexOf('Core.cardInfo(store, id)') >= 0 && engSrc.indexOf('startGame(id, picked.diff)') >= 0,
     'B117：卡片按钮由 Core.cardInfo 三态驱动；开新局＝以所选难度（startGame(id, 所选档)；「继续」不经它）');
   ok(engCode.indexOf('lcResume') < 0 && engCode.indexOf('levelProgress') < 0 && engCode.indexOf('继续上次进度') < 0,
     'B115：「继续上次进度」连同其渲染（levelProgress）退场——代码面零残留');
   ok(uiCssSrc.indexOf('.lcDiffOpt') >= 0 && uiCssSrc.indexOf('.lcBtns .lcMain') >= 0 && uiCssSrc.indexOf('.lcBtns .lcAlt') >= 0 && uiCode.indexOf('lcResume') < 0,
     'B115/B117：单选与三态按钮（主/次）样式在案（style-ui.css）、lcResume 样式已撤（代码面）');
-  P('选关页：单选默认普通／三态按钮（cardInfo 驱动）／「继续」零残留 逐条通过');
+  P('选关页：单选三档默认中等／三态按钮（cardInfo 驱动）／「继续」零残留 逐条通过');
 }
 
 /* --- 18-11 B120 同框全覆盖（覆盖卡）：figures lint ／ 全站枚举零双现 ／ 呈现与标定通道 --- */
@@ -3725,8 +3753,8 @@ console.log('———— B136 多档位存档 / 读档（§1.2 机检①~⑦）
   /* 示例关同口径（随关卡 resources 自适应——写法相同；不锁币种字面） */
   const dSt = C.newState('normal'); dSt.loc = '1'; dSt.coins = 4;
   const dStore = fakeStore(); C.slotPut(dStore, 1, dSt, 'dalim');
-  ok(new RegExp('^1 · \\d{2}-\\d{2} \\d{2}:\\d{2} ｜ 1 · .+ ｜ .+ ｜ 普通模式$').test(C.slotInfo(1, C.slotList(dStore, 'dalim')[0], LEVELS.dalim)),
-    'B136 §1.2：档位摘要行随关卡自适应（示例关同格式）');
+  ok(new RegExp('^1 · \\d{2}-\\d{2} \\d{2}:\\d{2} ｜ 1 · .+ ｜ .+ ｜ 中等模式$').test(C.slotInfo(1, C.slotList(dStore, 'dalim')[0], LEVELS.dalim)),
+    'B136 §1.2＋B147：档位摘要行随关卡自适应（示例关同格式；档位词＝中等模式——旧「普通模式」作废）');
   P('§1.2-④ 旧档与回归：既有键照旧／三态回归／无档不渲染行／示例关自适应 逐条通过');
 }
 
@@ -3810,15 +3838,10 @@ console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字�
   eq(T.map(r => (typeof r.text === 'string' && r.text.trim() !== '' && HAN(r.text) <= 40)).join(','),
     'true,true,true,true,true,true',
     'B137 §2-B137-①：每行 text 非空且 ≤40 字（字数口径＝仅计汉字 \\p{Script=Han}——标点/破折号不计；实测 ' + T.map(r => HAN(r.text)).join('/') + '）');
-  const bad = [];
-  T.forEach((r, i) => (r.need || []).forEach(n => {
-    if (!n.done || typeof n.done !== 'object') { bad.push('R' + (i + 1) + '.done'); return; }
-    if (n.show != null && typeof n.show !== 'object') { bad.push('R' + (i + 1) + '.show'); return; }
-    try { C.condOk(C.newState('normal'), n.done); if (n.show != null) C.condOk(C.newState('normal'), n.show); }
-    catch (e) { bad.push('R' + (i + 1) + '.throw'); }
-  }));
-  eq(bad.join(','), '', 'B137 §2-B137-①：need[].done／show 全走条件语言（可被 condOk 求值——逐条不抛）');
-  P('§2-B137-① 阶梯表：6 行有序／末行兜底／每行 text 非空且 ≤40 汉字／done·show 全走条件语言 逐条通过');
+  /* B146：`meta.targets` 的 `need` 已退役（③块数据＝`meta.tasks`）——旧 need 循环随之删除（失效即删），
+   * 任务／need 的条件语言覆盖＝§27-6（机检①）。此处置为实断言：行内不得再带 `need` 键。 */
+  eq(T.every(r => !('need' in r)), true, 'B146：`meta.targets` 行无 `need` 键（need 退役——任务面见 §27）');
+  P('§2-B137-① 阶梯表：6 行有序／末行兜底／每行 text 非空且 ≤40 汉字／行内无 need 键（B146 退役） 逐条通过');
 }
 
 /* --- 24-2 §2-B137 机检②：六态探针逐态＝期望行（文案逐字＝设计档 §2-B137 表） --- */
@@ -3863,24 +3886,19 @@ console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字�
 /* --- 24-4 §2-B137 机检④：need 门（show 不成立 ⇒ 不出／成立 ⇒ 出）＋勾选态随 done（持物/复电各一例） --- */
 {
   const S = extra => { const s = C.newState('normal'); if (extra) Object.assign(s, extra); return s; };
-  const labels = s => C.guideNeeds(s).map(n => n.label + '=' + n.done).join(',');
-  eq(C.guideNeeds(S({ learned: { '全站复电': true } })).length, 0,
-    'B137 §2-B137-④：need.show 不成立 ⇒ 不出（合成探针：复电后、未到过指挥舱 6、未持物 ⇒ R2 三项全滤掉）');
-  eq(labels(S({ learned: { '全站复电': true }, visited: { '6': true } })),
-    '控制芯片=false,冷却剂罐=false,站长授权卡=false',
-    'B137 §2-B137-④：show 成立（到过指挥舱）⇒ R2 三项全出、勾选态＝未到手 false');
-  eq(labels(S({ learned: { '全站复电': true }, visited: { '6': true }, items: ['控制芯片'] })),
-    '控制芯片=true,冷却剂罐=false,站长授权卡=false',
-    'B137 §2-B137-④：勾选态随 done（持物例：控制芯片到手 ⇒ true，其余仍 false）');
-  eq(labels(S({ learned: { '全站复电': true }, items: ['冷却剂罐'] })), '冷却剂罐=true',
-    'B137 §2-B137-④：show 的「或已到手」半支（到过 6 或已到手本项）——未到过 6 也可出（仅本项）');
-  eq(labels(S({ visited: { '6': true } })), '控制芯片=false,冷却剂罐=false,站长授权卡=false,电力=false',
-    'B137 §2-B137-④：R5（到过指挥舱）四项恒显（无 show 门——本行前提已含「知情」）');
-  const power = D.meta.targets[4].need.find(n => n.label === '电力');
-  eq([C.condOk(S({ visited: { '6': true } }), power.done),
-      C.condOk(S({ visited: { '6': true }, learned: { '全站复电': true } }), power.done)].join(','), 'false,true',
-    'B137 §2-B137-④：复电例（R5 的「电力」行 done＝knows 全站复电）——done 条件随状态翻转（数据面直证；R5 当前时复电必未发生〔R2 先匹配〕⇒ 该行 ☑ 随 R2 态自然退场——接线正确性此处直证）');
-  P('§2-B137-④ need 门：不成立不出／成立出／已到手半支／勾选态随 done（持物＋复电） 逐条通过');
+  const tasks = s => C.guideTasks(s).map(t => t.name + '(' + t.needs.map(n => n.label + '=' + n.done).join(';') + ')').join('｜');
+  eq(C.guideTasks(S()).length, 0, 'B146 机检②：新局 ⇒ 任务表零条（③块「只显示已知」）');
+  eq(C.guideTasks(S({ visited: { '6': true } })).map(t => t.id).join(','), 't-reactor,t-power',
+    'B146 机检②：到过指挥舱 ⇒ t-reactor＋t-power 两条出（t-yinhe 仍需 chDone 门）');
+  eq(tasks(S({ visited: { '6': true }, items: ['控制芯片'] })).indexOf('控制芯片=true') >= 0, true,
+    'B146 机检④：勾选态随 done（持物例：控制芯片到手 ⇒ ☑）');
+  eq(C.guideTasks(S({ learned: { '反应堆已重启': true }, visited: { '6': true } })).map(t => t.id).join(','), 't-power',
+    'B146 机检②：done 成立 ⇒ 整条不出（已收尾不占位——t-reactor 退场，t-power 仍在）');
+  const powerNeed = D.meta.tasks.find(t => t.id === 't-power').need.find(n => n.label.indexOf('回控制室') >= 0);
+  eq([C.condOk(S({ learned: { '太阳能板已修好': true } }), powerNeed.done),
+      C.condOk(S({ learned: { '太阳能板已修好': true, '全站复电': true } }), powerNeed.done)].join(','), 'false,true',
+    'B146 机检⑥：「回控制室，把主供电推上去」done＝knows 全站复电——条件随状态翻转（数据面直证）');
+  P('B146 ②④⑥ 任务表：空态／逐任务门／☑ 随 done／done 任务不出／链式条件 逐条通过');
 }
 
 /* --- 24-5 §2-B137 机检⑤：空态（清空 learned ⇒ ②空态句；命中无 need 的行 ⇒ ③空态句） --- */
@@ -3889,18 +3907,19 @@ console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字�
   eq(C.guideClues(s0).length, 0, 'B137 §2-B137-⑤：清空 learned ⇒ guideClues＝[]（面板②走空态句）');
   eq(C.guideClues({ learned: { '甲': true, '乙': true, '丙': true } }).join(','), '甲,乙,丙',
     'B137 §2-B137-⑤：线索＝st.learned 键序（获得先后——与 CLI「线索：」同源同字面）');
-  eq(C.guideNeeds(s0).length, 0, 'B137 §2-B137-⑤：命中无 need 的行（开局＝R6 兜底）⇒ guideNeeds＝[]（面板③走空态句）');
-  ['（还没记住什么——多问问、多看看。）', '（这一步没有要凑的东西。）', '（这一关没有设目标清单——随便逛逛吧。）'].forEach(t =>
+  eq(C.guideTasks(s0).length, 0, 'B146 机检⑤：真无可见任务（新局）⇒ guideTasks＝[]（面板③走新空态句）');
+  ['（还没记住什么——多问问、多看看。）', '（眼下没有要凑的东西。）', '（这一关没有设目标清单——随便逛逛吧。）'].forEach(t =>
     ok(engSrc.indexOf(t) >= 0, 'B137 §2-B137-⑤：空态/降级句在案（' + t + '）'));
-  P('§2-B137-⑤ 空态：清空 learned ⇒ ②空态／无 need 行 ⇒ ③空态／三句在案 逐条通过');
+  ok(engSrc.indexOf('（这一步没有要凑的东西。）') < 0, 'B146 机检⑤：旧空态句零残留（替换为「（眼下没有要凑的东西。）」）');
+  P('§2-B137-⑤ 空态：清空 learned ⇒ ②空态／真无任务 ⇒ ③空态（新句）／三句在案 逐条通过');
 }
 
 /* --- 24-6 §2-B137 机检⑥：dalim 降级（无 targets ⇒ guideTarget null、其余块照常、无异常） --- */
 {
   C.selectLevel('dalim');
   const dSt = C.newState('normal'); dSt.learned['甲'] = true;
-  eq([String(C.guideTarget(dSt)), String(C.guideNeeds(dSt).length), C.guideClues(dSt).join(',')].join('｜'), 'null｜0｜甲',
-    'B137 §2-B137-⑥：dalim（无 targets）⇒ guideTarget＝null、guideNeeds＝[]、guideClues 照常（无异常）');
+  eq([String(C.guideTarget(dSt)), String(C.guideTasks(dSt).length), C.guideClues(dSt).join(',')].join('｜'), 'null｜0｜甲',
+    'B137 §2-B137-⑥：dalim（无 targets）⇒ guideTarget＝null、guideTasks＝[]、guideClues 照常（无异常）');
   eq(String(LEVELS.dalim.meta.targets), 'undefined', 'B137 §2-B137-⑥：示例关数据零改动（无 meta.targets 字段）');
   C.selectLevel('station');                       // 口径面回切站关（后续检定仍按站关）
   P('§2-B137-⑥ 降级：guideTarget null／其余块照常；dalim 数据零改动 逐条通过');
@@ -3908,8 +3927,8 @@ console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字�
 
 /* --- 24-7 §2-B137 机检⑦：源码契约（Core.guide* 单源／deadEnd 自动弹出沿用／死局上下文行两态） --- */
 {
-  ok(engSrc.indexOf('Core.guideTarget(st)') >= 0 && engSrc.indexOf('Core.guideClues(st)') >= 0 && engSrc.indexOf('Core.guideNeeds(st)') >= 0,
-    'B137 §2-B137-⑦：面板渲染走 Core.guide* 单源（目标／线索／还差什么）');
+  ok(engSrc.indexOf('Core.guideTarget(st)') >= 0 && engSrc.indexOf('Core.guideClues(st)') >= 0 && engSrc.indexOf('Core.guideTasks(st)') >= 0,
+    'B137 §2-B137-⑦：面板渲染走 Core.guide* 单源（目标／线索／任务清单——B146 口径）');
   ok(engSrc.indexOf("if (Core.deadEnd(st)) showStuck('dead');") >= 0,
     'B137 §2-B137-⑦：deadEnd 自动弹出沿用（renderAll 调用点在案——自动弹出＝带死局上下文行）');
   ok(engSrc.indexOf("$('stuckText').classList.toggle('hidden', !dead)") >= 0,
@@ -3927,12 +3946,12 @@ console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字�
 {
   C.selectLevel('dalim');
   const dSt = C.newState('normal'); dSt.loc = '11';
-  eq([String(C.guideTarget(dSt)), C.guideNeeds(dSt).length].join('｜'), 'null｜0',
+  eq([String(C.guideTarget(dSt)), C.guideTasks(dSt).length].join('｜'), 'null｜0',
     'B137 §2-B137-⑧：无 targets ⇒ ①/③ 走降级与空态（输出照常、无异常）');
   C.selectLevel('station');
   const probe = C.newState('normal'); probe.loc = '1';
   const snap = JSON.stringify([probe.learned, probe.visited, probe.items, probe.loc, probe.chDone]);
-  C.guideTarget(probe); C.guideNeeds(probe); C.guideClues(probe);
+  C.guideTarget(probe); C.guideTasks(probe); C.guideClues(probe);
   eq(JSON.stringify([probe.learned, probe.visited, probe.items, probe.loc, probe.chDone]), snap,
     'B137 §2-B137-⑧：guide* 纯读（求值前后状态逐字不变）');
   P('§2-B137-⑧ 回归：无 targets 输出照常／guide* 纯读 逐条通过');
@@ -4181,7 +4200,7 @@ console.log('———— B08 指路：面板Ⅱ（B142 ①~⑤）／线索与�
 /* --- 26-3 §2-B142 机检③：重开确认＝D65 句单一来源（直调点恰 3 处；绑定点无事件对象直传） --- */
 {
   const direct = engSrc.split('Core.coverAsk()').length - 1;
-  eq(direct, 3, 'B142 §2-B142-③：Core.coverAsk() 直调点恰 3 处（cardInfo／restart 内／💾 出口区块；实测 ' + direct + '）');
+  eq(direct, 3, 'B142 §2-B142-③：Core.coverAsk() 直调点恰 3 处（cardInfo／restart 内／💾 出口区块——B144 不再增口；实测 ' + direct + '）');
   eq(engSrc.split(C.coverAsk()).length - 1, 1, 'B142 §2-B142-③：采用句字面恰一份（单一来源——不得各写一份）');
   ok(/function restart\(noAsk\)/.test(engSrc) && /if \(!noAsk && !confirm\(Core\.coverAsk\(\)\)\) return;/.test(engSrc),
     'B142 §2-B142-③：restart 增可选参 noAsk（缺省仍走 D65 确认；noAsk 才免二次询问）');
@@ -4386,14 +4405,285 @@ console.log('———— B08 指路：面板Ⅱ（B142 ①~⑤）／线索与�
   const s = C.newState('normal');
   eq(C.guideTarget(s), '先摸清站里的状况——找找能用的东西，听听大家都是怎么说的；把反应堆点亮，才是正事。',
     'B143 §2-B143-⑦：①块输出与 B137 口径逐字不变（开局 R6）');
-  eq(C.guideNeeds(s).length, 0, 'B143 §2-B143-⑦：③块输出照常（R6 无 need ⇒ []——空态句）');
-  const s2 = C.newState('normal'); s2.learned['全站复电'] = true; s2.visited['6'] = true; s2.items = ['控制芯片'];
-  eq(C.guideNeeds(s2).map(n => n.label + '=' + n.done).join(','), '控制芯片=true,冷却剂罐=false,站长授权卡=false',
-    'B143 §2-B143-⑦：③块勾选态口径逐字不变（B137-④ 同口径）');
+  eq(C.guideTasks(s).length, 0, 'B146 机检②：③块输出照常（新局无可见任务 ⇒ []——空态句）');
+  const s2 = C.newState('normal'); s2.visited['6'] = true; s2.items = ['控制芯片'];
+  eq(C.guideTasks(s2).map(t => t.id + ':' + t.needs.map(n => n.label + '=' + n.done).join(',')).join('｜'),
+    't-reactor:控制芯片=true,冷却剂罐=false,站长授权卡=false,电力=false｜t-power:',
+    'B146 机检⑥：12 号视角链探针——t-reactor 四条 need 照显、☑ 随 done；t-power 头出（板未修：need 逐项 show 门未开——不预列）');
   ok(engSrc.indexOf('const g = Core.guideNotes(st);') >= 0, 'B143 §2-B143-⑦：②块渲染走 Core.guideNotes 单源（DOM 层）');
   P('§2-B143-⑦ 回归：dalim 记录组恒不出／兜底行两态／station ①③块逐字不变 逐条通过');
 }
 
+}
+
+/* ============ 27. B09 引导·结局·难度轮：多结局提示／记录线头／任务清单／难度三档（§2-B144~B147＋老板⑦ · 2026-10-06） ============ */
+console.log('');
+console.log('———— B09：多结局提示（B144）／记录线头（B145）／任务清单（B146）／难度三档（B147）／10 号呼应版（⑦） ————');
+const _strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '');   // 代码面（去块注释；注释里的历史记述按 §18-10 先例不核）
+const STATION_SRC = fs.readFileSync(path.join(dir, 'levels', 'station.js'), 'utf8');
+const DALIM_SRC = fs.readFileSync(path.join(dir, 'levels', 'dalim.js'), 'utf8');
+const PLAIN_CSS = fs.readFileSync(path.join(dir, 'style.css'), 'utf8');
+const HTML_SRC = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+const LAB_SRC = fs.readFileSync(path.join(dir, 'lab.js'), 'utf8');
+const PLAY_SRC = fs.readFileSync(path.join(dir, '..', 'tools', 'play.mjs'), 'utf8');
+const COPY_SRC = fs.readFileSync(path.join(dir, '..', 'tools', 'export-copy.mjs'), 'utf8');
+const ST = extra => { const s = C.newState('normal'); if (extra) Object.assign(s, extra); return s; };
+const TASKS_OF = s => C.guideTasks(s);
+const TASK_NEEDS = (s, id) => { const t = TASKS_OF(s).find(x => x.id === id); return t ? t.needs.map(n => n.label + '=' + n.done).join(',') : '(缺)'; };
+
+/* --- 27-1 §2-B144 机检①：零残留（winReward／rewardBox／「通关奖励」——数据面＋代码面＋工具面） --- */
+{
+  eq([String(D.meta.winReward), String(LEVELS.dalim.meta.winReward)].join('/'), 'undefined/undefined',
+    'B144 ①：两关 meta.winReward 均已删除（字段不存在）');
+  const hits = [
+    _strip(engSrc).indexOf('winReward'), _strip(engSrc).indexOf('rewardBox'), _strip(engSrc).indexOf('通关奖励'),
+    _strip(STATION_SRC).indexOf('winReward'), _strip(DALIM_SRC).indexOf('winReward'), PLAIN_CSS.indexOf('rewardBox'),
+    _strip(LAB_SRC).indexOf('winReward'), _strip(COPY_SRC).indexOf('winReward'), _strip(COPY_SRC).indexOf('通关奖励'),
+    _strip(PLAY_SRC).indexOf('winReward'), _strip(PLAY_SRC).indexOf('通关奖励')
+  ];
+  eq(hits.filter(h => h >= 0).length, 0,
+    'B144 ①：winReward／rewardBox／「通关奖励」在产品面＋工具面清零（引擎／站关／示例关／style.css／lab.js／export-copy.mjs／play.mjs——代码面 11 探针）');
+  P('B144 ① 零残留：两关字段已删／产品面（含工具面）11 探针零命中 逐条通过');
+}
+
+/* --- 27-2 §2-B144 机检②：判据探针（station true／单结局关 false） --- */
+{
+  eq(C.moreEndings(), true, 'B144 ②：station（win 41／42／43＝3 个）⇒ true');
+  C.selectLevel('dalim');
+  eq(C.moreEndings(), false, 'B144 ②：示例关（win 仅 57＝1 个）⇒ false（「多结局」不成立不硬写）');
+  C.selectLevel('station');
+  ok(/moreEndings\(\) \{\s*\n\s*if \(!D \|\| !D\.nodes\) return false;/.test(engSrc) && engSrc.indexOf('Object.keys(D.nodes).filter(k => D.nodes[k] && D.nodes[k].win).length >= 2') >= 0,
+    'B144 ②：判据源码＝本关 win 节点数 ≥ 2（零新字段）');
+  P('B144 ② 判据：station true／单结局关 false／win ≥2 单源 逐条通过');
+}
+
+/* --- 27-3 §2-B144 机检③：结算屏（win 档 ⇒ .endMore 串逐字＋位次；失败结算不出） --- */
+{
+  ok(engSrc.indexOf("m.className = 'endMore';") >= 0 && engSrc.indexOf('m.textContent = MORE_END_TEXT;') >= 0,
+    'B144 ③：结算屏渲染块在案（.endMore——win 档）');
+  ok(engSrc.indexOf('const MORE_END_TEXT = \'🔀 还有别的结局——换一条路、换一种做法，故事会有不一样的收尾。\';') >= 0,
+    'B144 ③：结算屏文案逐字（引擎常量 MORE_END_TEXT＝bible §7.50）');
+  ok(engSrc.indexOf('if (node.win && Core.moreEndings()) {') >= 0,
+    'B144 ③：判据＝win 档 ∧ Core.moreEndings()（失败结算（29／44）不渲染——⑥ 回归同源）');
+  const block = engSrc.slice(engSrc.indexOf('const box = $(' + '\'choiceList\'' + ');'));
+  ok(block.indexOf('box.appendChild(m);') >= 0 && block.indexOf('box.appendChild(m);') < block.indexOf('box.appendChild(endButtons());'),
+    'B144 ③：位次＝结局横幅下、出口按钮前（box：横幅 → .endMore → endButtons）');
+  P('B144 ③ 结算屏：.endMore 在案／串逐字／win ∧ moreEndings／位次在按钮前 逐条通过');
+}
+
+/* --- 27-4 §2-B144 机检④：序章层（DOM＋文案＋111 字不变＋单结局不出） --- */
+{
+  ok(HTML_SRC.indexOf('id="prologueMore"') >= 0 && HTML_SRC.indexOf('class="proMore hidden"') >= 0,
+    'B144 ④：序章层容器 #prologueMore（.proMore——默认 hidden）在案');
+  ok(HTML_SRC.indexOf('id="prologueMore"') > HTML_SRC.indexOf('id="prologueLines"') && HTML_SRC.indexOf('id="prologueMore"') < HTML_SRC.indexOf('class="prologueBtns"'),
+    'B144 ④：位次＝正文行之下一行、按钮行之前');
+  ok(engSrc.indexOf("const more = $('prologueMore');") >= 0 && engSrc.indexOf('const MORE_PRO_TEXT = \'结局不止一个——你做的每个选择，都会把故事带向不同的收尾。\';') >= 0,
+    'B144 ④：序章层文案逐字（MORE_PRO_TEXT＝bible §7.50）＋判据 Core.moreEndings()（单结局关不出）');
+  eq(prologueText.length, 111, 'B144 ④：序章 111 字断言不变（提示不进计数——字数口径＝正文 lines）');
+  ok(uiCssSrc.indexOf('.proMore') >= 0 && uiCssSrc.indexOf('.endMore') >= 0, 'B144 ④：两处样式在案（style-ui.css 新面外置）');
+  eq([_strip(PLAY_SRC).indexOf('moreEndings') < 0, _strip(LAB_SRC).indexOf('moreEndings') < 0].join(','), 'true,true',
+    'B144 ④：--player／lab 不接入多结局提示（沿既有口径——零改动）');
+  P('B144 ④ 序章层：#prologueMore 位次／串逐字／111 字不变／单结局关不出 逐条通过');
+}
+
+/* --- 27-5 §2-B145 机检①~④：rec-06 改稿（逐字／源不动／纪律／总数不变） --- */
+{
+  const rec = D.meta.notes.find(n => n.id === 'rec-06');
+  eq(C.guideNotes(ST({ visited: { '5': true }, chDone: { '跟胖胖打过招呼': true } })).records.find(r => r.id === 'rec-06').text,
+    '袋子上贴着胖胖的便条——里头是一盒合成料理，和一罐真的鱼罐头。便条上还写着：『谁找到这袋零食，算谁的——帮我哄哄银河，它最近老往仓库跑。』',
+    'B145 ①：rec-06 完成稿逐字（便条线头——chDone 成立 ⇒ doneText）');
+  eq(rec.text, '窗外的木星像一颗巨大的糖果。沙发后面，站猫银河蹲在一只鼓鼓的零食袋上——它只吃真鱼，对合成粮闻都不闻。',
+    'B145 ①：常态稿逐字不变（text 未动）');
+  eq([rec.id, rec.kind, JSON.stringify(rec.cond), JSON.stringify(rec.done), rec.src, rec.doneSrc].join('｜'),
+    'rec-06｜record｜{"pinsAll":["5"]}｜{"chDone":"跟胖胖打过招呼"}｜5｜5',
+    'B145 ③：id／kind／cond／done／src／doneSrc 逐字不变（仅完成稿文案）');
+  eq([/维修爬道|舱外|蒸汽/.test(rec.doneText), /\d/.test(rec.doneText)].join(','), 'false,false',
+    'B145 ②：新稿纪律（三词零命中／无数字）');
+  eq(D.meta.notes.length, 35, 'B145 ③：记录总数仍 35（16/19）——零新增');
+  P('B145 ①③：改稿逐字／常态稿与源字段不动／纪律两句零命中／35 条不变 逐条通过');
+}
+
+/* --- 27-6 §2-B146 机检①：结构（3 行／id 唯一／条件语言全走 condOk／need 非空） --- */
+{
+  const T2 = D.meta.tasks;
+  ok(Array.isArray(T2), 'B146 ①：meta.tasks 在案（数组——唯一清单第 14 项）');
+  eq(T2.length, 3, 'B146 ①：3 行任务（t-reactor／t-power／t-yinhe——计数自证）');
+  eq(T2.map(t => t.id).join(','), 't-reactor,t-power,t-yinhe', 'B146 ①：数组序＝渲染序（id 序逐字）');
+  eq(new Set(T2.map(t => t.id)).size, 3, 'B146 ①：id 唯一');
+  const bad = [];
+  T2.forEach(t => {
+    if (typeof t.name !== 'string' || !t.name || !Array.isArray(t.need) || !t.need.length) { bad.push(t.id + ':形状'); return; }
+    try { C.condOk(C.newState('normal'), t.show); C.condOk(C.newState('normal'), t.done); }
+    catch (e) { bad.push(t.id + ':throw'); }
+    t.need.forEach(n => {
+      try { C.condOk(C.newState('normal'), n.done); if (n.show != null) C.condOk(C.newState('normal'), n.show); }
+      catch (e) { bad.push(t.id + ':' + n.label + ':throw'); }
+    });
+  });
+  eq(bad.join(','), '', 'B146 ①：show／done／need[].done／need[].show 全走条件语言（逐条 condOk 不抛）＋need 非空');
+  P('B146 ① 结构：3 行／id 唯一／条件语言逐条不抛／need 非空 逐条通过');
+}
+
+/* --- 27-7 §2-B146 机检②：只显示已知（t-power 三态／t-yinhe 两态） --- */
+{
+  const ids = s => TASKS_OF(s).map(t => t.id).join(',');
+  eq(ids(ST()), '', 'B146 ②：新局 ⇒ 零任务（「只显示已知」）');
+  eq(ids(ST({ visited: { '6': true } })), 't-reactor,t-power', 'B146 ②：到过指挥舱 ⇒ t-reactor（清单已知）＋t-power（电力问题已知）');
+  /* t-power 三态（show 只认：到过 6／23／15 或板已修好——到过 19 不在判据内） */
+  eq(ids(ST({ visited: { '19': true } })), '', 'B146 ②：t-power 态一——仅到过站外 19 ⇒ 不出（show 未开）');
+  eq(ids(ST({ visited: { '15': true } })), 't-power', 'B146 ②：t-power 态二——到过配电盘 15（电力问题已知）⇒ 出');
+  eq(ids(ST({ learned: { '太阳能板已修好': true } })), 't-power', 'B146 ②：t-power 态三——板已修好 ⇒ 出（show 或支）');
+  eq(ids(ST({ chDone: { '跟胖胖打过招呼': true } })), 't-yinhe', 'B146 ②：t-yinhe 两态——打过招呼 ⇒ 出');
+  eq(ids(ST({ chDone: { '跟胖胖打过招呼': true }, items: ['桑尼的账本'] })), '',
+    'B146 ②：t-yinhe 两态——账本到手（done 成立）⇒ 整条不出');
+  P('B146 ② 只显示已知：新局零任务／t-power 三态／t-yinhe 两态 逐条通过');
+}
+
+/* --- 27-8 §2-B146 机检③：多任务态（老板④正断言——两条同屏＋不出空态句） --- */
+{
+  const g = TASKS_OF(ST({ chDone: { '跟胖胖打过招呼': true }, items: ['控制芯片'] }));
+  eq(g.map(t => t.id).join(','), 't-reactor,t-yinhe', 'B146 ③：合成探针 ⇒ t-reactor＋t-yinhe 两条同屏（t-power 的 show 未开）');
+  ok(g.length >= 2, 'B146 ③：多任务在身（≥2 条）');
+  ok(/if \(!tasks\.length\) nb\.appendChild\(guideDimLine\(GUIDE_TASKS_EMPTY\)\);/.test(engSrc),
+    'B146 ③：空态句单点守卫＝仅 tasks.length === 0 时出（多任务在身 ⇒ 不出空态句——老板④正断言）');
+  ok(engSrc.indexOf('（这一步没有要凑的东西。）') < 0, 'B146 ③：旧空态句零残留（全串更换）');
+  P('B146 ③ 多任务态：两条同屏／空态句单点守卫（多任务不出）／旧句零残留 逐条通过');
+}
+
+/* --- 27-9 §2-B146 机检④：勾选态（持物 ⇒ ☑／板已修好 ⇒ ☑——need.show 两档展开） --- */
+{
+  eq(TASK_NEEDS(ST({ visited: { '6': true }, items: ['控制芯片'] }), 't-reactor'),
+    '控制芯片=true,冷却剂罐=false,站长授权卡=false,电力=false',
+    'B146 ④：持控制芯片 ⇒ 该行 ☑、其余 ☐（勾选态随 done）');
+  eq(TASK_NEEDS(ST({ visited: { '19': true }, learned: { '太阳能板已修好': true } }), 't-power'),
+    '外部阵列那一路（站外的太阳能板）=true,带上能焊的工具（焊接枪或机械手套）=false,回控制室，把主供电推上去=false',
+    'B146 ④：板已修好 ⇒ t-power 首项 ☑（need 三项 show 门已开：到过 19＋板已修好）');
+  P('B146 ④ 勾选态：持物 ⇒ ☑／板已修好 ⇒ ☑ 逐条通过');
+}
+
+/* --- 27-10 §2-B146 机检⑤：空态（真无可见任务 ⇒ 新空态句；有任务 ⇒ 不出） --- */
+{
+  eq(TASKS_OF(C.newState('normal')).length, 0, 'B146 ⑤：新局（未听清单）⇒ 零可见任务');
+  ok(engSrc.indexOf("const GUIDE_TASKS_EMPTY = '（眼下没有要凑的东西。）';") >= 0,
+    'B146 ⑤：新空态句逐字在案（engine 常量——替换旧句）');
+  P('B146 ⑤ 空态：新局零任务／新句在案（旧句零残留——见 ③） 逐条通过');
+}
+
+/* --- 27-11 §2-B146 机检⑥：控制台链样板（老板⑤——t-reactor 四条照显；板修好后出「回控制室」项） --- */
+{
+  const t1 = TASKS_OF(ST({ visited: { '6': true } })).find(t => t.id === 't-reactor');
+  eq([t1.needs.length, t1.needs.map(n => n.done).join(',')].join('｜'), '4｜false,false,false,false',
+    'B146 ⑥：缺件缺电 ⇒ t-reactor 四条 need 照显（不折叠）、全 ☐');
+  eq(t1.needs.map(n => n.label).join('／'), '控制芯片／冷却剂罐／站长授权卡／电力', 'B146 ⑥：四条标签逐字（bible §7.49）');
+  const t2 = TASKS_OF(ST({ learned: { '太阳能板已修好': true }, visited: { '19': true } })).find(t => t.id === 't-power');
+  ok(!!t2 && t2.needs.some(n => n.label === '回控制室，把主供电推上去'),
+    'B146 ⑥：板修好后 ⇒ t-power 出「回控制室，把主供电推上去」项');
+  const t3 = TASKS_OF(ST({ visited: { '6': true } })).find(t => t.id === 't-power');
+  ok(!!t3 && !t3.needs.some(n => n.label.indexOf('回控制室') >= 0),
+    'B146 ⑥：板修好前 ⇒ 该项不出（need.show 门——不预列）；任务头照出（链概览）');
+  P('B146 ⑥ 控制台链：四条照显／板修好后出「回控制室」项／板修前不出 逐条通过');
+}
+
+/* --- 27-12 §2-B146 机检⑦：回归（targets 无 need 残留／①块逐字／dalim 无 tasks） --- */
+{
+  eq(JSON.stringify(D.meta.targets).indexOf('"need"'), -1, 'B146 ⑦：meta.targets 数据无 need 残留（R2／R5 行已删——失效即删）');
+  eq(D.meta.targets.map(r => 'need' in r).join(','), 'false,false,false,false,false,false', 'B146 ⑦：六行均无 need 键');
+  eq(C.guideTarget(C.newState('normal')), '先摸清站里的状况——找找能用的东西，听听大家都是怎么说的；把反应堆点亮，才是正事。',
+    'B146 ⑦：①块（guideTarget）输出与 B137 口径逐字不变');
+  eq(C.guideNotes(C.newState('normal')).records.length + C.guideNotes(C.newState('normal')).clues.length, 0,
+    'B146 ⑦：②块输出照常（新局两组皆空）');
+  C.selectLevel('dalim');
+  eq(String(LEVELS.dalim.meta.tasks), 'undefined', 'B146 ⑦：示例关数据零改动（无 meta.tasks）');
+  eq(TASKS_OF(C.newState('normal')).length, 0, 'B146 ⑦：dalim 无 tasks ⇒ []（③块走空态句——无异常）');
+  C.selectLevel('station');
+  P('B146 ⑦ 回归：数据零 need／①块逐字不变／dalim 无 tasks ⇒ [] 逐条通过');
+}
+
+/* --- 27-13 §2-B146 机检⑧：签名（任务出现／☑ 翻转 ⇒ 🧭 有更新；打开即清） --- */
+{
+  const s = ST({ visited: { '6': true } });
+  C.markGuideSeen(s);
+  eq(C.guideHasNew(s), false, 'B146 ⑧：落签名后无变化 ⇒ 无更新');
+  s.items.push('控制芯片');
+  eq(C.guideHasNew(s), true, 'B146 ⑧：☑ 翻转（控制芯片 ☐→☑）⇒ 有更新（签名③段＝逐任务 id:need:done）');
+  C.markGuideSeen(s);
+  eq(C.guideHasNew(s), false, 'B146 ⑧：打开即清（落签名 ⇒ 无更新）');
+  const s2 = ST({});
+  C.markGuideSeen(s2);
+  s2.chDone['跟胖胖打过招呼'] = true;
+  eq(C.guideHasNew(s2), true, 'B146 ⑧：任务出现（t-yinhe 由无到有）⇒ 有更新');
+  ok(/parts\.push\('T:' \+ t\.id/.test(engSrc), 'B146 ⑧：签名③段＝逐任务序列（源码契约）');
+  P('B146 ⑧ 签名：任务出现／☑ 翻转 ⇒ 有更新；打开即清 逐条通过');
+}
+
+/* --- 27-14 §2-B146 机检⑨：渲染契约与文案纪律（含 guideNeeds 退役／--player·lab 零接入） --- */
+{
+  ok(engSrc.indexOf("tt.className = 'tdTitle';") >= 0 && engSrc.indexOf("d.className = 'guideLine tdNeed' + (n.done ? ' done' : '');") >= 0,
+    'B146 ⑨：渲染（任务名行 .tdTitle ＋ 逐项 .guideLine.tdNeed）；源码契约');
+  ok(uiCssSrc.indexOf('.tdTitle') >= 0 && uiCssSrc.indexOf('.tdNeed') >= 0, 'B146 ⑨：样式在案（style-ui.css 新面）');
+  const texts = D.meta.tasks.flatMap(t => [t.name].concat(t.need.map(n => n.label)));
+  eq(texts.filter(t => /\d/.test(t)).join(','), '', 'B146 ⑨：任务名与 need 标签无数字（' + texts.length + ' 项全文扫描）');
+  eq(texts.filter(t => /维修爬道|舱外|蒸汽/.test(t)).join(','), '', 'B146 ⑨：无发现面名词（维修爬道／舱外／蒸汽）');
+  eq([engSrc.indexOf('Core.guideNeeds') < 0, _strip(engSrc).indexOf('guideNeeds(') < 0, engSrc.indexOf("$('guideNeeds')") >= 0].join(','),
+    'true,true,true', 'B146 ⑨：Core.guideNeeds 已退役（函数零残留——③块容器 DOM id 沿用不改，沿 B137「id 不改」先例）');
+  eq([_strip(PLAY_SRC).indexOf('guideTasks'), _strip(LAB_SRC).indexOf('guideTasks'), _strip(PLAY_SRC).indexOf('guideNeeds'), _strip(LAB_SRC).indexOf('guideNeeds')].join(','),
+    '-1,-1,-1,-1', 'B146 ⑨：--player／lab 不接入任务清单（零改动——工具面两探针）');
+  P('B146 ⑨ 渲染契约：.tdTitle／.tdNeed／文案纪律（无数字·无发现面名词）／guideNeeds 退役／工具面零接入 逐条通过');
+}
+
+/* --- 27-15 §2-B147 机检①②：数据三键（两关）＋卡片三行三单选 --- */
+{
+  const dalimRes = LEVELS.dalim.resources.find(r => r.id === 'coins');
+  eq([dalimRes.start.easy, dalimRes.start.normal, dalimRes.start.hard].join('/'), '20/15/10',
+    'B147 ①：示例关萨瓦币三档 20／15／10');
+  ok(engSrc.indexOf("row.textContent = Core.diffLabel(d) + '：' + bits.join('　');") >= 0
+    && engSrc.indexOf("['easy', 'normal', 'hard'].forEach(d => {") >= 0,
+    'B147 ②：卡片资源行＝三行（三档各一行；由 Core.startValue 读、缺键回落 normal）');
+  const btns = engSrc.slice(engSrc.indexOf("const picked = { diff: 'normal' };"), engSrc.indexOf('btns.appendChild(diffRow);'));
+  ok(btns.indexOf('Core.diffLabel(d)') >= 0 && /r\.checked = \(d === 'normal'\);/.test(btns),
+    'B147 ②：三单选（简单／中等／困难）＋默认选中中等（checked 唯一——源码契约）');
+  ok(engSrc.indexOf('startGame(id, picked.diff)') >= 0, 'B147 ②：所选档传 startGame（回归——原有口径）');
+  P('B147 ② 数据＋卡片：两关三键齐／三行三单选默认中等 逐条通过');
+}
+
+/* --- 27-16 §2-B147 机检③：档位词三档（全串面零「普通模式」＋diffLabel 单源） --- */
+{
+  eq([_strip(engSrc).indexOf('普通模式') < 0, HTML_SRC.indexOf('普通模式') < 0, _strip(DALIM_SRC).indexOf('普通模式') < 0,
+      _strip(STATION_SRC).indexOf('普通模式') < 0, uiCssSrc.indexOf('普通模式') < 0].join(','), 'true,true,true,true,true',
+    'B147 ③：全串面零「普通模式」残留（引擎／index.html／示例关／站关／样式）');
+  ok(engSrc.indexOf("diffLabel(d) { return d === 'easy' ? '简单模式' : d === 'hard' ? '困难模式' : '中等模式'; }") >= 0,
+    'B147 ③：档位词单源（Core.diffLabel 三档词——卡片／💾 行同源）');
+  eq(C.diffLabel('easy') + '｜' + C.diffLabel('normal') + '｜' + C.diffLabel('hard') + '｜' + C.diffLabel('x'),
+    '简单模式｜中等模式｜困难模式｜中等模式', 'B147 ③：diffLabel 三档词＋未识别值 ⇒ 中等');
+  P('B147 ③ 档位词：三档词单源／全串面零「普通模式」 逐条通过');
+}
+
+/* --- 27-17 §2-B147 机检⑤：`--easy` CLI 与工具面口径（源码契约） --- */
+{
+  ok(PLAY_SRC.indexOf("--easy|--hard") >= 0 && PLAY_SRC.indexOf("flags.easy === true ? 'easy'") >= 0,
+    'B147 ⑤：--easy 在案（play.mjs 开新局三档；用法行同步）');
+  ok(PLAY_SRC.indexOf('const base = C.startValue(r, st.diff);') >= 0 && PLAY_SRC.indexOf('oxygen: (v, base) =>') >= 0,
+    'B147 ⑤：--player 文本条与档位词同口径（基准＝start[st.diff]——比例口径）');
+  ok(COPY_SRC.indexOf('| 资源 | 简单开局 | 中等开局 | 困难开局 | 归零时 |') >= 0,
+    'B147 ⑤：导出稿资源表三列（export-copy 三档）');
+  P('B147 ⑤ 工具面：--easy／基准 start[st.diff]／导出三列 逐条通过');
+}
+
+/* --- 27-18 老板⑦：10 号 tIf 第四条（置末呼应版；不遮前三条） --- */
+{
+  const LINE = '桑尼还是笑眯眯地挡在货架前面——只是这一回，你看着他的手，想起了监控回放里拉下保险丝的那只手。';
+  const tIf = D.nodes['10'].tIf;
+  eq(tIf.length, 4, 'B09⑦：10 号 tIf 四条（原三条＋呼应版——计数自证）');
+  eq([JSON.stringify(tIf[3].cond), tIf[3].t].join('｜'), '{"item":"监控回放"}｜' + LINE,
+    'B09 ⑦：第四条＝持「监控回放」呼应版（cond 与文案逐字；置末）');
+  const t10 = extra => C.nodeText(ST(extra), D.nodes['10']);
+  eq(t10({ items: ['监控回放'] }), LINE, 'B09 ⑦：持监控回放 ⇒ 呼应版正文（第四条命中）');
+  ok(t10({}) !== LINE, 'B09 ⑦：未持 ⇒ 不出现呼应版');
+  eq(t10({ learned: { '收了桑尼的贿赂': true }, items: ['监控回放'] }).indexOf('货架已经空了大半') >= 0, true,
+    'B09 ⑦：置末不遮——收贿版优先（同时持监控回放仍走第 1 条）');
+  eq(t10({ visited: { '32': true }, items: ['监控回放'] }).indexOf('缩在货架后面') >= 0, true, 'B09 ⑦：置末不遮——第 2 条（到过 32）优先');
+  eq(t10({ visited: { '31': true }, items: ['监控回放'] }).indexOf('帆布蒙上了') >= 0, true, 'B09 ⑦：置末不遮——第 3 条（到过 31）优先');
+  P('B09 ⑦ 10 号呼应版：四条／cond 与文案逐字／持物才出／置末不遮前三条 逐条通过');
 }
 
 /* ============ 汇总 ============ */

@@ -87,7 +87,7 @@
   </aside>
 </div>
 
-<!-- v0.2：启动页 = 关卡选择（卡片：海报图 + 标题 + 一句话 + 难度与开局资源 + 难度单选（默认普通）+ 唯一「开始」；B115） -->
+<!-- v0.2：启动页 = 关卡选择（卡片：海报图 + 标题 + 一句话 + 难度与开局资源 + 难度单选（B147 起三档、默认中等）+ 唯一「开始」；B115） -->
 <div id="overlay" class="modal">
   <div class="card wide">
     <h1>你有一个新任务！</h1>
@@ -192,6 +192,8 @@
   <div class="card prologueCard">
     <img id="prologueImg" class="prologueImg hidden" alt="开场图">
     <div id="prologueLines" class="prologueLines"></div>
+    <!-- B144（§2-B144）：序章层多结局提示（正文行之下一行；判据＝本关 win 数 ≥2——单结局关不出） -->
+    <div id="prologueMore" class="proMore hidden"></div>
     <div class="prologueBtns">
       <button id="prologueSkip" class="prologueBtn ghost">跳过</button>
       <button id="prologueStart" class="prologueBtn">开始</button>

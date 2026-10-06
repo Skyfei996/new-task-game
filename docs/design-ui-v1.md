@@ -1525,9 +1525,12 @@ meta.targets = [ { cond?, text } ]   // B146 起：`need` 字段退役——③�
 | `tools/play.mjs` | 821 | ≤ +30 | `--easy`；文本条基准＝`start[st.diff]`；难度词三档（`:308/:320/:436/:438`、`:248` 注释） |
 | `docs/station-copy-v1.md` | — | 重导（工具面） | 帮助快照（第 1/2 条） |
 | `prototype/lab-docs.js` | （生成物） | —（重导） | 文档快照重导（工具面） |
+| `prototype/index.html` | 208 | +3／−1 | 序章层 `#prologueMore` 容器（B144）；难度面注释同步（B147） |
+| `prototype/lab.js` | — | +3／−3 | 奖励行去 `winReward` 三元（防 undefined）；调试面词面「普通」→「中等」（两档口径保留——三档不接入管理台） |
+| `tools/export-copy.mjs` | — | +4／−4 | §三 资源表改三列；§一 起点行去「通关奖励」 |
 
 - **体积档（基线口径＝实盘 · 2026-10-06 只读实测；B08 已实现后）**：`engine.js` 2795／`station.js` 1360／`index.html` 208／`style-ui.css` 273／`style.css` 410／`dalim.js` 637／`test.core.mjs` 624／`test.station.mjs` 4403／`test.play.mjs` 622／`tools/play.mjs` 821。>500 行档沿「登记体积欠账、不拆分」裁定（B03 评审 #7；`tools/play.mjs` 沿 B01 结构档位口径）——本批对 `engine.js`／`station.js`／`test.station.mjs`／`test.play.mjs`／`test.core.mjs`／`dalim.js`／`tools/play.mjs` **登记欠账、不拆分**（拆分＝跨文件搬迁＋全量回归，归结构批）；**`style.css`（410）属大档（300~500）——主动拆分复核：本批 −2（删 `.rewardBox` 死选择器）、不进一步拆**（拆分＝跨文件搬迁＋全量回归，归结构批；沿 B04 同款口径）。
-- 工具面：`--player`／lab 不接入任务清单与记录线头（沿既有）；`tools/play.mjs` 改动＝难度面必要同步（`--hard` 语义不变；新增 `--easy`）。
+- 工具面：`--player`／lab 不接入任务清单与记录线头（沿既有）；`tools/play.mjs` 改动＝难度面必要同步（`--hard` 语义不变；新增 `--easy`）。**上表三行追加行（index.html／lab.js／export-copy.mjs）＝父侧收口回填 · 父侧直接执行·可回退 · 2026-10-06**——实现轮披露的追加面（设计轮预估未列；diff 逐行为 +3／−1、+3／−3、+4／−4，实盘核对在案）。
 - 示例关：dalim 改动＝难度三档（`start.easy` 20）＋`winReward` 删除；多结局提示与任务清单均不出现（单结局／无 `tasks`）——非零变化，披露。
 
 ---

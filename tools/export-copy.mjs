@@ -58,7 +58,7 @@ export function buildCopy(L, levelId) {
   out.push('- 一句话：' + (L.meta.tagline || '—'));
   out.push('- 副标题：' + (L.meta.level || '—'));
   out.push('- 说明：' + (L.meta.note || '—'));
-  out.push('- 起点：' + (L.start?.node || '—') + '　｜　安全点：' + (L.meta.safeNode || '—') + '　｜　通关奖励：' + (L.meta.winReward || '—'));
+  out.push('- 起点：' + (L.start?.node || '—') + '　｜　安全点：' + (L.meta.safeNode || '—'));
   out.push('');
   /* 二、序章（E2）：新局开场整屏显示一次（可跳过）；读档不重放 */
   out.push('## 二、序章');
@@ -74,9 +74,9 @@ export function buildCopy(L, levelId) {
   out.push('');
   out.push('## 三、资源');
   out.push('');
-  out.push('| 资源 | 普通开局 | 困难开局 | 归零时 |');
-  out.push('|---|---|---|---|');
-  for (const r of L.resources || []) out.push('| ' + (r.icon || '') + ' ' + r.name + ' | ' + r.start?.normal + ' | ' + r.start?.hard + ' | ' + (r.fail?.title || '—') + ' |');
+  out.push('| 资源 | 简单开局 | 中等开局 | 困难开局 | 归零时 |');
+  out.push('|---|---|---|---|---|');
+  for (const r of L.resources || []) out.push('| ' + (r.icon || '') + ' ' + r.name + ' | ' + (r.start?.easy ?? '—') + ' | ' + (r.start?.normal ?? '—') + ' | ' + (r.start?.hard ?? '—') + ' | ' + (r.fail?.title || '—') + ' |');
   out.push('');
   out.push('## 四、道具（' + itemKeys.length + ' 件）');
   out.push('');

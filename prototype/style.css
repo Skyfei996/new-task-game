@@ -225,11 +225,6 @@ body {
 .endBanner { text-align: center; font-size: 24px; font-weight: 800; padding: 18px; border-radius: 12px; margin: 12px 0; }
 .endBanner.win { background: #16342a; border: 1px solid var(--green); color: #b8ffe0; }
 .endBanner.fail { background: #3b1d22; border: 1px solid var(--danger); color: #ffc9c9; }
-/* v1.3：通关奖励（跨关道具，设计稿 §2.6） */
-.rewardBox {
-  margin: 10px 0; padding: 12px 14px; border-radius: 12px; font-size: 14.5px; line-height: 1.7;
-  background: #2a2415; border: 1px solid var(--accent); color: #ffe8b0;
-}
 
 /* ---------- 提示气泡 ---------- */
 #toasts {

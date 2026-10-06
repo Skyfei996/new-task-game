@@ -45,7 +45,7 @@
 - **实现轮已派发**（eng-coder，initial，随轮 designId＋token）；设计面以提交冻结为检查点。
 
 ## §2 批次任务与设计（eng-designer）
-**状态行**：设计完成（B09 七条全覆盖；B144~B147＋⑦ 设计档落定；评审轮次 1 pass——9 条整理性修正已落（详目＝本段修正轮））
+**状态行**：设计完成（B09 七条全覆盖；B144~B147＋⑦ 设计档落定；评审轮次 1 pass——9 条整理性修正＋微修单 1 条均已落（详目＝本段修正轮））
 <§2 模板占位：本批条目（覆盖） / 设计档落点 / 机制设计 / 受影响文件与测试面 / 验收对照 / 关键决策 / 上抛项>
 
 **批次任务与设计（eng-designer · 2026-10-06 · 初始轮）**
@@ -125,6 +125,18 @@
 
 **披露（变体与发现）**：① **变体**：`docs/design-station-nodes.md:4` 状态行补列 v3.20（原链跳过该版本——发现表未点名；同族补全，报备）。② **发现（不在本轮 9 条点名范围，未动）**：`docs/design-station-nodes.md:523`「零影响…预算 95／180·100」中「180·100」为 B03 期可得值（现行＝590·280·150）——同类旧数字残留，请父侧定归批。③ 记录面旧值（`design-station-v1.md` 变更记录 :715／:723／:731；`station-staging.md` §7 :312）按「历史不回改」保留（设计档历史叙述＝§8.7-7 扫描面外）。
 
+（追加 · fix 轮 · 2026-10-06 · 微修单——§1「修正轮发现处置」点名：`docs/design-station-nodes.md:523` B65「零影响」段旧值 `180·100` 残留；单点修＋同族复扫，零新语义、零数值改动）
+
+**改动「号 → 改动 file:line」（写入后回读值）**
+
+| 号 | 改动 file:line | 一句话 |
+|---|---|---|
+| 微-1 | `docs/design-station-nodes.md:523` | B65「零影响」段挂历史标注（体例＝D2 行）：旧值 `180·100` 留作沿革，现行＝三档可得 590／280／150、结余 495／185／55（§8.2）；`§8.7-1/2 不动` 按 B09 复核——§8.7-1 不变、§8.7-2 已随三档重订 |
+
+**同档复扫（grep）处置**：旧值串 `180·100`＝1 处（`:523`，已修）；`47.2%`＝0 处；`5.00%`＝0 处。扩扫（`180`／`47`／`5.0`／`100`／`0.95`／`≤0.7`／`困难 30`／`两档`／`%` 全量）无新增值命中。**保留 2 处（理由）**：`:146`（帮助第 2 条旧文案——§8.1 既有标注在案：`:143`「第 1／2 条经 B09·B147 重订、总条数现为 12；现行文案＝`design-ui-v1.md` §8.1 照抄区」，属「既有历史标注处不回改」）；`:662`（§9.7.3——无论值；「预算（§8.2）与难度口径不动」为 B03 变更自身属性记述，与现行不冲突）。**未动**：`design-station-v1.md:580／:668／:671`（前轮已挂历史标注）＋批次档 B01~B03／`qa-b02-function.md`（记录面）＋`prototype/**`。
+
+**回读自核（D6）**：`:523` 现文＝「……**零影响**：预算 95／180·100 与 §8.7-1/2 不动（9① 不在主线；45 唯一入口＝9①）【历史——B09 已重订：三档可得 590／280／150、结余 495／185／55（简单／中等／困难；§8.2）；§8.7-1 不变、§8.7-2 已随三档重订；本行留作沿革，现行口径以 §8.2 为准】。复算＝`design-station-v1.md` §8.2 边界／§8.7-3。」——与现行口径自洽（复算＝§8.2 `:388`／`:389`；§8.7-2 现行为三档版、§8.7-1 未变）；全档 726 行不变（行内插入，未增删行）。
+
 ## §3 设计评审（评审子代理）
 
 ### 轮次 1（评审子代理）
@@ -156,4 +168,65 @@ VERDICT: pass
 
 ## §4 用户批准（主 agent）
 ## §5 实施记录（eng-coder）
+**状态行**：实施完成（B09（B144~B147＋老板⑦）实现＋自审＋代码评审（pass·clean）；三闸全绿（2594／577／426）＋三档冒烟 495／195／75）
+
+
+
+**B09 实现轮（eng-coder · 2026-10-06）**
+
+**依据**：本档 §2（七条任务：B144~B147＋老板⑦）＋设计落点表（`design-ui-v1.md` §11「B09 轮」块）＋§4 批准。设计权威＝`design-ui-v1.md` §2-B144~B147／`design-station-v1.md` §8.2~§8.4／`station-story-bible.md` §7.49／§7.50。
+
+**改动（文件 → 内容；均已 read-back 回读）**
+
+| 文件 | 改动 |
+|---|---|
+| `prototype/levels/station.js` | 删 `meta.winReward`（B144）；`resources[].start` 三档＝氧 500/200/80、币 25/20/15（B147）；`help` 第 1 条（25/20/15）／第 2 条（500/200/80）改写；`meta.tasks` 3 行（文案＝bible §7.49 照抄）；`meta.targets` R2／R5 行删 `need`（退役）；rec-06 `doneText`＝新稿（便条线头）；节点 10 `tIf` 第 4 条（持「监控回放」呼应版——置末）；B09 头注释块 |
+| `prototype/levels/dalim.js` | 删 `meta.winReward`＋头注释记述；`start.easy: 20`（萨瓦币 20/15/10）；help 第 1 条三档词 |
+| `prototype/engine.js` | ① `Core.moreEndings()`（本关 win ≥2）＋结算 `.endMore`（win ∧ 判据）＋序章 `#prologueMore`／`.proMore`（同判据）；② `Core.startValue(res, diff)`（缺键回落 normal）＋`Core.diffLabel(d)`（简单／中等／困难模式）＋`Core.barFill(v, base)`／`Core.barTierOf(k)`；③ `Core.guideNeeds` → `Core.guideTasks(st)`（`meta.tasks`：show 不成立不出、done 整条不出、need ☑/☐）＋③块渲染 `.tdTitle`／`.guideLine.tdNeed`＋空态句换「（眼下没有要凑的东西。）」；④ `newState`／`normalizeState`／`slotInfo` 走 startValue／diffLabel；⑤ `levelCard` 资源行三行＋难度三单选（默认中等）＋`startGame(id, picked.diff)`；⑥ HUD 条基准＝`Core.startValue(r, st.diff)`；B09 头注释块 |
+| `prototype/index.html` | 序章层容器 `#prologueMore`（`.proMore hidden`——正文行下、按钮行前）＋注释同步 |
+| `prototype/style.css` | 删 `.rewardBox` 死选择器（−2 行） |
+| `prototype/style-ui.css` | ⑬段新增 `.endMore`／`.proMore`／`.tdTitle`／`.tdNeed` |
+| `tools/play.mjs` | `--easy`（开新局三档）；`PLAYER_TIER` 比例化（`v ≥ base*0.5/0.2`，base＝`start[st.diff]`）；文本条基准同源；难度词三档；删 winReward 显示与 JSON 字段 |
+| `tools/export-copy.mjs` | §三 资源表三列（简单／中等／困难开局）；删「通关奖励」行 |
+| `prototype/lab.js` | 删 `meta.winReward` 三元（B144 零残留面） |
+| `prototype/test.station.mjs` | 资源／预算／HUD／选关／任务面断言换三档；新增 §27（B144 机检①~④⑥／B145 ①~④／B146 ①~⑨／B147 ①②③⑤／老板⑦） |
+| `prototype/test.core.mjs` | `:472` 改「字段已删」＋`moreEndings` 两探针（示例关 false／合成关 1→2 win 翻转） |
+| `prototype/test.play.mjs` | A 路线 85→185；`--hard` 25→75；新增 `--easy` 495（独立会话）；`tierOxy` 比例化对拍 |
+| `docs/station-copy-v1.md`、`prototype/lab-docs.js` | 生成物重导（工具面） |
+
+**决策与披露（超清单改动逐条理由）**
+
+1. `prototype/lab.js:159` 删 winReward 三元——lab 为调试面但同读产物，不删则奖励行显示 `undefined`（产品面零残留要求），设计 §11 未单列该文件（披露）。
+2. `tools/export-copy.mjs` §三 三列＋删「通关奖励」——导出稿工具面；设计 §11 点名 `station-copy-v1.md` 重导 ⇒ 工具面必需同步（披露）。
+3. `tools/play.mjs` JSON `state.winReward` 字段删除＋`--easy`＋比例化——设计 §11 已点名 play.mjs（难度面必要同步）。
+4. `PLAYER_TIER` 比例化＝设计原文（`design-station-v1.md:411`「条色与数字随档（比例口径 · B09 重订）：≥50%／20~49%／<20%；比例＝余量 ÷ 本档开局值；基准＝本局难度的开局值」）——非解读，实现与原文逐条对齐。
+5. **保留面（零触碰）**：`docs/**`（除 `station-copy-v1.md` 重导）；`prototype/lab.html` 难度下拉仍两档（lab 为调试面，设计 §11 不列——披露）；`dist-original/**`／`archive/**`／`.playtest/gh-snapshot/**`（快照／草稿）；`.playtest/dom-smoke.mjs:105` 注释「普通模式」（gitignore 草稿，未动）。
+6. `docs/design-station-nodes.md`／`docs/batches/*.md` 的既有未提交改动＝设计轮与评审轮所留（非本轮）。
+
+**验证读数（实现轮）**
+
+- 三闸：`node prototype/test.station.mjs` ⇒ 通过 2591／失败 0；`node prototype/test.core.mjs` ⇒ 577／0；`node prototype/test.play.mjs` ⇒ 426／0。
+- 冒烟（`tools/play.mjs --player`）：`--easy` ⇒ `🪙 星币 25　💨 氧气 ██████████ 495 还好`（难度 简单）；默认（中等）⇒ `🪙 20　💨 195 还好`（难度 中等）；`--hard` ⇒ `🪙 15　💨 █████████░ 75 还好`（难度 困难）——与 §2-B147 机检⑤（500→495／200→195／80→75）逐值一致，档位条比例口径生效（困难 75/80 ⇒ 9 格）。
+- 生成物重导：`node tools/export-copy.mjs`（任务点 45／道具 23／乘员 8）＋`node tools/build-lab.mjs`（47 篇／1161.1 KB）；导出稿复查：三档数值在案、「通关奖励／普通开局 100／困难 30／普通模式／（这一步没有要凑的东西。）」零命中。
+- 语法：改动文件全部 `node --check` 通过。
+
+**单元测试文件**：本批不新增独立单测文件——验证走项目既有测试面（`prototype/test.station.mjs` §27 新段为改动面断言落点，含 B144~B147 与⑦ 的机检条目）；三套测试即本批的变化时反馈回路与发布闸。
+
+**审计与代码评审轮次与终态（eng-coder 内部：探索审计 ＋ advisor 代码评审）**
+
+- **轮次 1 · 实现者对设计背离自审（read-only 探索子代理，逐条对设计档原文）**：VERDICT＝changes-required（轻微）——🔴0／🟡1／🔵7；玩家可见面零背离。
+  - 🟡-1 **B147 机检④ 口径探针缺失**（「困难 39 ⇒ 5 格＋警示色」未落探针）→ **已修**：`test.station.mjs` §18-5 增比例探针三行（`barFill(39, 80)=5`／`barTierOf(39,80)='warn'`／边界 50%·20% 四点）＋B147 ④ 标号归位。
+  - 🔵-2 `lowThreshold` 随档「在现数据下不生效」（两关资源均显式 `low`；行为与改前一致、无可见差）→ 记录在案，不动作（数据侧另裁）。
+  - 🔵-3 旧词残留两处（`test.core.mjs:77`「普通模式开局」／`dalim.js:7`「两种难度开局」）→ **已修**（改「中等开局」／「三档难度开局」＋B147 值注）。
+  - 🔵-4／-5／-6 OUT-OF-LIST 三条（`index.html`／`lab.js`／`export-copy.mjs`）→ 实现轮披露单已列（本段上表与「决策与披露」1~3）——审计判定「已披露，不算静默越权」。
+  - 🔵-7 `design-ui-v1.md` §11「B09 轮」表未含本轮三文件 → 设计档写域归设计线／父侧 §6 收口（实现轮不改设计档）。
+  - 🔵-8 文档快照面 `lab-docs.js`（生成物，嵌设计档原文含旧字面）→ 非产品残留（保留面，已披露）。
+- **轮次 2 · advisor 代码评审（type=code，独立子代理，12 文件＋四份设计档对拍）**：VERDICT＝**pass**——🔴0／🟡1（非阻塞）／🔵4；核过为正：零残留、文案逐字（bible §7.48／§7.49／§7.50／§7.10）、判据与数值（三档／比例色档／`moreEndings`）、完整性（样式／位次／单源）。
+  - 🟡 非阻塞 `lab.js` 调试面两档＋旧词「普通」 → **已修**：词面改「中等」＋注释标注「调试面保留两档（B147 三档不接入管理台——设计 §11 未列）」；下拉仍两档（披露保留面）。
+  - 🔵 `engine.js:1796` 注释「基准＝普通开局值」未随 B147 同步 → **已修**（改「本档开局值（`start[st.diff]`——B147）」）。
+  - 🔵 `test.station.mjs:3842` §24-1 的 need 探针退役后恒真（失效即删）→ **已修**：删空转循环，改实断言「`meta.targets` 行无 `need` 键」；P 行同步。
+  - 🔵 `tools/play.mjs` 文本条算式与 `Core.barFill` 双份 → **已修**：`playerBar(C, v, base)` 改调 `C.barFill`（网页／CLI 单源；冒烟三档读数不变）。
+  - 🔵 `#guideNeeds` 容器 id 与 `guideTasks` 名脱节 → **已修（注释）**：③块注释标注「id 沿用不改（B137 先例／B146 更名留痕）」；id 本身不动。
+- **终端状态：`clean`**——轮次 1 的 🟡（探针）与 9 条 🔵 中的 8 条已修（第 2 条 `lowThreshold` 记录不动作、第 7 条归父侧 §6），轮次 2 pass 且其 4 🔵 全部落修；**修后复跑三闸全绿**：`test.station.mjs` 2594／0、`test.core.mjs` 577／0、`test.play.mjs` 426／0；冒烟三档读数不变（495／195／75）。
+
 ## §6 验证与收口（父代理）

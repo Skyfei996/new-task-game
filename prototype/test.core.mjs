@@ -74,7 +74,7 @@ for (const [sid, sc] of Object.entries(D.scenes)) {
 
 /* ---------- 2. 完整通关路径（结局 41 → 57） ---------- */
 let st = C.newState('normal');
-eq(st.coins, 15, '普通模式开局 15 枚');
+eq(st.coins, 15, '中等开局 15 枚（B147 三档：简单 20／中等 15／困难 10）');
 eq(C.newState('hard').coins, 10, '困难模式开局 10 枚');
 
 function pick(id, labelPart) {
@@ -469,7 +469,22 @@ ok(hasChar('4', 'naide') && hasChar('12', 'naide') && hasChar('44', 'naide'), '�
 eq(D.nodes['28'].en.thief, '戈高', '28 号 en.thief = 戈高（警示条用）');
 eq(D.nodes['27'].en.thief, '扒手', '27 号正文也是被偷（扒手），已补 en.thief');
 ok(!!D.meta.bankrupt && D.meta.bankrupt.title === '身无分文' && !!D.meta.bankrupt.text, '失败结算有「身无分文」文案');
-ok(typeof D.meta.winReward === 'string' && D.meta.winReward.indexOf('平面图') >= 0, '通关奖励指向下一关的平面图（§2.6）');
+eq(String(D.meta.winReward), 'undefined', 'B09（§2-B144 ①）：结算奖励字段已删（无下一关——失效即删；旧「指向下一关平面图」断言随之作废）');
+/* B09（§2-B144 ②）：多结局判据 Core.moreEndings()＝本关 win 节点数 ≥ 2（零新字段；合成关两探针） */
+{
+  ok(!C.moreEndings(), 'B09（§2-B144 ②）：示例关（win 仅 57＝1 个）⇒ false（「多结局」不成立不硬写）');
+  globalThis.LEVELS['winprobe'] = {
+    meta: { title: '多结局探针关' }, scenes: {}, start: { node: 'w1' }, resources: [], items: {},
+    characters: {}, charOrder: [], help: [],
+    nodes: { w1: { n: '一', t: '一', c: [] }, w2: { n: '二', t: '二', win: true, c: [] } }
+  };
+  ok(C.selectLevel('winprobe'), 'B09（§2-B144 ②）：单 win 合成关已注册且可选中');
+  ok(!C.moreEndings(), 'B09（§2-B144 ②）：1 个 win 的合成关 ⇒ false');
+  globalThis.LEVELS['winprobe'].nodes.w3 = { n: '三', t: '三', win: true, c: [] };
+  ok(C.moreEndings(), 'B09（§2-B144 ②）：第 2 个 win 入册 ⇒ true（判据随数据翻——不硬写）');
+  delete globalThis.LEVELS['winprobe'];
+  ok(C.selectLevel('dalim'), 'B09（§2-B144 ②）：探针关撤下、切回大里姆');
+}
 
 /* ---------- 13. DOM 自检（v1.3）：engine.js 引用的 id 必须都在 index.html 里 ---------- */
 const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');

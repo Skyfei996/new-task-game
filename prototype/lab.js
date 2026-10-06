@@ -50,11 +50,11 @@
     if (!C.selectLevel(id)) return;
     levelId = id; D = C.currentLevel();
     const keepMe = (name && String(name).trim()) || (st && st.me) || DEFAULT_NAME();
-    st = C.newState(difficulty === 'hard' ? 'hard' : 'normal', keepMe);
+    st = C.newState(difficulty === 'hard' ? 'hard' : 'normal', keepMe);   // 调试面保留两档（B147 三档不接入管理台——设计 §11 未列）
     const ev = C.go(st, D.start.node);
     steps = 0;
     lastEvents = ev;
-    oplog = [{ n: 1, at: fmtTime(), from: '', to: st.loc, label: '开局 · ' + (D.meta.title || id) + '（' + (st.diff === 'hard' ? '困难' : '普通') + '）· 玩家 ' + st.me, notes: ev }];
+    oplog = [{ n: 1, at: fmtTime(), from: '', to: st.loc, label: '开局 · ' + (D.meta.title || id) + '（' + (st.diff === 'hard' ? '困难' : '中等') + '）· 玩家 ' + st.me, notes: ev }];
     saveLocal();
     renderAll();
     showPrologue();          // E2：开新局（含重开本关）显示序章；读档/载入快照不重放
@@ -156,7 +156,7 @@
     const banner = $('endBanner');
     if (node.win) {
       banner.className = 'win'; banner.classList.remove('hidden');
-      banner.textContent = '🏁 ' + (node.endTag || '闯关成功！') + (D.meta.winReward ? '　🎁 通关奖励：' + D.meta.winReward : '');
+      banner.textContent = '🏁 ' + (node.endTag || '闯关成功！');
     } else if (node.fail || st.bankrupt) {
       const info = st.bankrupt ? C.failInfo(st.zeroRes) : null;
       banner.className = 'fail'; banner.classList.remove('hidden');

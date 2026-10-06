@@ -67,7 +67,7 @@ const ROUTE = [
   eq(r.code, 0, 'new station 退出码 0（首屏正常）');
   ok(r.out.indexOf('══ 当前位置 ══') >= 0, '首屏有「══ 当前位置 ══」块');
   ok(r.out.indexOf('选项：') >= 0 && /1\) 摸黑去中央大厅/.test(r.out), '首屏列出选项（1) 摸黑去中央大厅）');
-  ok(r.out.indexOf('状态：🪙 20') >= 0 && r.out.indexOf('💨 95') >= 0, '首屏状态行有资源 🪙 20 / 💨 95（100 − 5：1 号食堂进入效果）');
+  ok(r.out.indexOf('状态：🪙 20') >= 0 && r.out.indexOf('💨 195') >= 0, '首屏状态行有资源 🪙 20 / 💨 195（200 − 5：1 号食堂进入效果；B147 中等新档）');
   ok(r.err === '', '首屏 stderr 干净');
 }
 
@@ -112,7 +112,7 @@ const seq = ['node tools/play.mjs new station'];
   eq(r.data && r.data.node, '41', '走到结局 41（结局 A · 圆满）');
   eq(r.data && r.data.state && r.data.state.ended, 'win', '41 号标记为通关（ended=win）');
   eq(r.data && r.data.name, '结局 A · 圆满', '41 号节点名 = 结局 A · 圆满');
-  eq(r.data && r.data.state && r.data.state.resources.oxygen, 85, 'A 路线结束时氧气 85（普通：100 + 30 补给 + 50 热食 − 95 消耗；设计档 §8.2 汇总）');
+  eq(r.data && r.data.state && r.data.state.resources.oxygen, 185, 'A 路线结束时氧气 185（中等：200 + 30 补给 + 50 热食 − 95 消耗；设计档 §8.2 汇总——B147 新档）');
   eq(r.data && r.data.state && r.data.state.resources.coins, 0, '结束时星币 0（花光不判失败，见上）');
   eq(r.data && r.data.choices.length, 0, '结局节点没有可执行选项');
   ok(r.data.state.items.some(it => it.nosell && /焊接枪|控制芯片|冷却剂罐|站长授权卡|磁力靴|星尘矿石/.test(it.id)),
@@ -166,7 +166,7 @@ seq.forEach(s => console.log('  ' + s));
     && typeof r.data.state.atk === 'number' && typeof r.data.state.steps === 'number', 'JSON：state 含 resources / items / clues / atk / steps');
   eq(r.data.state.diff, 'hard', '--hard 生效（难度 hard）');
   eq(r.data.state.me, '小豆', '--name 生效（玩家名 小豆）');
-  eq(r.data.state.resources.oxygen, 25, '困难模式开局氧气 25（设计档 D2：困难 30 开局 − 5（1 号食堂进入效果））');
+  eq(r.data.state.resources.oxygen, 75, '困难模式开局氧气 75（B147：困难 80 开局 − 5（1 号食堂进入效果）——旧 25 口径随之作废）');
   const human = play(['state']);
   ok(human.out.indexOf('小豆') >= 0, '人类可读输出里也带玩家名');
   ok(human.out.indexOf('详细状态') >= 0, 'state 打印详细状态块（位置/资源/物品/线索/武力/步数）');
@@ -367,8 +367,8 @@ seq.forEach(s => console.log('  ' + s));
   C2.selectLevel('station');
   const D2 = C2.currentLevel();
   const resDef = id => D2.resources.find(r => r.id === id);
-  /* 期望档位按设计档 §8.3 的定值自己算（不抄实现）；星币＝数字式（B78——档位词退役） */
-  const tierOxy = v => (v >= 50 ? '还好' : v >= 20 ? '有点闷' : '快喘不上气');
+  /* 期望档位按设计档 §8.3 的比例口径自己算（基准＝本档开局值；不抄实现）；星币＝数字式（B78——档位词退役） */
+  const tierOxy = (v, base) => (v >= base * 0.5 ? '还好' : v >= base * 0.2 ? '有点闷' : '快喘不上气');
   const enOxy = (((D2.nodes[D2.start.node] || {}).en) || {}).oxygen || 0;   // 1 号进入效果
   const oxyTxt = resDef('oxygen').name, coinTxt = resDef('coins').name;
 
@@ -378,8 +378,9 @@ seq.forEach(s => console.log('  ' + s));
   /* 首屏：氧气条＋档位在；星币＝数字；武力/步数/计数/去向编号/节点编号都不在 */
   const n = P('new', 'station');
   eq(n.code, 0, '--player new station 退出码 0');
-  const expOxy = tierOxy(resDef('oxygen').start.normal + enOxy);
-  const expOxVal = resDef('oxygen').start.normal + enOxy;
+  const baseN = resDef('oxygen').start.normal;                    // B147：条与档位的基准＝本档开局值
+  const expOxVal = baseN + enOxy;
+  const expOxy = tierOxy(expOxVal, baseN);
   ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + expOxVal + ' ' + expOxy).test(n.out),
     'B04：玩家版氧气＝文本条＋数值＋档位（10 格；数值 ' + expOxVal + '；档位 ' + expOxy + '——§6.1 同口径）');
   ok(n.out.indexOf('🪙 ' + coinTxt + ' ' + resDef('coins').start.normal) >= 0, 'B78：玩家版星币＝数字式（🪙 ' + coinTxt + ' ' + resDef('coins').start.normal + '）');
@@ -393,12 +394,23 @@ seq.forEach(s => console.log('  ' + s));
   ok(n.out.indexOf('（你的武力 ') < 0, '玩家版不显示机械战斗格式');
   ok(n.out.indexOf('→ 买：buy ') >= 0, 'B03 工具面：玩家版商店带一行可照抄的「买」动作（buy <道具名>）');
 
-  /* 困难开局：数值跟着算（氧气条档位 / 星币数字） */
+  /* 困难开局：数值跟着算（氧气条档位 / 星币数字）——B147：基准随档（start.hard） */
   const h = P('new', 'station', '--hard');
-  const hardExp = tierOxy(resDef('oxygen').start.hard + enOxy);
-  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + (resDef('oxygen').start.hard + enOxy) + ' ' + hardExp).test(h.out),
-    '困难开局：文本条＋数值＋档位按实际算（困难 ' + resDef('oxygen').start.hard + ' − ' + (-enOxy) + ' → ' + (resDef('oxygen').start.hard + enOxy) + ' / ' + hardExp + '）');
+  const baseH = resDef('oxygen').start.hard;
+  const hardExp = tierOxy(baseH + enOxy, baseH);
+  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + (baseH + enOxy) + ' ' + hardExp).test(h.out),
+    '困难开局：文本条＋数值＋档位按比例算（困难 ' + baseH + ' − ' + (-enOxy) + ' → ' + (baseH + enOxy) + ' / ' + hardExp + '）');
   ok(h.out.indexOf('🪙 ' + coinTxt + ' ' + resDef('coins').start.hard) >= 0, 'B78：困难开支星币也报数字（' + resDef('coins').start.hard + '）');
+
+  /* B147 机检⑤：--easy 开局氧气 500（1 号 −5 后 495）——新档位由 CLI 直通（独立会话，不动上面那局） */
+  const TE = fs.mkdtempSync(path.join(os.tmpdir(), 'playtest-player-easy-'));
+  const e = play(['--player', 'new', 'station', '--easy'], TE);
+  const baseE = resDef('oxygen').start.easy;
+  eq(baseE + enOxy, 495, 'B147 §2-B147-⑤：--easy 数据口径（500 − 5 = 495）');
+  ok(new RegExp('💨 ' + oxyTxt + ' [█░]{10} ' + (baseE + enOxy) + ' ' + tierOxy(baseE + enOxy, baseE)).test(e.out),
+    'B147 §2-B147-⑤：--easy 首屏＝条＋495＋档位（基准＝start.easy）');
+  const es = play(['--player', 'state'], TE);
+  ok(es.out.indexOf('难度 简单') >= 0, 'B147 §2-B147-⑤：--easy 档位词上屏（难度 简单）');
 
   /* 独立会话：玩家存 player-session.json，开发存 session.json；互不打扰 */
   ok(fs.existsSync(path.join(T, '.playtest', 'player-session.json')), '玩家会话存 player-session.json');
