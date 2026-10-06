@@ -25,6 +25,15 @@
 
 **授权与边界**：老板 2026-10-06 直令；设计轮不改 `prototype/**`、`images/**`、`tools/**`；文案权威＝station→`station-story-bible.md` §7、示例关→`docs/design-v1.md`。
 
+### 父侧小修记录（2026-10-06 · 评审轮次 2 后 · 父侧直接执行·可回退）
+
+1. `design-station-v1.md:188`（E3 行）——评审轮次 2 #1（🟡）落位：行为列/边界列同步 B141 升格口径（已获得＝可点；无 `desc` 且无 `text` ⇒ 兜底句）。
+2. `design-ui-v1.md` 三处指针——#2（🔵）落位：`engine.js:2347-2374`／`:2354-2367`／`:2023-2056` 改函数名定位（`renderBag`／`invBubble`，防再漂移）。
+3. `design-ui-v1.md:1393` 三处计数——#3（🔵）落位：`dalim.js` 637→636／`test.core.mjs` 619→618／`test.play.mjs` 615→614（统一＝末行内容行号口径；±1 不越档线）。
+4. `docs/README.md` 版本列——域外注落位：design-station → v3.29／design-ui → v1.18（B06 标记改「已实现并发布」）／bible → v2.11。
+
+处置备忘：#4（dalim.js／test.core.mjs 新入 >500 档）＝沿欠账裁定在案，结构拆分批点名时并入；#5（40 字口径注释）随实现轮落；#6（未获得态口径）＝待 §4 裁（默认＝全量显示）。以上均单行/表格级、无新增语义、可回退（git 上一版）。
+
 ## §2 批次任务与设计（eng-designer）
 **状态行**：设计完成（评审修正轮（轮次 1）7/7 落修＋附加项 A 实盘刷新；待复评（轮次 2）→ §4 批准；待认＝未获得态口径（§14-47））
 <§2 模板占位：本批条目（覆盖） / 设计档落点 / 机制设计 / 受影响文件与测试面 / 验收对照 / 关键决策 / 上抛项>
@@ -141,6 +150,27 @@
 **计数**：🔴 0 ／ 🟡 4 ／ 🔵 3
 
 **VERDICT: pass**
+
+### 轮次 2（评审子代理）
+
+**B07 修正轮落修复核（轮次 2）**｜范围＝design-ui-v1.md（v1.18）／station-story-bible.md（v2.11）／design-v1.md（v1.4）／design-station-v1.md（v3.29）；对象＝B140／B141＋修正轮 7 条＋附加项 A（§11 实盘刷新）。
+
+落修核（7 条＋附加 A 均在案）：①唯一清单第 12 项＝design-ui-v1.md:14／:1400；②desc 入 L5/L6 扫描面＋零豁免＝design-ui-v1.md:570／:1515＋design-station-v1.md:616／:623＋bible §7.47 第 12／16／18 条（station-story-bible.md:759／:763／:765）；③dalim 22 断言落点＝design-ui-v1.md:1383；④体积档注＋B05／B06 对账＝design-ui-v1.md:1393／:1351／:1367；⑤bible §7.46 镜像＝station-story-bible.md:730／:733／:727-728＋design-ui-v1.md:572；⑥状态行重写＝design-ui-v1.md:5；⑦B141 边界 lab 口径＝design-ui-v1.md:573；附加 A＝design-ui-v1.md:1393（8 个实盘值，抽测 ±1 内）。
+
+| # | Category | Severity | Issue | Suggestion |
+|---|----------|----------|-------|------------|
+| 1 | Document ownership / Doc-state | 🟡 | `design-station-v1.md:188`（E3 边界列）仍写「未拥有 → 明确报错；无 `text` → "这件东西没什么可读的"」，与 B141 升格后的判据（`owned && (desc 或 text)` ⇒ 打开面板块、介绍段在前）不一致：station 19/23 件「有 desc 无 text」按 E3 字面应落兜底句、按 B141 应出面板块；同档 `design-station-v1.md:311`（E33）已登记「E3 面板升格」，但 E3 行未按本项目惯例（`design-station-v1.md:211` E12 行「B03：数据面停用」式就地注记）同步 | E3 边界列改「无 `desc` 且无 `text` → 兜底句（B07 升格；口径归 `design-ui-v1.md` §2-B141）」，或在 E3 行加一行 B07 注记——不改任何机制 |
+| 2 | Clarity | 🔵 | §2-B140／B141 三处 `engine.js` 行号指针已过期：`design-ui-v1.md:553`「背包无介绍位（`engine.js:2347-2374`）」（该区间现为选项按钮尾部＋`endButtons`）、`design-ui-v1.md:565`「（`engine.js:2354-2367`）」（实际 `renderBag`＝`engine.js:2432-2459`）与「（`engine.js:2023-2056`）」（实际 `invBubble`＝`engine.js:2108`） | 实现轮前刷新为现行行号或改「函数名定位」（`renderBag`／`invBubble`／`openRead`）——影响文件表已给函数名，不阻塞 |
+| 3 | Size annotations | 🔵 | §11 B07 行数基线口径混用 ±1：`design-ui-v1.md:1393` 的 8 个实盘值中，`engine.js` 2663／`station.js` 1276／`index.html` 203／`style-ui.css` 236／`test.station.mjs` 4063＝末行内容行号，而 `dalim.js` 637／`test.core.mjs` 619／`test.play.mjs` 615 比各自末行内容行号（636／618／614）大 1 | 统一一种计数口径后回填（±1 不越 300／500 线，不影响档位判定） |
+| 4 | Size / split plan | 🔵 | `dalim.js`（637）与 `test.core.mjs`（619）＝本批新入改动面的 >500 行档，设计按「同口径登记欠账、不拆分」处理（依据＝既有裁定未逐个点名；`design-ui-v1.md:1393`），未给拆分方案 | 沿既有欠账裁定不上抬；仅提示：结构/拆分批点名单时把这两档并入，避免「未点名档」按先例漂移 |
+| 5 | Acceptance 口径 | 🔵 | 同档「≤40 字」两种口径：B137 机检①写死「仅计汉字」（`design-ui-v1.md:490`），B140 机检①用 `Array.from(desc).length ≤ 40`（含标点；`design-ui-v1.md:558`） | 实现轮注释口径句即可；45 条均远低于 40（如 `station-story-bible.md:748` 第 1 条 19 码点），无实害 |
+| 6 | Open item | 🔵 | 未获得态口径（介绍全量显示）＝待裁项（`design-ui-v1.md:1515` §14-47），含一行收窄备选；论证链（老板原话「所有物品」＋背包＝完整清单＋不新增泄漏面）完整 | 评审取向＝接受全量（与老板原话一致、不新增发现面）；决定权留 §4——不阻塞 |
+
+域外注（无严重度）：评审上下文所附文档地图（docs/README.md 版本列）滞后于实盘——design-ui 记 v1.17（文件 v1.18）、design-station 记 v3.28（v3.29）、story-bible 记 v2.10（变更记录已到 v2.11），另 design-ui 行「待实现（B06）」与代码实况（`prototype/engine.js:2641` `#guideFab` 已接线）不符。
+
+计数：🔴 0 ／ 🟡 1 ／ 🔵 5。
+
+VERDICT: pass
 
 ## §4 用户批准（主 agent）
 ## §5 实施记录（eng-coder）
