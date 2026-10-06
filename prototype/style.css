@@ -370,7 +370,6 @@ body {
 /* ---------- 求救面板（走投无路检测） ---------- */
 #stuckModal .card h3 { color: #ffd166; }
 #stuckText { line-height: 1.8; color: #dbe7f2; }
-#stuckModal .diffRow small { color: var(--dim); }
 
 /* ============================================================================
  * v0.3 新增（B01 体验层整改）：序章层 / 道具正文面板 / 商店折叠

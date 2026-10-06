@@ -116,6 +116,14 @@
  *       道具详情面板升格（介绍段 `.rdDesc` 在前、正文段随后；两者皆无 ⇒ 兜底句保留）。
  *       desc＝纯呈现数据（不进存档、不参与判定）；写作纪律＝§2-B140 机检②。
  *
+ * B08 轮（B142／B143 · 2026-10-06；口径＝docs/design-ui-v1.md §2-B142／B143、design-station-v1.md §7-E34／E35）：
+ *   E34 指路记录面（②块「🔑 线索与记录」两分组）：Core.guideNotes（线索组＝st.learned 键序接 note；
+ *       记录组＝meta.notes record 条目按 cond 过滤、done 态给 state 与生效稿）／guideSig（面板内容签名）／
+ *       guideHasNew／markGuideSeen＋st.gSeen（签名位、随存档）；DOM＝条目展收（.guideItem／.giText，展开态不落档）
+ *       ＋「新」标（.giNew）＋🧭 两入口圆点（.hasNew，CSS 画点、零 DOM 改动）。
+ *   E35 指路面板Ⅱ（B142）：面板底部仅「确认」；原两出口迁 #saveModal「🚪 出口」区块（id 不改；play 渲染／card 隐藏）；
+ *       重开确认＝D65 采用句（💾 区块直调 Core.coverAsk；restart(noAsk)——既有绑定点一律箭头包装，不得直传事件对象）。
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/指路弹窗、坐标校准
@@ -274,6 +282,7 @@
         chDone: {},        // E6：做过的一次性选项标记（随存档；旧存档没有该字段 = 空）
         mSeen: {},         // B127（§7.3）：浮现图「首访一次」标记（node.mOnce——渲染后落库；旧档缺省为空）
         cgSeen: {},        // B132（§6.7）：CG「首访一次」标记（node.cg.once——显示后落库；旧档缺省为空）
+        gSeen: '',         // B08（§2-B143 · R5）：指路面板「有更新」签名位（上次打开时的面板签名——空＝从未打开）
         wristband: 0,
         hist: [],
         loc: null,
@@ -296,6 +305,7 @@
       if (!st.scene) st.scene = Core.defaultScene();
       ['items'].forEach(k => { if (!Array.isArray(st[k])) st[k] = []; });
       ['visited', 'done', 'learned', 'chDone', 'mSeen', 'cgSeen'].forEach(k => { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; });   // B127：mSeen＝浮现图首访标记；B132：cgSeen＝CG 首访标记（旧档补空表）
+      if (typeof st.gSeen !== 'string') st.gSeen = '';   // B08（§2-B143）：签名位缺省——旧档无值 ⇒ 首次打开前显圆点（一次性，披露）
       if (!Array.isArray(st.hist)) st.hist = [];
       if (st.wristband == null) st.wristband = 0;
       if (!st.diff) st.diff = 'normal';
@@ -777,6 +787,41 @@
     },
     /* B137（§2-B137）：已知线索＝st.learned 的键序（获得先后——与 CLI「线索：」同源同字面） */
     guideClues(st) { return (st && st.learned) ? Object.keys(st.learned) : []; },
+
+    /* ---- B143（§2-B143 · 2026-10-06）：指路记录面——面板②块「线索与记录」（纯读；DOM 层与测试同源调用）。
+     * 线索组＝Core.guideClues 键序接 meta.notes 的 clue 条目（key 逐字；无对应条目 ⇒ text＝null＝兜底行）；
+     * 记录组＝record 条目按 `cond` 过滤（数组序＝节点号升序），有 `done` 者给 state（'done'／'undone'）；
+     * 生效稿＝done 成立 ⇒ doneText（缺省沿用 text）；isNew＝相对上次打开（st.gSeen 令牌集）的新增/翻转条目
+     * （无基线——旧档／新局未打开过 ⇒ 不标「新」；打开即落档 ⇒ 下次不再标）。 */
+    guideNotes(st) {
+      const notes = (D && D.meta && Array.isArray(D.meta.notes)) ? D.meta.notes : [];
+      const prev = typeof (st && st.gSeen) === 'string' ? st.gSeen : '';
+      const seen = {}; prev.split('|').forEach(t => { seen[t] = true; });
+      const clues = Core.guideClues(st).map(k => {
+        const n = notes.find(x => x.kind === 'clue' && x.key === k) || null;
+        return { id: n ? n.id : null, key: k, text: n ? n.text : null, isNew: prev !== '' && !seen['C:' + k] };
+      });
+      const records = notes.filter(n => n.kind === 'record' && Core.condOk(st, n.cond)).map(n => {
+        const done = !!n.done && Core.condOk(st, n.done);
+        const tok = 'R:' + n.id + (n.done ? (done ? ':done' : ':undone') : ':-');
+        return { id: n.id, title: n.title, text: done ? (n.doneText || n.text) : n.text,
+                 state: n.done ? (done ? 'done' : 'undone') : null, isNew: prev !== '' && !seen[tok] };
+      });
+      return { clues: clues, records: records };
+    },
+    /* B143（R5）：面板内容签名＝①块文本＋②块条目 id／key:态序列＋③块 label:done 序列（写入 st.gSeen 后比对差异） */
+    guideSig(st) {
+      const parts = ['G:' + (Core.guideTarget(st) || '')];
+      const g = Core.guideNotes(st);
+      g.clues.forEach(c => parts.push('C:' + c.key));
+      g.records.forEach(r => parts.push('R:' + r.id + (r.state ? ':' + r.state : ':-')));
+      Core.guideNeeds(st).forEach(n => parts.push('N:' + n.label + ':' + (n.done ? '1' : '0')));
+      return parts.join('|');
+    },
+    /* B143（R5）：有更新＝签名≠上次打开时的签名（旧档／新局无基线 ⇒ 视为有更新——一次性「请看一眼」） */
+    guideHasNew(st) { return Core.guideSig(st) !== ((st && st.gSeen) || ''); },
+    /* B143（R5）：打开面板 ⇒ 落签名（纯状态写；调用方随后 save()——同 markMomentSeen／markCgSeen 口径） */
+    markGuideSeen(st) { if (st) st.gSeen = Core.guideSig(st); },
 
     /* B138（§2-B138）：编号圈地点名——已到过（当前点必然已到过）且地图场景（!plainPins）⇒ 节点名（与地点头／
      * 已探索 title 同源：endDisplayName(nm(n))）；未到过 ⇒ null（不渲染，渐进揭示）；房间/站外一律 null
@@ -1546,8 +1591,8 @@
     $('overlay').classList.add('hidden');
     renderAll();
   }
-  function restart() {
-    if (!confirm(Core.coverAsk())) return;   // B124（§1.1）：与卡片侧同一采用句（单一来源）
+  function restart(noAsk) {
+    if (!noAsk && !confirm(Core.coverAsk())) return;   // B124（§1.1）：与卡片侧同一采用句（单一来源）；B142：noAsk＝💾 出口区块已确认（免二次询问）
     st = Core.newState(st ? st.diff : 'normal', st ? st.me : Core.playerName(store));
     curScene = null;
     cgNodeId = null;                     // 重开：CG 层尚未求值（新局——once 档故地重游照常显示）
@@ -1646,7 +1691,8 @@
     warn.classList.toggle('hidden', slotStoreOk);
     Core.slotList(store, slotModalLv).forEach((slot, i) => rows.appendChild(slotRowEl(slotModalLv, i, slot)));
   }
-  /* 打开弹窗（两处入口共用）；打开时探测一次存储可用性 */
+  /* 打开弹窗（两处入口共用）；打开时探测一次存储可用性；B142（§2-B142）：出口区块分模式显隐
+   * （play 模式且 st 在场 ⇒ 渲染；卡片模式 ⇒ 隐藏——卡片侧已有「重新开始／重玩」）＋安全点行。 */
   function openSaveModal(lid, mode) {
     const id = lid || curLevelId;
     if (!id || !LEVELS[id]) return;
@@ -1654,6 +1700,13 @@
     slotModalMode = mode === 'card' ? 'card' : 'play';
     slotStoreOk = Core.slotsAvailable(store);
     renderSlotRows();
+    const showExit = slotModalMode === 'play' && !!st;
+    $('saveExit').classList.toggle('hidden', !showExit);
+    if (showExit) {
+      const safeId = Core.safeNodeId();
+      const node = safeId ? D.nodes[safeId] : null;
+      $('stuckSafeName').textContent = safeId ? (safeId + ' · ' + Core.endDisplayName(nm(node ? node.n : ''))) : '（本关没有配置安全点）';
+    }
     $('saveModal').classList.remove('hidden');
   }
   /* 卡片「存档位」行（B136 · §1.2 入口②）：仅当该关存在手动档时构建 */
@@ -1686,6 +1739,7 @@
     applyScene();   // 先同步场景（背景图 / 遮罩 / 舞台比例），再渲染
     hideAlertBar(); // 重绘即撤下上一条警示条（本次新发生的由 showFlash 在本函数之后重新弹出）
     renderHUD(); renderPins(); renderCharSpots(); renderMoments(); renderInv(); syncFeedback(); renderVisited(); renderNode();
+    renderGuideDot();   // B143（§2-B143 · R5）：🧭 两入口「有更新」圆点（签名比对——有更新才亮）
     applyCg();      // B132（§6.7）：CG 整屏层（进节点求值＋跨渲染驻留——层在场景区最上）
     if (Core.deadEnd(st)) showStuck('dead');   // v0.2：卡死保险（B137：自动弹出＝带死局上下文行）
   }
@@ -2384,7 +2438,8 @@
     const b1 = document.createElement('button');
     b1.className = 'choice';
     b1.textContent = '↺ 重新开始本关';
-    b1.onclick = restart;
+    /* B142（§2-B142）：箭头包装——不得把事件对象当第一参直传 restart（恒真会跳过 D65 确认） */
+    b1.onclick = () => restart();
     const b2 = document.createElement('button');
     b2.className = 'choice';
     b2.textContent = '🗂 返回关卡选择';
@@ -2481,10 +2536,11 @@
       '　·　持有 ' + st.items.length + ' 件道具';
   }
 
-  /* ---------- 走投无路（v0.2 卡死保险）：指路面板（B137 更名；四块＝当前目标/已知线索/还差什么/出口） ----------
+  /* ---------- 走投无路（v0.2 卡死保险）：指路面板（B137 更名；B08 改版＝三块＋出口在 💾） ----------
    * 两处入口（工具栏 #stuckBtn／场景区 #guideFab）→ 同一入口函数（面板打开函数恰一份）；
    * 死局上下文行仅自动弹出（showStuck('dead')）时显示——手动点开＝该行隐藏（§2-B137 入口表）。
-   * 面板纯读 st（四块＝Core.guideTarget／guideClues／guideNeeds＋既有两出口），不改存档结构。 */
+   * 面板纯读 st（三块＝Core.guideTarget／guideNotes／guideNeeds）；唯一写＝B08（§2-B143）的 st.gSeen
+   * 签名位（打开面板时落档）；②块＝「线索与记录」两分组（条目展收、「新」标——B143）。 */
   const GUIDE_FALLBACK = '（这一关没有设目标清单——随便逛逛吧。）';    // ① 降级句（无 targets——示例关）
   const GUIDE_CLUES_EMPTY = '（还没记住什么——多问问、多看看。）';      // ② 空态句
   const GUIDE_NEEDS_EMPTY = '（这一步没有要凑的东西。）';              // ③ 空态句
@@ -2493,6 +2549,45 @@
     d.className = 'guideDim';
     d.textContent = text;
     return d;
+  }
+  /* B143（§2-B143）：②块分组标题（小字——仅组非空时出；文案「线索」／「记录」） */
+  function guideGroupHead(text) {
+    const d = document.createElement('div');
+    d.className = 'guideGroup';
+    d.textContent = text;
+    return d;
+  }
+  /* B143：②块条目——有详情 ⇒ <button class="guideItem">（▸/▾ 展收；可多条同开；展开态不落档）；
+   * 无详情（兜底行）⇒ 仅标题、不可点；态标 .giState（有 done 者）／「新」标 .giNew（相对上次打开）。 */
+  function guideItemEl(title, text, state, isNew) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'guideItem';
+    b.textContent = (text ? '▸ ' : '') + title;
+    const head = b.firstChild;
+    if (state) {
+      const s = document.createElement('span');
+      s.className = 'giState' + (state === 'done' ? ' done' : '');
+      s.textContent = state === 'done' ? '已完成' : '未完成';
+      b.appendChild(s);
+    }
+    if (isNew) {
+      const n = document.createElement('span');
+      n.className = 'giNew';
+      n.textContent = '新';
+      b.appendChild(n);
+    }
+    if (!text) { b.disabled = true; return b; }
+    const t = document.createElement('span');
+    t.className = 'giText';
+    t.textContent = text;
+    b.appendChild(t);
+    b.onclick = () => {
+      const open = !b.classList.contains('open');
+      b.classList.toggle('open', open);
+      head.textContent = (open ? '▾ ' : '▸ ') + title;   // 首行箭头两态（▸ 收起／▾ 展开）
+    };
+    return b;
   }
   function renderGuidePanel() {
     /* ① 当前目标（Core.guideTarget 单源；无 targets ⇒ 降级句） */
@@ -2503,17 +2598,19 @@
     gd.className = goal ? 'guideText' : 'guideDim';
     gd.textContent = goal || GUIDE_FALLBACK;
     gb.appendChild(gd);
-    /* ② 已知线索（获得先后——与 CLI「线索：」同源同字面） */
+    /* ② 线索与记录（B143 改版：两分组——组标题仅组非空时出；两组皆空 ⇒ 既有空态句） */
     const cb = $('guideClues');
     cb.innerHTML = '';
-    const clues = Core.guideClues(st);
-    if (!clues.length) cb.appendChild(guideDimLine(GUIDE_CLUES_EMPTY));
-    clues.forEach(c => {
-      const d = document.createElement('div');
-      d.className = 'guideLine';
-      d.textContent = c;
-      cb.appendChild(d);
-    });
+    const g = Core.guideNotes(st);
+    if (!g.clues.length && !g.records.length) cb.appendChild(guideDimLine(GUIDE_CLUES_EMPTY));
+    if (g.clues.length) {
+      cb.appendChild(guideGroupHead('线索'));
+      g.clues.forEach(c => cb.appendChild(guideItemEl(c.key, c.text, null, c.isNew)));
+    }
+    if (g.records.length) {
+      cb.appendChild(guideGroupHead('记录'));
+      g.records.forEach(r => cb.appendChild(guideItemEl(r.title, r.text, r.state, r.isNew)));
+    }
     /* ③ 还差什么（当前目标行 need[]——show 不成立者不出；done 成立＝☑） */
     const nb = $('guideNeeds');
     nb.innerHTML = '';
@@ -2527,23 +2624,29 @@
     });
   }
   function showStuck(dead) {
-    const safeId = Core.safeNodeId();
-    const node = safeId ? D.nodes[safeId] : null;
     /* 面板首行（原「这里已经没有你能做的事了。……」改稿——更名清单 #5）：仅死局（自动弹出）显示 */
     $('stuckText').textContent = '这里已经没有你能做的事了——别急：看看下面，换个地方想想办法。';
     $('stuckText').classList.toggle('hidden', !dead);
-    $('stuckSafeName').textContent = safeId ? (safeId + ' · ' + Core.endDisplayName(nm(node ? node.n : ''))) : '（本关没有配置安全点）';
     renderGuidePanel();
     $('stuckModal').classList.remove('hidden');
+    /* B143（R5）：打开 ⇒ 落签名＋补写存档（渲染在前 ⇒ 本次打开仍可见「新」标）；两入口圆点随之清除 */
+    if (Core.guideHasNew(st)) { Core.markGuideSeen(st); save(); }
+    renderGuideDot();
   }
   function goSafe() {
     const safeId = Core.safeNodeId();
-    $('stuckModal').classList.add('hidden');
+    $('saveModal').classList.add('hidden');   // B142（§2-B142）：出口迁 💾——关存档弹窗（原关指路面板）
     if (!safeId) return;
     const msgs = Core.go(st, safeId).map(t => ({ text: t, kind: Core.textKind(t) }));
     toastGroup(msgs);
     save(); renderAll();
     showFeedback(msgs);
+  }
+  /* B143（R5）：🧭 两处入口的「有更新」圆点（.hasNew——CSS ::after 画点，零 DOM 改动） */
+  function renderGuideDot() {
+    const has = Core.guideHasNew(st);
+    $('stuckBtn').classList.toggle('hasNew', has);
+    $('guideFab').classList.toggle('hasNew', has);
   }
 
   /* ---------- 视图缩放 / 拖拽 / 校准 ---------- */
@@ -2658,12 +2761,17 @@
     $('zoomIn').onclick = () => { zoom = Math.min(4, zoom * 1.25); applyT(); };
     $('zoomOut').onclick = () => { zoom = Math.max(1, zoom / 1.25); if (zoom === 1) { tx = 0; ty = 0; } applyT(); };
     $('zoomReset').onclick = resetView;
-    $('restartBtn').onclick = restart;
+    $('restartBtn').onclick = () => restart();   // B142（§2-B142）：箭头包装（不得直传事件对象——会跳过 D65 确认）
     $('levelsBtn').onclick = backToLevelSelect;
     $('stuckBtn').onclick = () => { if (st) showStuck(); };
     $('guideFab').onclick = () => { if (st) showStuck(); };   // B137（§2-B137）：第二入口——与工具栏同一入口函数（面板打开函数恰一份）
     $('stuckSafe').onclick = goSafe;
-    $('stuckRestart').onclick = () => { $('stuckModal').classList.add('hidden'); restart(); };
+    $('stuckRestart').onclick = () => {
+      /* B142（§2-B142）：💾 出口区块重开——直调 D65 采用句（单一来源）；取消 ⇒ 不重开、弹窗留原地 */
+      if (!confirm(Core.coverAsk())) return;
+      $('saveModal').classList.add('hidden');
+      restart(true);                             // 确认 ⇒ 关弹窗、免二次询问
+    };
     $('bagBtn').onclick = () => { renderBag(); $('bagModal').classList.remove('hidden'); };
     $('saveBtn').onclick = () => { if (st) openSaveModal(curLevelId, 'play'); };   // B136：工具栏 💾（局内入口）
     $('charsBtn').onclick = openCharsBook;

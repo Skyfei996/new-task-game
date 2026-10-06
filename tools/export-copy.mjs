@@ -130,6 +130,36 @@ export function buildCopy(L, levelId) {
     if (n.c && n.c.length) for (const c of n.c) out.push(choice(c));
     out.push('');
   }
+  /* 九、指路记录（meta.notes——②块「线索与记录」详情稿；B08／B143）：线索（learn 值逐字）＋记录（出现门＋常态/完成稿） */
+  const notes = (L.meta && Array.isArray(L.meta.notes)) ? L.meta.notes : [];
+  const clueNotes = notes.filter(n => n.kind === 'clue');
+  const recNotes = notes.filter(n => n.kind === 'record');
+  out.push('## 九、指路记录（' + clueNotes.length + ' 线索 ＋ ' + recNotes.length + ' 记录）');
+  out.push('');
+  if (!notes.length) out.push('（本关没有指路记录表）');
+  else {
+    out.push('> 指路面板②块「线索与记录」详情稿（`meta.notes`；口径＝`design-ui-v1.md` §2-B143）：线索＝`learn` 值逐字＋点开详情；记录＝出现门＋常态稿／完成稿（完成稿缺省＝沿用常态稿）。');
+    out.push('');
+    if (clueNotes.length) {
+      out.push('### 线索（' + clueNotes.length + ' 条）');
+      out.push('');
+      out.push('| 线索（＝learn 值逐字） | 点开详情 | 出处 |');
+      out.push('|---|---|---|');
+      for (const n of clueNotes) out.push('| ' + n.key + ' | ' + n.text + ' | ' + n.src + ' |');
+      out.push('');
+    }
+    if (recNotes.length) {
+      out.push('### 记录（' + recNotes.length + ' 条）');
+      out.push('');
+      for (const n of recNotes) {
+        out.push('- **' + n.title + '**（' + n.id + '）');
+        out.push('  - 出现门：`' + cond(n.cond) + '`' + (n.done ? '；完成：`' + cond(n.done) + '`' : '（单态）') + '　｜　出处：' + n.src + (n.doneSrc ? ' → ' + n.doneSrc : ''));
+        out.push('  - 常态稿：' + n.text);
+        if (n.doneText) out.push('  - 完成稿：' + n.doneText);
+      }
+      out.push('');
+    }
+  }
   return out.join('\n');
 }
 

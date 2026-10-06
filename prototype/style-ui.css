@@ -218,7 +218,7 @@
   border-radius: 999px; color: var(--ink); background: rgba(20, 30, 42, .85); border: 1px solid var(--line);
 }
 #guideFab:hover { border-color: var(--accent); }
-/* 面板四块（§2-B137）：块标题＋行；降级/空态句＝.guideDim；③块勾选态＝☑＋绿色双冗余 */
+/* 面板三块＋出口在 💾（B08 改版——原 B137 四块；§2-B142／B143）：块标题＋行；降级/空态句＝.guideDim；③块勾选态＝☑＋绿色双冗余 */
 .guideBlock { margin: 10px 0 0; }
 .guideTitle { margin-bottom: 4px; font-size: 12.5px; letter-spacing: .5px; color: var(--dim); }
 .guideText { font-size: 14.5px; line-height: 1.7; color: #eaf3fb; }
@@ -243,3 +243,30 @@
 .ibDesc { margin-top: 3px; line-height: 1.6; color: #cfe0ee; }
 /* 道具详情面板：介绍段在前、正文段随后（正文段 #readBody p 沿既有样式） */
 .rdDesc { margin: 0 0 10px; padding-left: 9px; border-left: 3px solid var(--line); color: #eaf3fb; }
+
+/* ---------- ⑫ 指路面板Ⅱ·记录面（B08 · §2-B142／B143）：②块两分组／条目展收／「新」标／🧭 圆点／出口区块标题 ---------- */
+/* ②块组标题（仅组非空时出——「线索」／「记录」） */
+.guideGroup { margin: 8px 0 2px; font-size: 12px; letter-spacing: .5px; color: var(--dim); }
+/* ②块条目（<button.guideItem>——首行 ▸/▾ 标题＋态标／「新」标；点开＝展开 .giText、再点＝收起；可多条同开） */
+.guideItem {
+  display: block; width: 100%; text-align: left; font: inherit; cursor: pointer;
+  color: #dbe7f2; background: none; border: 0; border-radius: 6px; padding: 2px 5px; font-size: 13.5px; line-height: 1.85;
+}
+.guideItem:hover { background: rgba(255, 255, 255, .06); }
+.guideItem:disabled { cursor: default; color: var(--dim); }   /* 兜底行（有 learn 值、无对应条目）：仅标题、不可点 */
+.giText {
+  display: none; margin: 3px 0 7px; padding-left: 10px; border-left: 2px solid var(--line);
+  font-size: 13px; line-height: 1.7; color: #b9cee0;
+}
+.guideItem.open .giText { display: block; }     /* 展开态（DOM 瞬态——关面板复位；不落档） */
+.giState { margin-left: 6px; font-size: 11px; color: var(--dim); }
+.giState.done { color: var(--msg-gain); }
+.giNew { margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 10.5px; color: #0b1118; background: var(--msg-key); }
+/* 🧭 两入口「有更新」圆点（CSS ::after 画点、零 DOM 改动；#guideFab 自带 absolute 定位，#stuckBtn 挂 relative） */
+#stuckBtn.hasNew { position: relative; }
+#stuckBtn.hasNew::after, #guideFab.hasNew::after {
+  content: ''; position: absolute; top: 1px; right: 1px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--msg-key); box-shadow: 0 0 0 2px rgba(11, 17, 24, .55);
+}
+/* 出口区块标题行（#saveModal「🚪 出口」——B142） */
+.opsTitle { margin: 14px 0 0; font-size: 12.5px; letter-spacing: .5px; color: var(--dim); }

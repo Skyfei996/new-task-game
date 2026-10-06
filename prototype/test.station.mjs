@@ -2141,7 +2141,8 @@ function providedFlags(L) {
     .forEach(([id, frag]) => ok(condHasDonePred(find(id, frag).cond), `B03：${id}「${frag}」带完成态谓词（原 lockIf → 谓词）`));
   /* once 新增/收口抽查（B07/B09/B10/B12/B13/B15/B19 ＋ B03：8②/28） */
   [['8', '对一对'], ['8', '广播'], ['8', '查一查被改过的货单'], ['12', '照一照堆芯'], ['13', '拧上总阀'], ['15', '推上主供电闸门'], ['16', '换上一节新电池'], ['19', '用工具把面板焊好'], ['28', '站猫罐头']]
-    .forEach(([id, frag]) => ok(find(id, frag).once === true, `B02-14：once 收口——${id}「${frag}」带 once`));
+    .forEach(([id, frag]) => ok(!!find(id, frag).once, `B02-14：once 收口——${id}「${frag}」带 once`));
+  eq(find('8', '对一对').once, '对过货单', 'B08 §2-B143：8① once 具名化＝`对过货单`（E6——行为不变；供 rec-08 完成态查询；改前＝true）');
   /* 31/32 en learn（收口轮核定） */
   eq(D.nodes['31'].en.learn, '桑尼翻脸了', 'B02-14：31 en learn＝桑尼翻脸了');
   eq(D.nodes['32'].en.learn, '桑尼认栽了', 'B02-14：32 en learn＝桑尼认栽了');
@@ -3944,8 +3945,8 @@ console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字�
   ok(sceneBlock.indexOf('id="guideFab"') >= 0, 'B137 §2-B137-⑨：#guideFab 在 #sceneWrap 内（场景区）');
   ok(htmlB.indexOf('id="guideFab"') > htmlB.indexOf('id="stage"'), 'B137 §2-B137-⑨：在 #stage 之后（#stage 之外——不随身拖拽/缩放）');
   ok(/<button id="guideFab"[^>]*>🧭 指路<\/button>/.test(htmlB), 'B137 §2-B137-⑨：按钮文字＝「🧭 指路」（图标＋可见文字）');
-  eq(htmlB.split('指路：现在该做什么 / 已知线索 / 出口').length - 1, 2,
-    'B137 §2-B137-⑨：title 与工具栏同句（两处入口各一份）');
+  eq(htmlB.split('指路：现在该做什么 / 线索与记录 / 还差什么（出口在 💾）').length - 1, 2,
+    'B137 §2-B137-⑨：title 与工具栏同句（两处入口各一份；B08 定稿＝②块口径／出口迁移——§2-B142）');
   ok(engSrc.indexOf("$('guideFab').onclick = () => { if (st) showStuck(); };") >= 0
     && engSrc.indexOf("$('stuckBtn').onclick = () => { if (st) showStuck(); };") >= 0,
     'B137 §2-B137-⑨：两处入口同走同一入口函数（showStuck——同一面板、单一来源；if (st) 守卫）');
@@ -4052,8 +4053,10 @@ console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字�
 /* --- 24-18 §8.1 帮助同步（更名清单 #7：第 11 条新稿＋第 9 条 👉；条数仍 12） --- */
 {
   eq(D.help.length, 12, 'B137 §8.1：帮助条数仍 12（第 11 条改写不抢 B05 第 12 条）');
-  eq(D.help[10], '🧭 迷路了？工具栏和场景区右下角的「指路」按钮，随时能点：当前目标、记下的线索、还差什么，一眼看全；下面还有「回到安全点」和「重开本关」。',
-    'B137 §8.1 第 11 条逐字（🧭 指路——两处入口＋四块名目；更名清单 #7）');
+  eq(D.help[10], '🧭 迷路了？工具栏和场景区右下角的「指路」按钮，随时能点：当前目标、线索与记录、还差什么，一眼看全；有更新的时候，按钮上会亮个小点，线索和记录点开能看详情。想回到安全点或者重开本关，都在 💾 里。',
+    'B08 §8.1 第 11 条再改写逐字（🧭 指路——两处入口＋三块名目＋小圆点＋点开详情＋💾 出口；B142／B143 同轮）');
+  eq(['下面还有「回到安全点」和「重开本关」', '记下的线索'].map(t => D.help[10].indexOf(t) < 0).join(','), 'true,true',
+    'B08 §8.1：旧句式零残留（删「下面还有『回到安全点』和『重开本关』」句——B142）');
   eq(D.help[8], '👉 选项：能做的事才会出现；拿不准的，尽管试——不行的时候，剧情会告诉你为什么。',
     'B137 §8.1 第 9 条逐字（图标 👉——与指路图标消重；更名清单 #7 同批）');
   P('§8.1 帮助同步：条数 12／第 11 条新稿逐字／第 9 条 👉 逐条通过');
@@ -4141,6 +4144,256 @@ console.log('———— B07 道具介绍：覆盖／句式／导出对拍／�
   eq(D.help.length, 12, 'B141 §2-B141-③：帮助条数仍 12（本批零改动）');
   ok(D.help[4].indexOf('点一下看说明') >= 0, 'B141 §2-B141-③：帮助第 5 条「点一下看说明」与呈现一致（§8.2 H2）');
   P('§2-B141-③ 回归：属性/规则行·可读逐字／未获得格／看内容·使用／商店回收行／帮助 12 条 逐条通过');
+
+/* ============ 26. B08 指路·线索与任务记录轮：面板Ⅱ＋记录面（§2-B142 机检①~⑤／§2-B143 机检①~⑦ · 2026-10-06） ============ */
+console.log('');
+console.log('———— B08 指路：面板Ⅱ（B142 ①~⑤）／线索与任务记录（B143 ①~⑦） ————');
+
+/* --- 26-1 §2-B142 机检①：面板底部仅「确认」（#stuckModal 内无 .diffRow；旧文案零残留；Esc/点空白照旧） --- */
+{
+  const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  const stuckBlock = html.slice(html.indexOf('id="stuckModal"'), html.indexOf('id="bagModal"'));
+  ok(stuckBlock.indexOf('diffRow') < 0, 'B142 §2-B142-①：#stuckModal 内无 .diffRow（两出口已整体迁出）');
+  ok(/<button class="closeBtn" data-close="stuckModal">确认<\/button>/.test(stuckBlock),
+    'B142 §2-B142-①：底部＝「确认」（data-close="stuckModal"——原「再想想（关闭）」）');
+  ok(html.indexOf('再想想') < 0, 'B142 §2-B142-①：旧文案「再想想」零残留（全文）');
+  ok(engSrc.indexOf("if (e.target === m && m.id !== 'overlay')") >= 0 && /e\.key === 'Escape'/.test(engSrc),
+    'B142 §2-B142-①：Esc／点空白关闭照旧（既有 .modal 机制——零改动）');
+  P('§2-B142-① 面板底部：仅「确认」／无 .diffRow／旧文案零残留／既有关闭机制 逐条通过');
+}
+
+/* --- 26-2 §2-B142 机检②：出口双按钮在 #saveModal（DOM 契约）＋分模式显隐＋安全点行 --- */
+{
+  const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  const saveBlock = html.slice(html.indexOf('id="saveModal"'), html.indexOf('id="readModal"'));
+  ['id="stuckSafe"', 'id="stuckSafeName"', 'id="stuckRestart"', 'id="saveExit"', 'class="opsTitle"'].forEach(k =>
+    ok(saveBlock.indexOf(k) >= 0, 'B142 §2-B142-②：出口区块在 #saveModal 内（' + k + '——元素搬家、id 不改）'));
+  ok(saveBlock.indexOf('>🚪 出口</div>') >= 0 && saveBlock.indexOf('🏠 回到安全点') >= 0 && saveBlock.indexOf('↺ 重开本关') >= 0,
+    'B142 §2-B142-②：区块标题行＝「🚪 出口」＋双按钮文案照旧');
+  ok(engSrc.indexOf("const showExit = slotModalMode === 'play' && !!st;") >= 0
+    && engSrc.indexOf("$('saveExit').classList.toggle('hidden', !showExit);") >= 0,
+    'B142 §2-B142-②：分模式显隐（play 且 st 在场 ⇒ 渲染；card ⇒ 隐藏——源码契约；行为面＝临时 DOM 冒烟）');
+  ok(engSrc.indexOf("$('stuckSafeName').textContent = safeId ? (safeId + ' · '") >= 0 && engSrc.indexOf('（本关没有配置安全点）') >= 0,
+    'B142 §2-B142-②：安全点行文本＝`编号 · 名`（缺省「（本关没有配置安全点）」——openSaveModal 内）');
+  P('§2-B142-② 出口迁移：双按钮在 #saveModal／标题「🚪 出口」／分模式显隐／安全点行 逐条通过');
+}
+
+/* --- 26-3 §2-B142 机检③：重开确认＝D65 句单一来源（直调点恰 3 处；绑定点无事件对象直传） --- */
+{
+  const direct = engSrc.split('Core.coverAsk()').length - 1;
+  eq(direct, 3, 'B142 §2-B142-③：Core.coverAsk() 直调点恰 3 处（cardInfo／restart 内／💾 出口区块；实测 ' + direct + '）');
+  eq(engSrc.split(C.coverAsk()).length - 1, 1, 'B142 §2-B142-③：采用句字面恰一份（单一来源——不得各写一份）');
+  ok(/function restart\(noAsk\)/.test(engSrc) && /if \(!noAsk && !confirm\(Core\.coverAsk\(\)\)\) return;/.test(engSrc),
+    'B142 §2-B142-③：restart 增可选参 noAsk（缺省仍走 D65 确认；noAsk 才免二次询问）');
+  ok(!/\.onclick\s*=\s*restart\b/.test(engSrc), 'B142 §2-B142-③：绑定点无事件对象直传（不以 restart 直挂 onclick——正则断言）');
+  const wrapped = (engSrc.match(/\(\) => restart\(\)/g) || []).length;
+  ok(wrapped >= 2, 'B142 §2-B142-③：既有两绑定点（工具栏 ↺／结算屏「重新开始本关」）改箭头包装（实测 ' + wrapped + ' 处）');
+  const sr = engSrc.slice(engSrc.indexOf("$('stuckRestart').onclick"));
+  ok(sr.indexOf('if (!confirm(Core.coverAsk())) return;') >= 0 && sr.indexOf("$('saveModal').classList.add('hidden');") >= 0
+    && sr.indexOf('restart(true)') >= 0,
+    'B142 §2-B142-③：💾 区块直调采用句——取消 ⇒ return（关弹窗前退出、不重开）；确认 ⇒ 关弹窗＋restart(true)');
+  P('§2-B142-③ 重开确认：直调恰 3 处／同句一份／restart(noAsk)／无事件直传／取消不重开 逐条通过');
+}
+
+/* --- 26-4 §2-B142 机检④：样式清理（style.css 无 `#stuckModal .diffRow`；.diffRow 在案） --- */
+{
+  const cssSrc = fs.readFileSync(path.join(dir, 'style.css'), 'utf8');
+  ok(cssSrc.indexOf('#stuckModal .diffRow') < 0, 'B142 §2-B142-④：死选择器 `#stuckModal .diffRow` 已删（零残留）');
+  ok(cssSrc.indexOf('.diffRow {') >= 0 && cssSrc.indexOf('.diffRow small {') >= 0,
+    'B142 §2-B142-④：.diffRow 保留（服务 #saveModal 新位——含 small 行）');
+  ok(uiCssSrc.indexOf('.opsTitle') >= 0, 'B142 §2-B142-④：出口区块标题样式 .opsTitle 在案（style-ui.css 新面外置）');
+  P('§2-B142-④ 样式清理：死选择器已删／.diffRow 保留／.opsTitle 在案 逐条通过');
+}
+
+/* --- 26-5 §2-B142 机检⑤：帮助第 11 条＝§8.1 新稿（逐字断言＝§24-18 同句；bible §7.46 镜像对拍＝一次性，见批次档） --- */
+{
+  eq(D.help.length, 12, 'B142 §2-B142-⑤：帮助条数仍 12（改写不抢第 12 条）');
+  eq(['线索与记录', '都在 💾 里', '亮个小点'].map(t => D.help[10].indexOf(t) >= 0).join(','), 'true,true,true',
+    'B142 §2-B142-⑤：新稿三要件在（②块名目／小圆点／💾 出口）');
+  eq(['已知线索', '下面还有'].map(t => D.help[10].indexOf(t) < 0).join(','), 'true,true',
+    'B142 §2-B142-⑤：旧稿零残留（「已知线索」「下面还有」句）');
+  P('§2-B142-⑤ 帮助第 11 条：逐字（§24-18）／三要件／旧稿零残留 逐条通过');
+}
+
+/* --- 26-6 §2-B143 机检①：结构与覆盖（id 唯一；clue ⇄ learn 双向 16/16；cond/done 逐条 condOk；记录按 src 升序） --- */
+{
+  const notes = D.meta.notes;
+  ok(Array.isArray(notes), 'B143 §2-B143-①：meta.notes 在案（数组——数据面唯一新增第 13 项）');
+  eq(notes.length, 35, 'B143 §2-B143-①：条数＝35（线索 16＋记录 19——计数自证）');
+  const ids = notes.map(n => n.id);
+  eq(new Set(ids).size, ids.length, 'B143 §2-B143-①：id 唯一（' + ids.length + ' 条）');
+  const clues = notes.filter(n => n.kind === 'clue');
+  const recs = notes.filter(n => n.kind === 'record');
+  eq([clues.length, recs.length].join('/'), '16/19', 'B143 §2-B143-①：两 kind 计数＝16/19');
+  const learned = {};   // 全关 learn 值全集（同 providedFlags：en.learn／fx.learn／battle.win.learn）
+  const addLearn = v => { [].concat(v || []).forEach(k => { if (k) learned[k] = true; }); };
+  Object.keys(D.nodes).forEach(id => {
+    const n = D.nodes[id];
+    if (n.en) addLearn(n.en.learn);
+    (n.c || []).forEach(ch => {
+      if (ch.fx) addLearn(ch.fx.learn);
+      if (ch.battle && ch.battle.win) addLearn(ch.battle.win.learn);
+    });
+  });
+  const learnKeys = Object.keys(learned), clueKeys = clues.map(n => n.key);
+  eq([learnKeys.filter(k => clueKeys.indexOf(k) < 0).join(','), clueKeys.filter(k => !learned[k]).join(',')].join('｜'), '｜',
+    'B143 §2-B143-①：clue ⇄ learn 值双向 16/16（无缺、无死条目）');
+  eq([learnKeys.length, clueKeys.length].join('/'), '16/16', 'B143 §2-B143-①：双向覆盖计数自证（' + learnKeys.join('、') + '）');
+  const badCond = [];
+  recs.forEach(n => {
+    try { C.condOk(C.newState('normal'), n.cond); if (n.done) C.condOk(C.newState('normal'), n.done); }
+    catch (e) { badCond.push(n.id); }
+  });
+  eq(badCond.join(','), '', 'B143 §2-B143-①：cond／done 全走既有条件语言（逐条 condOk 不抛）');
+  eq(recs.map(n => Number(n.src)).every((v, i, a) => i === 0 || a[i - 1] <= v), true,
+    'B143 §2-B143-①：记录按 src 节点号升序（渲染序＝数组序；' + recs.map(n => n.src).join(',') + '）');
+  ok(clues.every(n => typeof n.key === 'string' && typeof n.text === 'string' && typeof n.src === 'string')
+    && recs.every(n => typeof n.title === 'string' && typeof n.text === 'string' && n.cond && typeof n.cond === 'object'),
+    'B143 §2-B143-①：字段形状（clue＝id/key/text/src；record＝id/cond/title/text/src〔done/doneSrc 可选〕）');
+  P('§2-B143-① 结构与覆盖：35 条（16/19）／id 唯一／双向 16/16／condOk 不抛／src 升序 逐条通过');
+}
+
+/* --- 26-7 §2-B143 机检②：只显示已知（cond 不成立不出／成立出——抽 3 条：3／5／28） --- */
+{
+  const S = extra => { const s = C.newState('normal'); if (extra) Object.assign(s, extra); return s; };
+  const ids = s => C.guideNotes(s).records.map(r => r.id).join(',');
+  eq(ids(S()), '', 'B143 §2-B143-②：新局（无 visited）⇒ 记录组零条（未探索＝零记录）');
+  eq(ids(S({ visited: { '3': true } })), 'rec-03', 'B143 §2-B143-②：探针①（到过 3 ⇒ 仅 rec-03；其余 cond 未命中）');
+  eq(ids(S({ visited: { '1': true, '5': true, '13': true } })), 'rec-01,rec-06,rec-13',
+    'B143 §2-B143-②：探针②（到过 1/5/13 ⇒ 三条齐、按节点号序）');
+  eq(ids(S({ visited: { '28': true } })), 'rec-19', 'B143 §2-B143-②：探针③（到过 28 ⇒ rec-19）');
+  P('§2-B143-② 只显示已知：零记录（新局）／cond 成立才出（三探针） 逐条通过');
+}
+
+/* --- 26-8 §2-B143 机检③：态（done 翻转 ⇒ 已完成＋doneText；抽 3 条＋单态不出态标） --- */
+{
+  const S = extra => { const s = C.newState('normal'); if (extra) Object.assign(s, extra); return s; };
+  const rOf = (s, id) => C.guideNotes(s).records.find(r => r.id === id);
+  const a = rOf(S({ visited: { '4': true } }), 'rec-04');
+  const b = rOf(S({ visited: { '4': true }, chDone: { '急救箱开过': true } }), 'rec-04');
+  eq(a.state + ',' + b.state, 'undone,done', 'B143 §2-B143-③：探针① rec-04 态翻转（chDone 急救箱开过——前 undone／后 done）');
+  eq(a.text + '｜' + b.text,
+    '墙上的急救箱扣得死紧，一个人弄不下来——撬开它得费不少力气。｜急救箱卸下来了——里面躺着一只医疗包。',
+    'B143 §2-B143-③：探针① doneText 替换（常态稿 → 完成稿——逐字）');
+  const c = rOf(S({ visited: { '16': true }, learned: { '机器人小帮手': true } }), 'rec-16');
+  eq([c.state, c.text].join('｜'), 'done｜机器人认了你，从此跟着你转——它叫『小帮手』。',
+    'B143 §2-B143-③：探针② rec-16（knows 机器人小帮手 ⇒ done＋完成稿）');
+  const d = rOf(S({ visited: { '3': true, '24': true } }), 'rec-03');
+  eq([d.state, d.text].join('｜'), 'done｜阿雅忙了半个小时，站长终于睁开眼睛——她把备用的站长授权卡塞进你手里：去把它点亮。',
+    'B143 §2-B143-③：探针③ rec-03（pinsAll 24 ⇒ done＋完成稿）');
+  eq(String(rOf(S({ visited: { '13': true } }), 'rec-13').state), 'null', 'B143 §2-B143-③：无 done 者＝单态（state＝null——不出态标）');
+  P('§2-B143-③ 态：三探针翻转（chDone／knows／pinsAll）＋doneText 替换＋单态不出态标 逐条通过');
+}
+
+/* --- 26-9 §2-B143 机检④：文本约束（三词零命中／L5 归属核／数字可溯） --- */
+{
+  const notes = D.meta.notes;
+  const body = n => n.text + (n.doneText ? n.doneText : '');
+  eq(notes.filter(n => /维修爬道|舱外|蒸汽/.test(body(n))).map(n => n.id).join(','), '',
+    'B143 §2-B143-④：三词零命中（核验面＝详情稿正文；标题不核）');
+  const badL5 = [];
+  notes.forEach(n => {
+    const owners = [n.src, n.doneSrc].filter(Boolean);
+    L5_NOUNS.forEach(({ w, intro, allow }) => {
+      if (body(n).indexOf(w) < 0 || allow === 'ALL') return;
+      const introIds = String(intro).match(/\d+/g) || [];
+      if (!owners.some(o => allow.indexOf(o) >= 0 || introIds.indexOf(o) >= 0)) badL5.push(n.id + ':' + w + '@' + owners.join('/'));
+    });
+  });
+  eq(badL5.join(','), '', 'B143 §2-B143-④：L5_NOUNS 词条按 src／doneSrc 归属核（落引入点集＝引入、合法；零违规）');
+  const badNum = [];
+  notes.forEach(n => {
+    (body(n).match(/\d+/g) || []).forEach(d => {
+      const pool = [n.src, n.doneSrc].filter(Boolean).map(id => nodeTextOf(D.nodes[id] || {})).join('\n');
+      if (pool.indexOf(d) < 0) badNum.push(n.id + ':' + d);
+    });
+  });
+  eq(badNum.join(','), '', 'B143 §2-B143-④：数字串均见于 src／doneSrc 节点文本（可溯）');
+  eq(notes.filter(n => /\d/.test(body(n))).map(n => n.id).join(','), 'clue-06',
+    'B143 §2-B143-④：含数字条目＝仅「保险柜密码」（0325——全稿唯一一处）');
+  P('§2-B143-④ 文本约束：三词零命中／L5 归属核零违规／数字仅 0325 且可溯 逐条通过');
+}
+
+/* --- 26-10 §2-B143 机检⑤：R5 感知（三助手探针／打开即清／旧档首开为真／DOM 圆点＋「新」标） --- */
+{
+  const S = extra => { const s = C.newState('normal'); if (extra) Object.assign(s, extra); return s; };
+  const s = S({ visited: { '3': true, '4': true } });
+  C.markGuideSeen(s);
+  eq(C.guideHasNew(s), false, 'B143 §2-B143-⑤：落签名后无变化 ⇒ 无更新');
+  s.visited['5'] = true;
+  eq(C.guideHasNew(s), true, 'B143 §2-B143-⑤：新 visited（⇒ rec-06 命中）⇒ 有更新');
+  C.markGuideSeen(s);
+  s.learned['保险柜密码'] = true;
+  eq(C.guideHasNew(s), true, 'B143 §2-B143-⑤：学新线索（learned +1）⇒ 有更新');
+  C.markGuideSeen(s);
+  s.chDone['急救箱开过'] = true;
+  eq(C.guideHasNew(s), true, 'B143 §2-B143-⑤：态翻转（rec-04 done 假→真）⇒ 有更新');
+  C.markGuideSeen(s);
+  s.visited['13'] = true;
+  eq(C.guideNotes(s).records.filter(r => r.isNew).map(r => r.id).join(','), 'rec-13',
+    'B143 §2-B143-⑤：「新」标＝相对上次打开的新增/翻转条目（仅 rec-13）');
+  C.markGuideSeen(s);
+  eq(C.guideNotes(s).records.filter(r => r.isNew).length + C.guideNotes(s).clues.filter(c => c.isNew).length, 0,
+    'B143 §2-B143-⑤：落签名后「新」标清空（打开 ⇒ 清除——本次打开仍可见）');
+  const old = C.normalizeState({ diff: 'normal', loc: '1', coins: 10, oxygen: 90, items: [], visited: {}, done: {}, learned: {}, chDone: {}, hist: [] });
+  eq(old.gSeen, '', 'B143 §2-B143-⑤：normalizeState 补 gSeen 缺省（旧档＝空串）');
+  ok(C.guideHasNew(old), 'B143 §2-B143-⑤：旧档（无 gSeen）⇒ 首次为真（首开前显圆点——一次性，披露）');
+  C.markGuideSeen(old);
+  eq(C.guideHasNew(old), false, 'B143 §2-B143-⑤：旧档打开一次 ⇒ 清（此后不再报新）');
+  ok(engSrc.indexOf("$('stuckBtn').classList.toggle('hasNew', has)") >= 0 && engSrc.indexOf("$('guideFab').classList.toggle('hasNew', has)") >= 0
+    && /function renderGuideDot\(\)/.test(engSrc) && engSrc.indexOf('renderGuideDot();') >= 0,
+    'B143 §2-B143-⑤：DOM 圆点（两入口 .hasNew 类切换＋renderAll 每帧更——源码契约）');
+  ok(engSrc.indexOf("n.className = 'giNew';") >= 0 && engSrc.indexOf("n.textContent = '新';") >= 0,
+    'B143 §2-B143-⑤：面板内「新」标渲染在案（.giNew）');
+  ok(uiCssSrc.indexOf('.hasNew') >= 0 && uiCssSrc.indexOf('::after') >= 0 && uiCssSrc.indexOf('.giNew') >= 0,
+    'B143 §2-B143-⑤：圆点＝CSS ::after／「新」标样式在案（零 DOM 画点）');
+  P('§2-B143-⑤ R5 感知：三类触发（visited／learn／态翻转）／打开即清／旧档首开为真／DOM 圆点＋「新」标 逐条通过');
+}
+
+/* --- 26-11 §2-B143 机检⑥：渲染契约（两分组／组空不出／两组皆空＝空态句／条目可点展收·不落档） --- */
+{
+  ok(engSrc.indexOf("cb.appendChild(guideGroupHead('线索'))") >= 0 && engSrc.indexOf("cb.appendChild(guideGroupHead('记录'))") >= 0,
+    'B143 §2-B143-⑥：两分组（组标题「线索」／「记录」——组非空才出）');
+  ok(/if \(!g\.clues\.length && !g\.records\.length\) cb\.appendChild\(guideDimLine\(GUIDE_CLUES_EMPTY\)\);/.test(engSrc),
+    'B143 §2-B143-⑥：两组皆空 ⇒ 既有空态句（单点判定）');
+  ok(/if \(g\.clues\.length\) \{/.test(engSrc) && /if \(g\.records\.length\) \{/.test(engSrc),
+    'B143 §2-B143-⑥：组空不出（各组独立守卫）');
+  ok(/b\.textContent = \(text \? '▸ ' : ''\) \+ title;/.test(engSrc) && /b\.classList\.toggle\('open', open\)/.test(engSrc)
+    && engSrc.indexOf("head.textContent = (open ? '▾ ' : '▸ ') + title;") >= 0,
+    'B143 §2-B143-⑥：条目＝<button class="guideItem">（▸/▾ 展收——可多条同开）');
+  ok(engSrc.indexOf("t.className = 'giText';") >= 0 && engSrc.indexOf('if (!text) { b.disabled = true; return b; }') >= 0,
+    'B143 §2-B143-⑥：详情 .giText＋兜底行不可点（无详情 ⇒ disabled、无展开）');
+  const probe = C.newState('normal'); probe.visited['1'] = true; probe.learned['走私暗号'] = true;
+  const snap = JSON.stringify(probe);
+  C.guideNotes(probe); C.guideSig(probe); C.guideHasNew(probe);
+  eq(JSON.stringify(probe), snap, 'B143 §2-B143-⑥：展收为 DOM 瞬态——求值不落档（guideNotes 纯读）');
+  P('§2-B143-⑥ 渲染契约：两分组／组空不出／皆空空态／展收＋不可点兜底／不落档 逐条通过');
+}
+
+/* --- 26-12 §2-B143 机检⑦：回归（dalim 无 notes：记录组恒不出、线索行兜底、两态探针；station ①③块逐字不变） --- */
+{
+  C.selectLevel('dalim');
+  eq(String(LEVELS.dalim.meta.notes), 'undefined', 'B143 §2-B143-⑦：示例关数据零改动（无 meta.notes）');
+  const d0 = C.newState('normal');
+  eq([C.guideNotes(d0).records.length, C.guideNotes(d0).clues.length].join('/'), '0/0',
+    'B143 §2-B143-⑦：dalim 无 notes ⇒ 记录组恒不出；新局无 learn ⇒ 两组皆空（②走既有空态句）');
+  const d1 = C.newState('normal'); d1.learned['电梯密码'] = true; d1.learned['魔法数字'] = true;
+  eq(C.guideNotes(d1).clues.map(x => x.key + ':' + (x.text === null ? 'flat' : 'note')).join(','), '电梯密码:flat,魔法数字:flat',
+    'B143 §2-B143-⑦：dalim 两条 learn 值（dalim.js:484／489——已含 learn 值探针）⇒ 兜底行（仅标题、不可点、无详情）');
+  eq(new Set(C.guideSig(d1).split('|').filter(t => t.indexOf('C:') === 0)).size, 2,
+    'B143 §2-B143-⑦：兜底行照常参与签名（以 key 记入——新学会即触发圆点）');
+  C.selectLevel('station');
+  const s = C.newState('normal');
+  eq(C.guideTarget(s), '先摸清站里的状况——找找能用的东西，听听大家都是怎么说的；把反应堆点亮，才是正事。',
+    'B143 §2-B143-⑦：①块输出与 B137 口径逐字不变（开局 R6）');
+  eq(C.guideNeeds(s).length, 0, 'B143 §2-B143-⑦：③块输出照常（R6 无 need ⇒ []——空态句）');
+  const s2 = C.newState('normal'); s2.learned['全站复电'] = true; s2.visited['6'] = true; s2.items = ['控制芯片'];
+  eq(C.guideNeeds(s2).map(n => n.label + '=' + n.done).join(','), '控制芯片=true,冷却剂罐=false,站长授权卡=false',
+    'B143 §2-B143-⑦：③块勾选态口径逐字不变（B137-④ 同口径）');
+  ok(engSrc.indexOf('const g = Core.guideNotes(st);') >= 0, 'B143 §2-B143-⑦：②块渲染走 Core.guideNotes 单源（DOM 层）');
+  P('§2-B143-⑦ 回归：dalim 记录组恒不出／兜底行两态／station ①③块逐字不变 逐条通过');
+}
+
 }
 
 /* ============ 汇总 ============ */
