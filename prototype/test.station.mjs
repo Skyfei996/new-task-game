@@ -23,6 +23,8 @@
 //         校准锚点）＋遮罩楼层图专属（§7.7-15；17 房＋站外 mask=false）＋B131 舱外两条（N19 收窗＋N39 零浮图、删冗余选项）
 //       / B04 午 撤调暗＋CG 整屏层轮（B130 重订／B132 · 2026-10-04 午）：CG 登记集 7 行（once＝3·5／keep＝41~43）＋
 //         序章图（meta.prologue.image）＋层序与 contain 契约＋一次性与读档（§6.7 机检①~⑧）＋撤调暗零残留（数据/样式/引擎三面）
+//       / B05 轮（B135／B136 · 2026-10-06）：29 号整屏图注册（defeat-ambush·keep）＋浮图 sangni-ambush 撤注册（登记集 9 张）＋
+//         多档位存档/读档（§1.2 机检①~⑦：键／结构／读档一致／旧档与三态回归／确认句／兜底／源码契约；帮助 11→12 条）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -93,8 +95,10 @@ eq(prologueText.length, 111, '序章恰为设计稿的 111 字（含标点，{me
 ok(D.meta.prologue.lines.every(l => l.length > 0), '序章每一行都非空');
 ok(prologueText.indexOf('攒下') >= 0, 'B75：序章含「攒下」（打工动机——兜里还有实习攒下的星币）');
 ok(!!C.prologue() && C.prologue().lines.length === D.meta.prologue.lines.length, 'Core.prologue() 读得到序章（E2 数据面）');
-/* 帮助（玩法说明）：B04 换新稿＝11 条（design-ui-v1.md §8.1 照抄区）；也是 §14-7 扫描面里的「帮助」那一半 */
-ok(Array.isArray(D.help) && D.help.length === 11, 'B04：帮助恰 11 条（§8.1 全文；实测 ' + ((D.help || []).length) + '）');
+/* 帮助（玩法说明）：B04 换新稿＋B05 增存档行＝12 条（design-ui-v1.md §8.1 照抄区）；也是 §14-7 扫描面里的「帮助」那一半 */
+ok(Array.isArray(D.help) && D.help.length === 12, 'B04＋B05：帮助恰 12 条（§8.1 全文；实测 ' + ((D.help || []).length) + '）');
+ok(D.help[11] === '💾 存档 / 读档：进度会自动存在这台设备上（关卡卡上的「继续」就是接着上次玩）；想「回头再试一次」，就用右上角的 💾：三个存档位，想存哪个存哪个，读取就能回到当时。',
+  'B136 §8.1 第 12 条：存档行逐字（帮助 11→12 条——H2：💾 与三个存档位在）');
 ok(D.help.every(l => typeof l === 'string' && l.length > 10), '帮助每一条都是完整句子');
 ok(D.help.some(l => l.indexOf('星币') >= 0 && l.indexOf('20') >= 0), '帮助里有星币条目（R02）');
 ok(D.help.some(l => l.indexOf('氧气条旁边的数字') >= 0 && l.indexOf('普通开局 100') >= 0 && l.indexOf('困难 30') >= 0),
@@ -793,6 +797,7 @@ function fakeStore(init) {
   return {
     getItem: k => (Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null),
     setItem: (k, v) => { m[k] = String(v); },
+    removeItem: k => { delete m[k]; },   // B136：slotsAvailable 探针（写入＋删除）需要
     _map: m
   };
 }
@@ -2615,19 +2620,19 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   eq(mom('40').join(','), 'pod-standoff', 'B04 §7.7-1：N40 默认＝[pod-standoff]');
   eq(C.momentsOf(C.newState('normal'), { moments: ['不存在的图'] }).length, 0, 'B04 §7.3：id 未注册 ⇒ 忽略该条');
   const M = Object.keys(D.moments);
-  eq(M.length, 31, 'B127 §7.12：注册表 31 条（B126 的 36 撤注册 5＝win-observation-jupiter／win-airlock-array／firstaid-open／robot-rescue／pods-check）');
+  eq(M.length, 30, 'B127＋B05 §7.12：注册表 30 条（B126 的 36 撤注册 6＝win-observation-jupiter／win-airlock-array／firstaid-open／robot-rescue／pods-check／sangni-ambush（B05））');
   ok(M.every(id => D.moments[id].file === '../images/station/moments/' + id + '.jpg'), 'B04：file 路径＝images/station/moments/<id>.jpg');
   const onlyChar = M.filter(id => !D.moments[id].win);
-  eq(onlyChar.length, 31, 'B127：角色图 31 张（撤注册 5 后实盘；注册表内无窗景条目）');
+  eq(onlyChar.length, 30, 'B127：角色图 30 张（撤注册 6 后实盘；注册表内无窗景条目）');
   const COVER_IDS = ['pangpang-hail', 'aya-nurse', 'yilanna-awake', 'tietou-armwrestle', 'tietou-open', 'yinhe-idle', 'laobu-point'];
   const anchored = onlyChar.filter(id => COVER_IDS.indexOf(id) < 0);
-  ok(anchored.length === 24 && anchored.every(id => D.moments[id].w >= 0.16 && D.moments[id].w <= 0.32),
-    'B127 §7.4.1：非覆盖图 24 张、宽 w ∈ [0.16,0.32]（撤注册 5 后重算；' + anchored.map(id => D.moments[id].w).join('/') + '）');
+  ok(anchored.length === 23 && anchored.every(id => D.moments[id].w >= 0.16 && D.moments[id].w <= 0.32),
+    'B127 §7.4.1：非覆盖图 23 张、宽 w ∈ [0.16,0.32]（撤注册 6 后重算；' + anchored.map(id => D.moments[id].w).join('/') + '）');
   eq(COVER_IDS.filter(id => D.moments[id].at != null || D.moments[id].w != null).join(','), '',
     'B120 §7.3：七张覆盖图无 at／w 残留（B126：laobu-point 到货按同口径——仅 file）');
   eq(M.filter(id => D.moments[id].win).length, 0, 'B127 §7.5：窗景 0 条（T51／T52 本期不注册——资产留档、按四要件可重启）');
   const nodeSet = Object.keys(D.nodes).filter(id => D.nodes[id].moments || D.nodes[id].mIf).sort((a, b) => a - b);
-  eq(nodeSet.join(','), '1,2,3,4,5,6,8,10,11,12,13,14,19,22,23,24,25,26,27,28,29,30,31,32,33,36,37,38,40,45', 'B127：节点 moments/mIf 恰 30 个（撤注/收窗后 N9／N17／N39 退出——mIf 删、moments 删）');
+  eq(nodeSet.join(','), '1,2,3,4,5,6,8,10,11,12,13,14,19,22,23,24,25,26,27,28,30,31,32,33,36,37,38,40,45', 'B127＋B05：节点 moments/mIf 恰 29 个（撤注/收窗后 N9／N17／N39 退出；B05：N29 改由 CG 整屏图承担——浮图撤注册）');
   /* 2 层序与不改可点性 */
   const htmlB = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
   ok(htmlB.indexOf('id="momentLayer"') > htmlB.indexOf('id="dimSvg"') && htmlB.indexOf('id="momentLayer"') < htmlB.indexOf('id="pinLayer"'),
@@ -2806,7 +2811,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
       });
     });
   });
-  eq(nCombos.length, 83, 'B127 复核：全站枚举 83 条（节点×角色 L2 组合，含 mIf 分支）——撤注册 5 条均为窗景/对象图 ⇒ 角色组合计数不变');
+  eq(nCombos.length, 78, 'B127＋B05 复核：全站枚举 78 条（节点×角色 L2 组合，含 mIf 分支与 5 探针）——撤注册 6 条中 5 条为窗景/对象图、sangni-ambush（B05）为角色图（−5 探针行）');
   eq(miss.join(' ｜ '), '', 'B120 §7.7-7：同框组合逐条覆盖分支命中——零漏覆盖');
   eq(wrong.join(' ｜ '), '', 'B120 §7.7-7：无 L1 实体的角色 L2 不被误判覆盖（走既有呈现；未标定即红）');
   eq(dbl.join(' ｜ '), '', 'B120 §10-③：全站同角色双现＝0（机检）');
@@ -2985,9 +2990,9 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
   const stale = Object.keys(STALE).filter(id => JSON.stringify(D.moments[id].at) === JSON.stringify(STALE[id]));
   eq(stale.join(','), '', 'B119④：房间相关浮现图锚点已按 room 图重标（deck 期旧值作废重标）');
   eq([...seen].sort().join(','),
-    'aya-nurse,broadcast,chip-extract,core-interfaces,gear-locker,guardbot-block,helper-join,laobu-lookout,laobu-point,locker-emergency,manifest-clue,panel-weld,pangpang-hail,pod-standoff,power-restore,safe-open,sangni-ambush,sangni-bribe,sangni-cave,sangni-flip,sangni-smile,spec-pickup,steam-dash,tangtang-guide,tietou-armwrestle,tietou-open,yilanna-awake,yinhe-idle',
-    'B119④＋B127：覆盖 28 张（原 33 减撤注册 5——窗景 2＋firstaid-open／robot-rescue／pods-check；含 mIf 分支 N4／N8／N9／N11／N12／N17／N19 与站外 19）——逐张锚点界内');
-  P('内景锚点：28 张图逐张落在本房图界内（撤注册 5 条已退出） 逐条通过');
+    'aya-nurse,broadcast,chip-extract,core-interfaces,gear-locker,guardbot-block,helper-join,laobu-lookout,laobu-point,locker-emergency,manifest-clue,panel-weld,pangpang-hail,pod-standoff,power-restore,safe-open,sangni-bribe,sangni-cave,sangni-flip,sangni-smile,spec-pickup,steam-dash,tangtang-guide,tietou-armwrestle,tietou-open,yilanna-awake,yinhe-idle',
+    'B119④＋B127＋B05：覆盖 27 张（原 33 减撤注册 6——窗景 2＋firstaid-open／robot-rescue／pods-check＋sangni-ambush（B05）；含 mIf 分支 N4／N8／N9／N11／N12／N17／N19 与站外 19）——逐张锚点界内');
+  P('内景锚点：27 张图逐张落在本房图界内（撤注册 6 条已退出） 逐条通过');
 }
 
 /* --- 19-5 B119⑤ 回归：读档场景归一／未接线节点输出与改前一致 --- */
@@ -3059,7 +3064,7 @@ console.log('———— B119 内景接线（注册一致性 / pins / 进出往
   eq(C.cardInfo(st6, 'station').buttons[0].label, '重玩', 'B117③：bankrupt ⇒ 已结束');
   eq(C.cardInfo(st6, 'station').failLine, '上局结束：未通关', 'B117③：破产态同样报「上局结束：未通关」');
   /* ④ 覆盖确认文案（逐字）＋脚注（DOM 侧行为由冒烟演示；文案与开关在本层锁死） */
-  eq(info3.coverAsk, '开始新局会覆盖本关的旧存档（通关记录保留）。确定开始？', 'B117④：覆盖确认文案逐字（§1.1）');
+  eq(info3.coverAsk, '开始新局会覆盖本关的旧存档（通关记录与手动存档位保留）。确定开始？', 'B117④＋B05：覆盖确认文案逐字（§1.1——句尾并入「与手动存档位保留」，评审修正轮 #9）');
   eq(info0.note, '进度存在这台设备的浏览器里（各人各份）', 'B117：卡片脚注＝本机存档口径（各人各份）');
   /* ⑤ 记录持久：开新局覆盖存档 ⇒ 记录仍在；多结局按达成先后追加、去重 */
   const recBefore = C.recordOf(st3, 'station').join('、');
@@ -3212,7 +3217,7 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
 
 /* --- 20-3 B124 重开确认同句（卡片侧与局内重开同源；不得各写一份） --- */
 {
-  eq(C.coverAsk(), '开始新局会覆盖本关的旧存档（通关记录保留）。确定开始？', 'B124 §1.1：采用句逐字');
+  eq(C.coverAsk(), '开始新局会覆盖本关的旧存档（通关记录与手动存档位保留）。确定开始？', 'B124＋B05 §1.1：采用句逐字（B05 评审修正轮 #9：句尾并入「与手动存档位保留」——B136 口径）');
   eq(C.cardInfo(fakeStore(), 'station').coverAsk, C.coverAsk(), 'B124：卡片侧（cardInfo.coverAsk）＝同源一份');
   ok(engSrc.indexOf('confirm(Core.coverAsk())') >= 0, 'B124：局内重开（restart）＝同一句（源码契约）');
   const hits = engSrc.split(C.coverAsk()).length - 1;
@@ -3278,8 +3283,7 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
     ['room-gym', 'tietou-armwrestle'], ['room-gym', 'tietou-open'], ['room-observation', 'yinhe-idle'], ['room-lab', 'laobu-point']];
   const REG_NONE = [['room-command', 'tangtang-guide'], ['room-warehouse', 'sangni-smile'], ['room-warehouse', 'sangni-flip'],
     ['room-warehouse', 'sangni-cave'], ['room-warehouse', 'sangni-bribe'], ['room-server', 'guardbot-block'],
-    ['room-maintenance', 'laobu-lookout'], ['room-escapepod', 'pod-standoff'], ['deck2', 'yinhe-ledger'], ['deck2', 'yinhe-lick'],
-    ['room-reactor', 'sangni-ambush']];
+    ['room-maintenance', 'laobu-lookout'], ['room-escapepod', 'pod-standoff'], ['deck2', 'yinhe-ledger'], ['deck2', 'yinhe-lick']];   // B05：sangni-ambush（29）撤注册退出
   const REG_VARIANT = [['room-maintenance', 'helper-join'], ['room-captain', 'safe-open']];   // B127：firstaid-open／robot-rescue／pods-check 撤注册退出
   const REG_OBJECT = [['deck1', 'sil-figure'],
     ['room-solarctl', 'power-restore'], ['exterior', 'panel-weld'], ['room-comms', 'broadcast'], ['room-sleep', 'locker-emergency'],
@@ -3352,8 +3356,8 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
   });
   const unreg = combos.filter(k => !table[k]);
   const dead = Object.keys(table).filter(k => combos.indexOf(k) < 0);
-  eq([combos.length, unreg.join(',') || '0', dead.join(',') || '0'].join('｜'), '31｜0｜0',
-    'B127 §7.7-12：全场景×全 L2 枚举恰 31 条组合（覆盖卡 7／变体 2／对象时刻 11／无对应 11）——未登记 0、死行 0');
+  eq([combos.length, unreg.join(',') || '0', dead.join(',') || '0'].join('｜'), '30｜0｜0',
+    'B127＋B05 §7.7-12：全场景×全 L2 枚举恰 30 条组合（覆盖卡 7／变体 2／对象时刻 11／无对应 10——B05 减 sangni-ambush）——未登记 0、死行 0');
   eq(mism.join(' ｜ '), '', 'B122 §7.7-12：逐条分类与登记表一致（覆盖卡几何 ⊇ 轮廓框＋余量；无对应 ⇒ L1 无该实体；变体 ⇒ L2 渲染时已生效）');
   /* 传 T72 laobu-point 到货即注册（真注册·非合成）：覆盖卡分支＋仅 file 无 at／w＋图片在库 */
   const labSt = C.newState('normal');
@@ -3363,32 +3367,32 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
     && fs.existsSync(path.join(dir, D.moments['laobu-point'].file))
     && D.moments['laobu-point'].at == null && D.moments['laobu-point'].w == null,
     'B126 §7.4.1-16：laobu-point 条目＝仅 file（图片在库；无 at／w——几何唯一来源＝figures）');
-  P('§7.7-12 完备性：31 组合全分类（覆盖卡 7／变体 2／对象时刻 11／无对应 11）／未登记 0／死行 0／T72 真注册在案 逐条通过');
+  P('§7.7-12 完备性：30 组合全分类（覆盖卡 7／变体 2／对象时刻 11／无对应 10）／未登记 0／死行 0／T72 真注册在案 逐条通过');
 }
 /* --- 20-6 B126 扩图批到货注册（T57~T72 · 16 条）＋ T73 figures 回填 --- */
 {
-  /* ① B127 重审后的注册实盘：到货 16 条中 13 条在册（撤注册 3 条：firstaid-open／robot-rescue／pods-check） */
+  /* ① B127 重审后的注册实盘：到货 16 条中 12 条在册（撤注册 4 条：firstaid-open／robot-rescue／pods-check＋sangni-ambush（B05）） */
   const NEW16 = ['power-restore', 'safe-open', 'panel-weld', 'broadcast', 'locker-emergency', 'chip-extract', 'gear-locker',
     'spec-pickup', 'core-interfaces', 'manifest-clue', 'steam-dash', 'firstaid-open', 'robot-rescue', 'pods-check', 'sangni-ambush', 'laobu-point'];
   const badReg = NEW16.filter(id => !D.moments[id] || D.moments[id].file !== '../images/station/moments/' + id + '.jpg'
     || !fs.existsSync(path.join(dir, D.moments[id].file)));
-  eq(badReg.join(','), 'firstaid-open,robot-rescue,pods-check',
-    'B127 §7.12：到货 16 条中撤注册 3 条（firstaid-open／robot-rescue／pods-check——状态由背景变体承担，不入注册表）');
-  eq(NEW16.filter(id => D.moments[id]).length, 13, 'B127 §7.7-9①：注册集＝到货集 − 撤注册（16−3＝13 条在册；file 规范、图片在库）');
-  ok(['firstaid-open', 'robot-rescue', 'pods-check'].every(id => fs.existsSync(path.join(dir, '../images/station/moments/' + id + '.jpg'))),
-    'B127 §7.12：撤注册 3 条资产留档在库（T68／T69／T70——零重画、可按四要件重启）');
-  /* ② 逐条：锚点／宽度／呈现＝§7.4.1 表内初值（横构图 6 张 card:true；竖构图 6 张柔边椭圆）；laobu-point 仅 file */
+  eq(badReg.join(','), 'firstaid-open,robot-rescue,pods-check,sangni-ambush',
+    'B127＋B05 §7.12：到货 16 条中撤注册 4 条（firstaid-open／robot-rescue／pods-check——状态由背景变体承担；sangni-ambush——B05 由 CG 整屏图承担；均不入注册表）');
+  eq(NEW16.filter(id => D.moments[id]).length, 12, 'B127＋B05 §7.7-9①：注册集＝到货集 − 撤注册（16−4＝12 条在册；file 规范、图片在库）');
+  ok(['firstaid-open', 'robot-rescue', 'pods-check', 'sangni-ambush'].every(id => fs.existsSync(path.join(dir, '../images/station/moments/' + id + '.jpg'))),
+    'B127＋B05 §7.12：撤注册 4 条资产留档在库（T68／T69／T70／T71——零重画、可按四要件重启）');
+  /* ② 逐条：锚点／宽度／呈现＝§7.4.1 表内初值（横构图 5 张 card:true；竖构图 6 张柔边椭圆）；laobu-point 仅 file */
   const SPEC = {
     'power-restore': [[1370, 500], 0.30, true], 'safe-open': [[770, 400], 0.18, false], 'panel-weld': [[1505, 820], 0.30, true],
     'broadcast': [[450, 620], 0.28, true], 'locker-emergency': [[560, 640], 0.18, false], 'chip-extract': [[300, 720], 0.18, false],
     'gear-locker': [[1150, 640], 0.18, false], 'spec-pickup': [[560, 870], 0.18, false], 'core-interfaces': [[880, 800], 0.30, true],
-    'manifest-clue': [[640, 600], 0.18, false], 'steam-dash': [[940, 620], 0.30, true], 'sangni-ambush': [[880, 830], 0.30, true] };
+    'manifest-clue': [[640, 600], 0.18, false], 'steam-dash': [[940, 620], 0.30, true] };   // B05：sangni-ambush 撤注册退出（T71 留档）
   const specBad = [];
   Object.keys(SPEC).forEach(id => {
     const m = D.moments[id], s = SPEC[id];
     if (!m || JSON.stringify(m.at) !== JSON.stringify(s[0]) || m.w !== s[1] || !!m.card !== s[2]) specBad.push(id);
   });
-  eq(specBad.join(','), '', 'B127 §7.4.1：12 条锚点／宽度／呈现逐条＝登记表初值（横构图 6 张 card:true；竖构图 6 张柔边椭圆）');
+  eq(specBad.join(','), '', 'B127 §7.4.1：11 条锚点／宽度／呈现逐条＝登记表初值（横构图 5 张 card:true；竖构图 6 张柔边椭圆）');
   ok(D.moments['laobu-point'].at == null && D.moments['laobu-point'].w == null,
     'B126 §7.4.1-16：laobu-point＝覆盖卡（仅 file；无 at／w——几何唯一来源＝room-lab.figures.laobu）');
   /* ③ B127 注册裁定＋收窗行（原 @9／@4／@17 三处挂条件随本轮退出挂载） */
@@ -3415,8 +3419,8 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
   eq(momN('16'), '', 'B126 §7.4.1-13：16 本体不注册（防双现——L2 渲染时变体已生效）');
   eq(momN('37'), 'helper-join', 'B127 §7.12 行 18：37 只留 helper-join（robot-rescue 撤注册——前史动作与 37 状态相斥）');
   eq([momN('36'), momN('2'), momN('8'), momN('12'), momN('13'), momN('11'), momN('19'), momN('25'), momN('29'), momN('30'), momN('39'), momN('45')].join('｜'),
-    'power-restore｜locker-emergency｜broadcast,manifest-clue｜core-interfaces,spec-pickup｜steam-dash｜gear-locker｜panel-weld｜laobu-point｜sangni-ambush｜chip-extract｜｜safe-open',
-    'B127 §7.4.1：对象时刻＝节点默认集（12 节点抽查——N11 只余 gear-locker、N39 零浮图（B131）、N8 双图错开锚点）');
+    'power-restore｜locker-emergency｜broadcast,manifest-clue｜core-interfaces,spec-pickup｜steam-dash｜gear-locker｜panel-weld｜laobu-point｜｜chip-extract｜｜safe-open',
+    'B127＋B05 §7.4.1：对象时刻＝节点默认集（12 节点抽查——N11 只余 gear-locker；N29 零浮图（B05 改由 CG 整屏图承担）；N39 零浮图（B131）；N8 双图错开锚点）');
   /* ⑥ N2 注册生效（B112 判据随浮现集）：locker-emergency 注册后 ⇒ 当前位置标记抑制 */
   const sN2 = C.newState('normal'); sN2.loc = '2'; sN2.scene = 'room-sleep';
   eq(C.currentMarkerHidden(sN2), true, 'B126：N2（locker-emergency 注册后）⇒ 浮现集非空 ⇒ 当前位置标记抑制');
@@ -3437,7 +3441,7 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
   /* ⑧ N3 首访不受 T73 影响（variant 未命中 ⇒ 基础 figures；L2＝阿雅） */
   eq([C.momentsOf(C.newState('normal'), D.nodes['3']).join(','), C.coverState('aya-nurse', 'room-medbay', C.newState('normal'))].join('｜'),
     'aya-nurse｜cover', 'B126/T73：N3 首访（未苏醒）⇒ L2＝aya-nurse、覆盖卡按基础 figures（零回归）');
-  P('B127：注册实盘 13/16（撤注册 3 在案）／锚点与呈现逐条／B127 收窗行（N8／N11／N12×2／N19——N4 见 §21）／场景声明 2 处／防双现注册点／默认集抽查／T73 回填（N24 无同框双现） 逐条通过');
+  P('B127＋B05：注册实盘 12/16（撤注册 4 在案）／锚点与呈现逐条／B127 收窗行（N8／N11／N12×2／N19——N4 见 §21）／场景声明 2 处／防双现注册点／默认集抽查／T73 回填（N24 无同框双现） 逐条通过');
 }
 
 /* ============ 21. B127~B131 复盘轮机检（§7.7-13／15 两组＋B131 抽查；§7.7-14 编号圈已在 §20-4） ============ */
@@ -3525,19 +3529,25 @@ console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B
 {
   const cgNode = id => D.nodes[id].cg || null;
   const cgIds = Object.keys(D.nodes).filter(id => !!cgNode(id)).sort((a, b) => Number(a) - Number(b));
-  eq(cgIds.join(','), '3,5,34,35,41,42,43', 'B132 §6.7-①：cg 字段集＝{3／5／34／35／41／42／43}（逐条枚举、零多余）');
+  eq(cgIds.join(','), '3,5,29,34,35,41,42,43', 'B132＋B135 §6.7-①：cg 字段集＝{3／5／29／34／35／41／42／43}（逐条枚举、零多余——B05 追加 29；44 未获批不并入）');
   eq(cgIds.filter(id => cgNode(id).once === true).map(Number).join(','), '3,5', 'B132 §6.7-①：once===true 集＝{3／5}（同一存档一次）');
-  eq(cgIds.filter(id => (cgNode(id).dismiss || 'click') === 'keep').map(Number).join(','), '41,42,43',
-    "B132 §6.7-①：dismiss==='keep' 集＝{41／42／43}（其余缺省 click）");
+  eq(cgIds.filter(id => (cgNode(id).dismiss || 'click') === 'keep').map(Number).join(','), '29,41,42,43',
+    "B132＋B135 §6.7-①：dismiss==='keep' 集＝{29／41／42／43}（B05 追加 29；其余缺省 click）");
   const cgDir = path.join(dir, '../images/station/cg');
   const cgFiles = fs.readdirSync(cgDir).sort();
-  eq(cgFiles.join(','), 'core-ignite.jpg,ending-a.jpg,ending-b.jpg,ending-c.jpg,jupiter-closeup.jpg,medbay-closeup.jpg,monitor-frame.jpg,prologue-scene.jpg',
-    'B132 §6.7：images/station/cg/ 实盘 8 张（逐张）');
+  eq(cgFiles.join(','), 'core-ignite.jpg,defeat-ambush.jpg,ending-a.jpg,ending-b.jpg,ending-c.jpg,jupiter-closeup.jpg,medbay-closeup.jpg,monitor-frame.jpg,prologue-scene.jpg',
+    'B132＋B135 §6.7：images/station/cg/ 实盘 9 张（B05：defeat-ambush 入库；defeat-oxygen 未到货不在盘）');
   eq(cgIds.map(id => id + ':' + path.basename(cgNode(id).file)).join('｜'),
-    '3:medbay-closeup.jpg｜5:jupiter-closeup.jpg｜34:core-ignite.jpg｜35:monitor-frame.jpg｜41:ending-a.jpg｜42:ending-b.jpg｜43:ending-c.jpg',
-    'B132 §6.7-①：展示点登记表 7 行逐条（节点 ↔ 文件）');
+    '3:medbay-closeup.jpg｜5:jupiter-closeup.jpg｜29:defeat-ambush.jpg｜34:core-ignite.jpg｜35:monitor-frame.jpg｜41:ending-a.jpg｜42:ending-b.jpg｜43:ending-c.jpg',
+    'B132＋B135 §6.7-①：展示点登记表 9 张＋1 条件件逐条（节点 ↔ 文件；44 未获批 ⇒ 无 cg）');
   eq(cgIds.filter(id => !(cgNode(id).file.indexOf('../images/station/cg/') === 0 && cgFiles.indexOf(path.basename(cgNode(id).file)) >= 0)).join(','), '',
     'B132 §6.7-①：每条 file 前缀＝cg 目录且文件在库（逐条）');
+  /* B135（§6.7-①）：29 号浮图零残留＋T71 留档＋44 两态（未批＝无 cg） */
+  eq([String(D.nodes['29'].moments), String(D.moments['sangni-ambush'])].join('｜'), 'undefined｜undefined',
+    'B135 §6.7-①：29 号浮图零残留（节点 moments 撤＋注册表条目撤——同一时刻单一呈现）');
+  ok(fs.existsSync(path.join(dir, '../images/station/moments/sangni-ambush.jpg')), 'B135 §7.12 行 34：T71 资产留档在库（撤注册不删文件）');
+  eq(String(D.nodes['44'].cg), 'undefined', 'B135 §6.7-①：44 条件件未获批 ⇒ 无 cg（T81 未到货、不做缺图占位）');
+  ok(cgFiles.indexOf('defeat-oxygen.jpg') < 0, 'B135 §6.7-①：defeat-oxygen.jpg 未到货（不在实盘——不注册不占位）');
 
   /* --- 22-2 §6.7 机检②：序章（走既有 meta.prologue.image 图位——零新机制） --- */
   eq(D.meta.prologue.image, '../images/station/cg/prologue-scene.jpg', 'B132 §6.7-②：序章图＝meta.prologue.image（CG-08／T35）');
@@ -3586,8 +3596,10 @@ console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B
   eq(C.cgOf(s34) !== null, true, 'B132 §6.7-⑤：非 once 档（34／35／41~43）⇒ 读档回节点即显示（标记不影响）');
   eq(['34', '35'].map(id => C.cgOf(locState(id)).dismiss).join(','), 'click,click',
     'B132 §6.7-⑤：34／35＝到达即显示、点击关闭（非 once＝每次到达）');
-  eq(['41', '42', '43'].map(id => C.cgOf(locState(id)).dismiss).join(','), 'keep,keep,keep',
-    'B132 §6.7-⑤：41／42／43＝结局图常驻（点击不关）');
+  eq(['29', '41', '42', '43'].map(id => C.cgOf(locState(id)).dismiss).join(','), 'keep,keep,keep,keep',
+    'B132＋B135 §6.7-⑤：29／41／42／43＝整屏图常驻（点击不关——B05：失败结算与三结局同档）');
+  eq(JSON.stringify(C.cgOf(locState('29'))), JSON.stringify({ file: '../images/station/cg/defeat-ambush.jpg', once: false, dismiss: 'keep' }),
+    'B135 §6.7-①：29 号整屏图注册逐字（file／dismiss——T80；非 once＝重开后再到即再显示）');
   eq(['1', '18', '22', '44'].map(id => String(C.cgOf(locState(id)))).join('｜'), 'null｜null｜null｜null',
     'B132 §6.7-⑦：无 cg 的节点 ⇒ 层不渲染（回归——场景区逐字零变化）');
   ok(engSrc.indexOf('function applyCg()') >= 0 && engSrc.indexOf('if (nodeId !== cgNodeId)') >= 0,
@@ -3618,9 +3630,166 @@ console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B
     allLv.map(() => '0').join(','), 'B130：全关场景无 dim 字段（17 房 dim 已清）');
   eq(Object.keys(D.scenes).filter(sid => /^room-/.test(sid) && D.scenes[sid].mask === false).length, 17,
     'B130：撤调暗不动遮罩口径（17 房 mask=false 仍在）');
-  P('§6.7 CG 整屏层：登记 7 行／序章图／层序与 contain／一次性与读档（once＝3·5、keep＝41~43）／缺图兜底 逐条通过');
+  P('§6.7 CG 整屏层：登记 9 张＋1 条件件／序章图／层序与 contain／一次性与读档（once＝3·5、keep＝29／41~43）／缺图兜底 逐条通过');
   P('B130 撤调暗：数据／样式／引擎三面零残留（示例关与站关同口径） 逐条通过');
 }
+
+/* ============ 23. B136 多档位存档 / 读档（§1.2 机检①~⑦ · B05 轮） ============ */
+console.log('');
+console.log('———— B136 多档位存档 / 读档（§1.2 机检①~⑦） ————');
+
+/* --- 23-1 §1.2 机检①：键（三键互异）＋存／删后自动存档与记录逐字不变（互不干扰） --- */
+{
+  eq(C.slotsKey('station'), 'mygame2.slots.station.v1', 'B136 §1.2-①：档位键＝mygame2.slots.<关>.v1');
+  eq(C.slotsKey('dalim'), 'mygame2.slots.dalim.v1', 'B136 §1.2-①：档位键按关卡独立（示例关同键系）');
+  eq([C.slotsKey('station'), C.saveKey('station'), C.recKey('station')].join(','),
+    'mygame2.slots.station.v1,mygame2.save.station.v1,mygame2.rec.station.v1', 'B136 §1.2-①：三键（存档／档位／记录）互异');
+  eq(new Set([C.slotsKey('station'), C.saveKey('station'), C.recKey('station')]).size, 3, 'B136 §1.2-①：三键零重复');
+  const s0 = C.newState('normal', '小豆'); s0.loc = '5'; s0.coins = 12; s0.oxygen = 82;
+  const st1 = fakeStore();
+  C.saveTo(st1, 'station', s0);
+  C.addRecord(st1, 'station', '结局 · 圆满');
+  const rawSave = st1.getItem('mygame2.save.station.v1'), rawRec = st1.getItem('mygame2.rec.station.v1');
+  C.slotPut(st1, 2, s0, 'station');
+  eq([st1.getItem('mygame2.save.station.v1') === rawSave, st1.getItem('mygame2.rec.station.v1') === rawRec].join(','), 'true,true',
+    'B136 §1.2-①：存入后自动存档与记录逐字不变（互不干扰）');
+  C.slotDel(st1, 2, 'station');
+  eq([st1.getItem('mygame2.save.station.v1') === rawSave, st1.getItem('mygame2.rec.station.v1') === rawRec].join(','), 'true,true',
+    'B136 §1.2-①：删除后自动存档与记录逐字不变');
+  eq(C.recordOf(st1, 'station').join('、'), '结局 · 圆满', 'B136 §1.2-①：记录始终不变（存／删不写记录）');
+  P('§1.2-① 键：三键互异／存删后自动存档与记录逐字不变 逐条通过');
+}
+
+/* --- 23-2 §1.2 机检②：档位表结构（空表／存入第 n 档／覆盖／删除） --- */
+{
+  const sA = C.newState('normal', '甲'); sA.loc = '7'; sA.oxygen = 66;
+  const st2 = fakeStore();
+  eq(JSON.stringify(C.slotList(st2, 'station')), '[null,null,null]', 'B136 §1.2-②：空表 ⇒ 3 项全 null');
+  ok(C.slotPut(st2, 2, sA, 'station'), 'B136 §1.2-②：存入第 2 档 ⇒ true');
+  const l2 = C.slotList(st2, 'station');
+  eq([l2[0] === null, l2[1] === null, l2[2] === null].join(','), 'true,false,true', 'B136 §1.2-②：仅第 2 档有值（其余不变）');
+  ok(!isNaN(Date.parse(l2[1].savedAt)), 'B136 §1.2-②：savedAt 合法（ISO 时间串）');
+  eq(JSON.stringify(l2[1].st), JSON.stringify(sA), 'B136 §1.2-②：st 与当时状态一致');
+  eq(JSON.parse(st2.getItem(C.slotsKey('station'))).v, 1, 'B136 §1.2-①：值结构 { v:1, slots:[…] }');
+  const sB = C.newState('hard', '乙'); sB.loc = '9'; sB.oxygen = 30;
+  C.slotPut(st2, 2, sB, 'station');
+  eq([C.slotList(st2, 'station')[1].st.diff, String(C.slotList(st2, 'station')[0])].join(','), 'hard,null',
+    'B136 §1.2-②：覆盖 ⇒ 第 2 档替换、其余不变');
+  ok(C.slotDel(st2, 2, 'station'), 'B136 §1.2-②：删除 ⇒ true');
+  eq(JSON.stringify(C.slotList(st2, 'station')), '[null,null,null]', 'B136 §1.2-②：删除 ⇒ 回 null');
+  ok(!C.slotPut(st2, 4, sA, 'station') && !C.slotDel(st2, 0, 'station'), 'B136 §1.2-②：越界档号（4／0）⇒ false（3 档封顶）');
+  P('§1.2-② 结构：空表／存入第 n 档／覆盖／删除／越界 逐条通过');
+}
+
+/* --- 23-3 §1.2 机检③：读档一致（档位读出 → normalizeState 与存入时逐项一致）＋读后自动存档＝该档 st --- */
+{
+  const sC = C.newState('hard', '小汤'); sC.loc = '35'; sC.coins = 9; sC.oxygen = 41; sC.items = ['监控回放'];
+  sC.mSeen = { '1': true }; sC.cgSeen = { '3': true }; sC.visited = { '35': true }; sC.chDone = { '跟胖胖打过招呼': true };
+  sC.learned = { '保险柜密码': true };
+  const st3 = fakeStore();
+  C.slotPut(st3, 1, sC, 'station');
+  const readSt = C.normalizeState(C.slotList(st3, 'station')[0].st);
+  eq([readSt.loc, readSt.coins, readSt.oxygen, readSt.items.join('+'), readSt.diff, readSt.me, readSt.scene,
+      readSt.mSeen['1'], readSt.cgSeen['3'], readSt.chDone['跟胖胖打过招呼'], readSt.learned['保险柜密码']].join('｜'),
+    '35｜9｜41｜监控回放｜hard｜小汤｜room-server｜true｜true｜true｜true',
+    'B136 §1.2-③：档位读出 → normalizeState 与存入时逐项一致（loc／资源／道具／难度／玩家名／mSeen／cgSeen／chDone／learned／场景归一）');
+  eq(JSON.stringify(readSt), JSON.stringify(C.normalizeState(JSON.parse(JSON.stringify(sC)))),
+    'B136 §1.2-③：读档结果与既有归一路径逐字一致（同一条 normalizeState）');
+  /* 读档＝既有读档路径（resumeGame 内：normalizeState → save() 补写自动存档）——读后自动存档＝该档 st */
+  const auto = readSt;                       // resumeGame 赋给 st 的同一对象
+  C.saveTo(st3, 'station', auto);            // ＝ resumeGame 内 save()（同一次调用）
+  const back = C.loadFrom(st3, 'station');
+  eq([back.loc, back.oxygen, back.diff, back.me].join('｜'), '35｜41｜hard｜小汤',
+    'B136 §1.2-①：读后自动存档＝该档 st（行为③／机检⑦同口径）');
+  eq(C.cardInfo(st3, 'station').save.loc, '35', 'B136 §1.2：读档后「继续」＝该档（自动存档即该档）');
+  P('§1.2-③ 读档一致：逐项一致／同归一谓词／读后自动存档＝该档 st 逐条通过');
+}
+
+/* --- 23-4 §1.2 机检④：旧档与回归（既有存档键照旧可读；B117 三态不受档位影响；无档 ⇒ 不渲染行） --- */
+{
+  eq(C.loadFrom(fakeStore({ 'mygame2.save.dalim.v1': JSON.stringify({ diff: 'normal', loc: '11', coins: 3, items: [] }) }), 'dalim').loc, '11',
+    'B136 §1.2-④：既有 mygame2.save.<关>.v1 照旧可读（档位为增量键——不影响既有读写路径）');
+  const save2 = C.newState('normal', '小豆'); save2.loc = '5'; save2.coins = 7;
+  const withSlots = fakeStore({ [C.slotsKey('station')]: JSON.stringify({ v: 1, slots: [{ savedAt: '2026-10-06T01:00:00.000Z', st: save2 }, null, null] }) });
+  C.saveTo(withSlots, 'station', save2);
+  eq(C.cardInfo(withSlots, 'station').buttons.map(b => b.label).join(','), '继续,重新开始',
+    'B136 §1.2-④：B117 三态回归——档位键存在与否不影响卡片三态');
+  eq(C.cardInfo(fakeStore(), 'station').slotLine, '', 'B136 §1.2-④：无档位 ⇒ 卡片不渲染「存档位」行（slotLine 空）');
+  eq(C.cardInfo(withSlots, 'station').slotLine, '💾 手动存档：1/3（最新 ' + C.slotTime('2026-10-06T01:00:00.000Z') + '）',
+    'B136 §1.2-④：有档位 ⇒ 「💾 手动存档：<n>/3（最新 <时间>）」');
+  /* 示例关同口径（随关卡 resources 自适应——写法相同；不锁币种字面） */
+  const dSt = C.newState('normal'); dSt.loc = '1'; dSt.coins = 4;
+  const dStore = fakeStore(); C.slotPut(dStore, 1, dSt, 'dalim');
+  ok(new RegExp('^1 · \\d{2}-\\d{2} \\d{2}:\\d{2} ｜ 1 · .+ ｜ .+ ｜ 普通模式$').test(C.slotInfo(1, C.slotList(dStore, 'dalim')[0], LEVELS.dalim)),
+    'B136 §1.2：档位摘要行随关卡自适应（示例关同格式）');
+  P('§1.2-④ 旧档与回归：既有键照旧／三态回归／无档不渲染行／示例关自适应 逐条通过');
+}
+
+/* --- 23-5 §1.2 机检⑤：确认句（三句逐字·单一来源；两处读取入口同串） --- */
+{
+  const ask = C.slotAsk();
+  eq([ask.read, ask.over, ask.del].join('｜'),
+    '读取这个存档位会覆盖当前进度（通关记录保留）。确定读取？｜这个存档位里已有存档，覆盖它吗？｜删除这个存档位吗？（删除后无法恢复）',
+    'B136 §1.2-⑤：三句采用句逐字（Core.slotAsk()）');
+  eq([ask.read, ask.over, ask.del].map(t => engSrc.split(t).length - 1).join(','), '1,1,1',
+    'B136 §1.2-⑤：三句在源码中恰一份（单一来源——不得各写一份）');
+  eq(engSrc.split('Core.slotAsk().read').length - 1, 1,
+    'B136 §1.2-⑤：两处读取入口同源一份（弹窗行渲染单一处；游戏内弹窗与卡片入口共用）');
+  ok(engSrc.indexOf("$('saveBtn').onclick") >= 0 && engSrc.indexOf("openSaveModal(id, 'card')") >= 0,
+    'B136 §1.2：两处入口在案（工具栏 💾／卡片「读取存档位」——同一弹窗）');
+  P('§1.2-⑤ 确认句：三句逐字／源码恰一份／两处入口同源 逐条通过');
+}
+
+/* --- 23-6 §1.2 机检⑥：兜底三态（探测禁用／写入失败采用句／坏档视空档） --- */
+{
+  eq([C.slotsAvailable(fakeStore()), C.slotsAvailable(null)].join(','), 'true,false', 'B136 §1.2-⑥：探测——正常 true；无存储 false');
+  const bad = { getItem() { throw new Error('x'); }, setItem() { throw new Error('x'); }, removeItem() { throw new Error('x'); } };
+  eq(C.slotsAvailable(bad), false, 'B136 §1.2-⑥：桩 store 抛错 ⇒ 探测 false（警示行＋按钮禁用）');
+  let threw = false, putOk = null, delOk = null;
+  try { putOk = C.slotPut(bad, 1, C.newState('normal'), 'station'); delOk = C.slotDel(bad, 1, 'station'); } catch (e) { threw = true; }
+  eq([threw, putOk, delOk].join(','), 'false,false,false', 'B136 §1.2-⑥：写入失败 ⇒ 返回 false 且不抛（行内提示＋toast＝采用句）');
+  ok(engSrc.indexOf('⚠️ 没能写入这个存档位（这台设备的存储空间不足或被禁用）；本次游玩不受影响。') >= 0,
+    'B136 §1.2-⑥：写入失败采用句在案（行内＋toast 同句）');
+  ok(engSrc.indexOf('这台设备无法保存进度（浏览器存储被禁用）；本次游玩不受影响。') >= 0,
+    'B136 §1.2-⑥：存储不可用警示行在案');
+  eq([engSrc.split('⚠️ 没能写入这个存档位').length - 1, engSrc.split('这台设备无法保存进度').length - 1].join(','), '1,1',
+    'B136 §1.2-⑥：两句各恰一份（单一来源）');
+  ok(engSrc.indexOf('b.disabled = !slotStoreOk') >= 0 && engSrc.indexOf("warn.classList.toggle('hidden', slotStoreOk)") >= 0,
+    'B136 §1.2-⑥：不可用 ⇒ 按钮禁用＋警示行在（源码契约；行为面＝临时 DOM 冒烟）');
+  const broken = fakeStore({ [C.slotsKey('station')]: '{ 这不是 JSON' });
+  eq(JSON.stringify(C.slotList(broken, 'station')), '[null,null,null]', 'B136 §1.2-⑥：坏 JSON ⇒ 视空档（不抛异常）');
+  eq(broken.getItem(C.slotsKey('station')), '{ 这不是 JSON', 'B136 §1.2-⑥：坏档原数据不删');
+  const partial = fakeStore({ [C.slotsKey('station')]: JSON.stringify({ v: 1, slots: [{ savedAt: '2026-01-01T00:00:00Z' }, null, { st: { loc: '5' } }] }) });
+  eq(JSON.stringify(C.slotList(partial, 'station')), '[null,null,null]', 'B136 §1.2-⑥：字段缺（savedAt／st）⇒ 该档按空档呈现');
+  P('§1.2-⑥ 兜底：探测 false／写入失败 false 不抛／两采用句／坏档视空档 逐条通过');
+}
+
+/* --- 23-7 §1.2 机检⑦：源码契约（💾／#saveModal）＋摘要行格式（DOM 行为由临时冒烟演示后删除） --- */
+{
+  const htmlS = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  ok(/id="saveBtn"[^>]*>💾/.test(htmlS), 'B136 §1.2-⑦：工具栏含 💾（源码契约）');
+  ok(htmlS.indexOf('id="bagBtn"') < htmlS.indexOf('id="saveBtn"') && htmlS.indexOf('id="saveBtn"') < htmlS.indexOf('id="helpBtn"'),
+    'B136 §1.2：工具栏次序 🆘 🗂 👥 🎒 💾 ❓ ↺');
+  ok(htmlS.indexOf('id="saveModal" class="modal hidden"') >= 0 && htmlS.indexOf('id="saveRows"') >= 0 && htmlS.indexOf('id="saveWarn"') >= 0,
+    'B136 §1.2-⑦：#saveModal 在（既有 .modal 体系；含档位行容器＋警示行）');
+  ['slotsKey', 'slotList', 'slotPut', 'slotDel', 'slotInfo', 'slotTime', 'slotsAvailable', 'slotAsk'].forEach(fn =>
+    ok(typeof C[fn] === 'function', 'B136 §1.2：Core.' + fn + ' 在案'));
+  ok(engSrc.indexOf('function openSaveModal(') >= 0 && engSrc.indexOf('function slotRowEl(') >= 0 && engSrc.indexOf('function renderSlotRows(') >= 0,
+    'B136 §1.2-⑦：弹窗渲染在案（openSaveModal／slotRowEl／renderSlotRows——两态行与按钮）');
+  ok(engSrc.indexOf('function refreshCardSlots(') >= 0 && engSrc.indexOf('function cardSlotsRow(') >= 0,
+    'B136 §1.2：卡片行渲染与就地刷新在案（levelCard 内登记 cardSlotRows）');
+  const sLine = C.newState('hard', '小汤'); sLine.loc = '35'; sLine.coins = 9; sLine.oxygen = 41;
+  const line = C.slotInfo(2, { savedAt: '2026-10-06T01:02:00.000Z', st: sLine }, D);
+  ok(new RegExp('^2 · \\d{2}-\\d{2} \\d{2}:\\d{2} ｜ 35 · 监控回放 ｜ 🪙 星币 9 · 💨 氧气 41 ｜ 困难模式$').test(line),
+    'B136 §1.2：档位摘要行格式＝<序号> · <MM-DD HH:mm> ｜ <节点号> · <节点名> ｜ <资源行> ｜ <难度>（实测 ' + line + '）');
+  const pad = x => (x < 10 ? '0' : '') + x;
+  const dT = new Date('2026-10-06T01:02:00.000Z');
+  eq(C.slotTime('2026-10-06T01:02:00.000Z'), pad(dT.getMonth() + 1) + '-' + pad(dT.getDate()) + ' ' + pad(dT.getHours()) + ':' + pad(dT.getMinutes()),
+    'B136 §1.2：时间格式 MM-DD HH:mm（本机时区；无效串原样返回）');
+  eq(C.slotTime(''), '', 'B136 §1.2：空 savedAt ⇒ 空串（不抛）');
+  P('§1.2-⑦ 源码契约：💾／#saveModal／Core 助手／摘要行格式 逐条通过');
+}
+
 
 /* ============ 汇总 ============ */
 console.log('');

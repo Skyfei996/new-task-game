@@ -3,7 +3,7 @@
 > 编制：主 agent · 2026-10-04 · 来源 = 老板 2026-10-04 晚三条：① 监控画面桑尼形象与动作修正（结局 A 同病，父侧全站排查在案）② 收贿→反应堆结局无全屏图＋全结局排查（29 缺／44 缺／41~43 齐）③ 存档读档功能（浏览器本地；现况＝单槽自动存档＋继续，不够「试另一选项」用）。
 > 台账 = #39（design-station-v1 · 归批）。前情 = docs/batches/B04-interface-and-visual.md（已收口 2026-10-04）。
 ## §1 讨论（主 agent）
-**状态行**：🔄 进行中（三件套设计轮在跑（图单优先；§4 待老板批准））
+**状态行**：进行中（修正轮 9 条落地＋复评（轮 2）pass；实现轮在跑（eng-coder）；§4＝老板直令（免评审直接干））
 <§1 模板占位：本批条目 / 关键判据 / 授权口径>
 
 ### 本批来源与范围（老板 2026-10-04 晚）
@@ -187,4 +187,48 @@ VERDICT: pass
 - **B06（迷路治理·指路面板）**：「做」＋命名令（不叫 SOS；默认「🧭 指路」）——另档 `docs/batches/B06-wayfinding.md`。
 
 ## §5 实施记录（eng-coder）
+**状态行**：实施完成（B135 代码面＋B136 全案；三闸绿（569／2335／420）；审计 clean、代码评审 pass）
+
+
+
+### 交付摘要（B05 代码面 · B135／B136 · eng-coder 自写）
+
+**B135（结局／失败整屏图补齐——代码面）**
+- `prototype/levels/station.js`：节点 29 增 `cg = { file: '../images/station/cg/defeat-ambush.jpg', dismiss: 'keep' }`（T80；非 once）＋删 `moments: ['sangni-ambush']`；`moments` 注册表撤 `sangni-ambush` 条目（T71 留档，`images/station/moments/sangni-ambush.jpg` 不删）。
+- 登记集＝{3／5／29／34／35／41／42／43}（9 张，`keep` 集＝{29／41／42／43}）；44 号无 `cg`（T81 未获批，不占位）——`images/station/cg/` 实盘 9 张、无 `defeat-oxygen.jpg`。
+- B133／B134（文案与 T31-v2／T32-v2 同名覆盖）＝非本面：代码侧确无接入点改动（`cg.file` 与节点集不变）。
+
+**B136（多档位存档 / 读档）**
+- `prototype/engine.js`：Core 增 `slotsKey`／`slotList`／`slotPut`／`slotDel`／`slotTime`／`slotInfo`／`slotsAvailable`／`slotAsk`；`coverAsk()` 句尾并入「与手动存档位保留」；`cardInfo` 增 `slotLine`（既有字段不动）；DOM 层新增 `#saveModal`（`slotRowEl`／`renderSlotRows`／`openSaveModal`／`cardSlotsRow`／`refreshCardSlots`＋两句采用句常量）＋工具栏 `💾` 绑定＋卡片「存档位」行（就地刷新）。
+- `prototype/index.html`：`💾`（🎒 与 ❓ 之间，title「存档 / 读档」）＋`#saveModal`（`#saveWarn`／`#saveRows`，既有 `.modal` 体系）。
+- `prototype/style-ui.css`：⑨ 段（档位行／空档／摘要／警示行／按钮／卡片行；末行 207）。
+- 帮助：`help` 11→12 条（第 12 条逐字＝§8.1）；`docs/station-story-bible.md` §7.46 回填＋§13 v2.8；重导 `docs/station-copy-v1.md`、`prototype/lab-docs.js`。
+- 测试面：`prototype/test.station.mjs` 新 §23（§1.2 机检①~⑦）＋§19-3／§19-4／§19-6／§20-3／§20-5／§20-6／§22 计数与登记集断言同步（含 29 号浮图零残留、44 无 `cg`、T71 留档）＋`fakeStore` 补 `removeItem`。
+
+### 决策透明表（设计外新增／口径选择）
+
+| # | 事项 | 理由 | 面 |
+|---|---|---|---|
+| 1 | Core 增 `slotTime(iso)`（设计清单未列） | 摘要行「MM-DD HH:mm」与卡片行「最新 <时间>」共用一份格式化，避免两处各写一段 | 助手级增量；§1.2 行为与格式不变 |
+| 2 | 卡片行类名＝`lcSlotsRow`／`lcSlotsLine`（设计文字称「卡片 `lcSlots` 行」） | 沿用既有 `lcXxx` 命名族；机检⑦只锁 `💾` 与 `#saveModal`，无类名断言 | 命名细节 |
+| 3 | 两句采用句（写入失败／存储不可用）放 DOM 层常量 `SLOT_FAIL_TEXT`／`SLOT_WARN_TEXT` | 设计只要求「单一来源」；`Core.slotAsk()` 管三句确认句，这两句是渲染面反馈 | 分层选择（各恰一份，机检断言锁死） |
+| 4 | 删除失败复用「写入失败」句；失败 toast 用缺省 info 类 | 删档＝同一键的写操作，设计只规定了一句写入失败句；类由既有 `Core.textKind` 缺省决定 | 兜底口径 |
+| 5 | 卡片行「最新 <时间>」＝各档 `savedAt`（ISO）字典序取最大 | ISO UTC 串字典序＝时间序，零解析 | 实现细节 |
+| 6 | 临时 DOM 冒烟（`.playtest/qa-b05-slots.mjs`）跑完即删 | 设计 §1.2 机检⑦自标「（临时）」；读数落本段，不占仓库面 | 验证方式 |
+
+### 审计与代码评审轮次与终态
+
+- **内部 explore 偏离审计（1 轮 → 终态 clean）**：1 条提示级——临时冒烟脚本「应删未删」（该文件自述「跑完即删」＋设计标「（临时）」）；当场删除（`.playtest/` git-ignored，无外溢）。四类偏差（部分实现／静默简化／文档漂移／超清单）零实例；审计另核对 B135 全项、B136 全项、帮助与三处回填、测试面覆盖，均对拍通过。
+- **advisor 代码评审（1 轮 → VERDICT: pass）**：0 🔴／0 🟡／4 🔵——处置：① 档位表「读整表→改一项→整表写回」会归一化同表损坏项、且多标签页 last-write-wins（设计 §1.2 兜底只定义读路径；**登记上报，不修**）；② DOM 冒烟已删（设计标「（临时）」，合规；读数记档）；③ 交付行数超设计「预期增量」（engine 2530 行 vs 2315＋≤150；test.station.mjs 3797 行 vs 3629＋≤110）——按体积档口径登记欠账；④ 设计档 `:97`／`:72-73` 行指针滞后（设计档写域＝eng-designer，**未改，上报**）。
+- **fix round**：审计 1 条即修（删临时脚本）；评审 4 🔵 无一触发代码修改（理由见上，均属登记/上报类）。
+
+### 读数（末次，全部在本段写入前完成）
+
+- `node prototype/test.core.mjs` → **通过 569／失败 0**
+- `node prototype/test.station.mjs` → **通过 2335／失败 0**（基线 2273＋1 红＝cg 目录 8 张旧断言，本批修绿；净增 62 条）
+- `node prototype/test.play.mjs` → **通过 420／失败 0**
+- 开发期 DOM 冒烟（§1.2-⑦ 行为腿，`.playtest/qa-b05-slots.mjs`，跑完删）→ **通过 38／失败 0**：卡片入口卡片态只有读/删；存→走→读（回到存档节点；读后自动存档＝该档）；覆盖取消不动；删后回空；存储不可用 ⇒ 警示行＋按钮全禁用＋写入失败句（行内＋toast）。
+- `node --check`：engine.js／levels/station.js／test.station.mjs 通过。
+- 仓库级自测（收口面）未跑：按口径由父侧收口跑（本段读数＝实现轮闸）。
+
 ## §6 验证与收口（父代理）

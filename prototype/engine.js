@@ -91,6 +91,14 @@
  *       进节点求值一回、同节点跨渲染驻留（不重弹）、点掉后本节点不再弹、换节点先关再求值；`dismiss:'keep'`＝常驻
  *       （结局屏点击不关）；once 档落标记＋补写存档；缺图 ⇒ 整层隐藏＋一行告警（标记照落）；层在场景区最上
  *
+ * B05 轮（B133~B136 · 2026-10-06；口径＝docs/design-ui-v1.md §1.2／§6.7／§8.1、design-station-v1.md §7-E29）：
+ *   E29 多档位手动存档/读档（B136）：手动档位键 mygame2.slots.<id>.v1＝{v:1,slots:[null|{savedAt,st}×3]}（与自动存档
+ *       同形状 ⇒ 读档走同一条 normalizeState 归一）；Core.slotsKey／slotList／slotPut／slotDel／slotInfo／slotTime／
+ *       slotsAvailable／slotAsk；DOM 层：工具栏 💾 ⇒ #saveModal（存/读/覆盖/删）＋卡片「存档位」行（读取入口，仅当有档
+ *       时渲染；cardInfo 增 slotLine 字段——既有字段不动）；读档＝既有路径（normalizeState → 补写自动存档 → 全量重
+ *       渲染，此后「继续」回到该档）；开新局不碰档位与记录；存储不可用 ⇒ 警示行＋按钮禁用（玩法照常）；坏档视空档；
+ *       写入失败 ⇒ 行内提示＋toast（采用句）。B135（§6.7）：29 号 cg＋撤浮图（数据面，本层零改动）。
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
@@ -359,8 +367,8 @@
       return !!(n && (n.win || n.fail));
     },
     /* B124（§1.1/D65）：开新局覆盖确认＝**唯一采用句**——卡片侧（`cardInfo.coverAsk`）与局内重开（`restart`）
-     * 同源这一份（不得各写一份）。 */
-    coverAsk() { return '开始新局会覆盖本关的旧存档（通关记录保留）。确定开始？'; },
+     * 同源这一份（不得各写一份）。B05（评审修正轮 #9）：句尾并入「与手动存档位保留」（B136 口径——开新局不碰档位）。 */
+    coverAsk() { return '开始新局会覆盖本关的旧存档（通关记录与手动存档位保留）。确定开始？'; },
     /* 关卡卡片三态与记录块（渲染与机检同源——DOM 与测试用同一份判定）：
      * buttons＝[{key,label,main,confirm}]；无档「开始」／未结束「继续＋重新开始」／已结束「重玩」；
      * 新局覆盖已有存档前统一一句确认（confirm）；「继续」不受难度选择影响（存档自带难度）。 */
@@ -372,6 +380,11 @@
       const endNode = (save && lv.nodes) ? (lv.nodes[save.loc] || null) : null;
       const won = !!(ended && endNode && endNode.win);
       const record = Core.recordOf(store, id);
+      /* B136（§1.2 入口②）：卡片「存档位」行——仅当该关存在手动档时非空（无档 ⇒ 空串＝不渲染） */
+      const filled = Core.slotList(store, id).filter(Boolean);
+      const slotLine = filled.length
+        ? ('💾 手动存档：' + filled.length + '/3（最新 ' + Core.slotTime(filled.map(x => x.savedAt).sort().pop()) + '）')
+        : '';
       const buttons = !save
         ? [{ key: 'start', label: '开始', main: true, confirm: false }]
         : (ended
@@ -383,7 +396,83 @@
         recordLine: record.length ? ('🏆 通关记录：' + record.join('、')) : '',
         failLine: (ended && !won) ? '上局结束：未通关' : '',        // 失败终止：只报一句（失败不写记录）
         note: '进度存在这台设备的浏览器里（各人各份）',
-        coverAsk: Core.coverAsk()          // B124：与局内重开同一句（单一来源）
+        coverAsk: Core.coverAsk(),          // B124：与局内重开同一句（单一来源）
+        slotLine: slotLine                  // B136：卡片「存档位」行（空串＝无档、不渲染）
+      };
+    },
+
+    /* ---- B136（§1.2 · D74）：多档位手动存 / 读 / 删（本机存储；3 档、每关独立） ----
+     * 键＝mygame2.slots.<id>.v1，值＝{ v:1, slots:[null|{savedAt,st}×3] }（st 与自动存档同形状 ⇒ 读档走同一条
+     * normalizeState 归一路径）；与自动存档键 / 记录键相互独立（存/读/删不写那两键）；旧档兼容＝增量键。 */
+    slotsKey(id) { return 'mygame2.slots.' + id + '.v1'; },
+    /* 档位表读取：坏 JSON／字段缺／形状不对 ⇒ 该档按空档呈现（不删原数据、不抛异常——§1.2 兜底） */
+    slotList(store, id) {
+      const lid = id || levelId;
+      const empty = [null, null, null];
+      try {
+        const raw = store && store.getItem(Core.slotsKey(lid));
+        if (!raw) return empty;
+        const o = JSON.parse(raw);
+        if (!o || !Array.isArray(o.slots)) return empty;
+        return [0, 1, 2].map(i => {
+          const s = o.slots[i];
+          return (s && typeof s.savedAt === 'string' && s.st && typeof s.st === 'object') ? { savedAt: s.savedAt, st: s.st } : null;
+        });
+      } catch (e) { return empty; }
+    },
+    /* 写入第 n 档（n＝1~3；覆盖语义由调用方先确认）：st 快照＋savedAt＝now（ISO）；
+     * 返回 true／false——写入失败（配额/存储不可用）不抛（§1.2 兜底：行内提示＋toast＝采用句）。 */
+    slotPut(store, n, st, id) {
+      if (!(n >= 1 && n <= 3)) return false;
+      const lid = id || levelId;
+      const list = Core.slotList(store, lid);
+      try {
+        list[n - 1] = { savedAt: new Date().toISOString(), st: JSON.parse(JSON.stringify(st)) };
+        store.setItem(Core.slotsKey(lid), JSON.stringify({ v: 1, slots: list }));
+        return true;
+      } catch (e) { return false; }
+    },
+    /* 删除第 n 档（置回 null；写失败同样返回 false、不抛） */
+    slotDel(store, n, id) {
+      if (!(n >= 1 && n <= 3)) return false;
+      const lid = id || levelId;
+      const list = Core.slotList(store, lid);
+      try {
+        list[n - 1] = null;
+        store.setItem(Core.slotsKey(lid), JSON.stringify({ v: 1, slots: list }));
+        return true;
+      } catch (e) { return false; }
+    },
+    /* savedAt（ISO 串）→ 展示用 MM-DD HH:mm（本机时区） */
+    slotTime(iso) {
+      const d = new Date(iso);
+      if (!iso || isNaN(d.getTime())) return String(iso == null ? '' : iso);
+      const p = x => (x < 10 ? '0' : '') + x;
+      return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    },
+    /* 一行摘要（从 st 派生、不存副本）：<序号> · <MM-DD HH:mm> ｜ <节点号> · <节点名> ｜ <资源行> ｜ <难度>；
+     * 资源行＝按关卡 resources 逐项 `icon 名 值`（随关卡自适应）；难度＝与卡片同词。 */
+    slotInfo(n, slot, lv) {
+      const L = lv || LEVELS[levelId] || null;
+      const s = slot && slot.st;
+      if (!s || !L) return '';
+      const node = (L.nodes && s.loc != null) ? L.nodes[s.loc] : null;
+      const nodeName = Core.endDisplayName(Core.fillName(String((node && node.n) || ''), s));
+      const resLine = (L.resources || []).map(r => (r.icon ? r.icon + ' ' : '') + (r.name || r.id) + ' ' + Core.resOf(s, r.id)).join(' · ');
+      return n + ' · ' + Core.slotTime(slot.savedAt) + ' ｜ ' + (s.loc != null ? s.loc : '?') + ' · ' + nodeName
+        + ' ｜ ' + resLine + ' ｜ ' + (s.diff === 'hard' ? '困难模式' : '普通模式');
+    },
+    /* 存储可用性探测（打开弹窗时探一次）：探针写入＋删除；不可用 ⇒ false（警示行＋按钮全部禁用，玩法照常） */
+    slotsAvailable(store) {
+      const k = 'mygame2.slots.probe.v1';
+      try { store.setItem(k, '1'); store.removeItem(k); return true; } catch (e) { return false; }
+    },
+    /* B136（§1.2/D75）：三句采用句（**单一来源**——游戏内弹窗与卡片入口两处读取同串；不得各写一份） */
+    slotAsk() {
+      return {
+        read: '读取这个存档位会覆盖当前进度（通关记录保留）。确定读取？',
+        over: '这个存档位里已有存档，覆盖它吗？',
+        del: '删除这个存档位吗？（删除后无法恢复）'
       };
     },
 
@@ -1202,6 +1291,7 @@
     const meta = lv.meta || {};
     const card = document.createElement('div');
     card.className = 'levelCard';
+    card.dataset.lv = id;   // B136：卡片「存档位」行登记键（档位增删后就地刷新用）
 
     const poster = document.createElement('img');
     poster.className = 'lcPoster';
@@ -1295,12 +1385,19 @@
       d.textContent = info.note;
       body.appendChild(d);
     }
+    /* B136（§1.2 入口②）：卡片「存档位」行（仅当该关存在手动档时渲染）——带「读取存档位」按钮，登记入 cardSlotRows */
+    if (info && info.slotLine) {
+      const slots = cardSlotsRow(id, info);
+      cardSlotRows[id] = { row: slots.row, line: slots.line };
+      body.appendChild(slots.row);
+    }
     card.appendChild(body);
     return card;
   }
   function renderLevelSelect() {
     const box = $('levelList');
     box.innerHTML = '';
+    cardSlotRows = {};   // B136：卡片行登记随重渲染重置（行由 levelCard 重新登记）
     Core.levelIds().forEach(id => box.appendChild(levelCard(id, LEVELS[id])));
     $('playerName').value = Core.playerName(store);
   }
@@ -1376,6 +1473,124 @@
     save();
     renderLevelSelect();
     $('overlay').classList.remove('hidden');
+  }
+
+  /* ---------- B136（§1.2 · D74）：存档 / 读档弹窗（多档位手动存·读·删；工具栏 💾 与卡片「存档位」行同一弹窗） ----------
+   * 入口①：工具栏 `💾`（局内——存/读/覆盖/删）；入口②：卡片「读取存档位」（卡片态——只有读/删，没有运行中进度可存）。
+   * 确认句与采用句＝Core 单一来源；本层只管渲染、探测与反馈。 */
+  const SLOT_FAIL_TEXT = '⚠️ 没能写入这个存档位（这台设备的存储空间不足或被禁用）；本次游玩不受影响。';
+  const SLOT_WARN_TEXT = '这台设备无法保存进度（浏览器存储被禁用）；本次游玩不受影响。';
+  let slotModalLv = null;        // 弹窗绑定的关卡 id（打开时定）
+  let slotModalMode = 'play';    // 'play'＝局内（存/读/覆盖/删）｜'card'＝卡片入口（只有读/删）
+  let slotStoreOk = true;        // 打开弹窗时探测一次的存储可用性（不可用 ⇒ 警示行＋按钮全部禁用）
+  let cardSlotRows = {};         // levelId → { row, line }：卡片「存档位」行登记（档位增删后就地刷新；重渲染时重置）
+
+  /* 弹窗一行（两态）：空档＝「（空档位）」＋「存入」（局内）；有档＝摘要行＋「读取」（主）＋「覆盖存档」（局内）＋「删除」 */
+  function slotRowEl(lid, i, slot) {
+    const n = i + 1;
+    const row = document.createElement('div');
+    row.className = 'slotRow' + (slot ? '' : ' empty');
+    const line = document.createElement('div');
+    line.className = 'slotLine';
+    line.textContent = slot ? Core.slotInfo(n, slot, LEVELS[lid]) : '（空档位）';
+    row.appendChild(line);
+    const btns = document.createElement('div');
+    btns.className = 'slotBtns';
+    const tip = document.createElement('div');              // 写入失败：该档行内提示（与 toast 同句）
+    tip.className = 'slotTip hidden';
+    const failWrite = () => {
+      tip.textContent = SLOT_FAIL_TEXT;
+      tip.classList.remove('hidden');
+      toast(SLOT_FAIL_TEXT);
+    };
+    const add = (label, main, fn) => {
+      const b = document.createElement('button');
+      b.className = 'slotBtn' + (main ? ' main' : '');
+      b.textContent = label;
+      b.disabled = !slotStoreOk;                            // 存储不可用 ⇒ 按钮全部禁用（玩法照常）
+      b.onclick = fn;
+      btns.appendChild(b);
+    };
+    /* 存入 / 覆盖：写入失败（slotPut false）⇒ 行内提示＋toast＝采用句；成功 ⇒ 反馈＋重渲染＋卡片行刷新 */
+    const write = over => {
+      if (!st) return;                                      // 卡片态无运行中进度（该按钮不渲染；防御）
+      if (over && !confirm(Core.slotAsk().over)) return;
+      if (!Core.slotPut(store, n, st, lid)) { failWrite(); return; }
+      toast((over ? '💾 已覆盖存档位 ' : '💾 已存入存档位 ') + n);
+      renderSlotRows();
+      refreshCardSlots(lid);
+    };
+    /* 删除（写失败同走写入失败句——同一键的写操作） */
+    const del = () => {
+      if (!confirm(Core.slotAsk().del)) return;
+      if (!Core.slotDel(store, n, lid)) { failWrite(); return; }
+      toast('🗑 已删除存档位 ' + n);
+      renderSlotRows();
+      refreshCardSlots(lid);
+    };
+    /* 读取＝既有读档路径（resumeGame：选中关卡 → normalizeState → 场景归一 → 补写自动存档 → 全量重渲染）；
+     * 两处入口（局内弹窗／卡片入口）同走这一份——确认串同源＝Core.slotAsk() 的读取句。 */
+    const read = () => {
+      if (!confirm(Core.slotAsk().read)) return;
+      const s = Core.slotList(store, lid)[i];
+      if (!s) return;
+      const node = (LEVELS[lid] && LEVELS[lid].nodes[s.st.loc]) || null;
+      const label = (s.st.loc != null ? s.st.loc : '?') + ' · ' + Core.endDisplayName(Core.fillName(String((node && node.n) || ''), s.st));
+      $('saveModal').classList.add('hidden');
+      resumeGame(lid, s.st);
+      toast('📂 已回到存档位 ' + n + '：' + label, { kind: 'info' });
+    };
+    if (slot) {
+      add('读取', true, read);
+      if (slotModalMode === 'play') add('覆盖存档', false, () => write(true));
+      add('删除', false, del);
+    } else if (slotModalMode === 'play') {
+      add('存入', true, () => write(false));
+    }
+    row.appendChild(btns);
+    row.appendChild(tip);
+    return row;
+  }
+  function renderSlotRows() {
+    const rows = $('saveRows');
+    rows.innerHTML = '';
+    const warn = $('saveWarn');
+    warn.textContent = SLOT_WARN_TEXT;
+    warn.classList.toggle('hidden', slotStoreOk);
+    Core.slotList(store, slotModalLv).forEach((slot, i) => rows.appendChild(slotRowEl(slotModalLv, i, slot)));
+  }
+  /* 打开弹窗（两处入口共用）；打开时探测一次存储可用性 */
+  function openSaveModal(lid, mode) {
+    const id = lid || curLevelId;
+    if (!id || !LEVELS[id]) return;
+    slotModalLv = id;
+    slotModalMode = mode === 'card' ? 'card' : 'play';
+    slotStoreOk = Core.slotsAvailable(store);
+    renderSlotRows();
+    $('saveModal').classList.remove('hidden');
+  }
+  /* 卡片「存档位」行（B136 · §1.2 入口②）：仅当该关存在手动档时构建 */
+  function cardSlotsRow(id, info) {
+    const row = document.createElement('div');
+    row.className = 'lcSlotsRow';
+    const line = document.createElement('div');
+    line.className = 'lcSlotsLine';
+    line.textContent = info.slotLine;
+    row.appendChild(line);
+    const b = document.createElement('button');
+    b.className = 'lcAlt';
+    b.textContent = '读取存档位';
+    b.onclick = () => openSaveModal(id, 'card');            // 同一弹窗（卡片态：只有读/删）
+    row.appendChild(b);
+    return { row, line };
+  }
+  /* 档位增删后的卡片行就地刷新（只更新已渲染的行；无档卡片在下次渲染时自然不出现） */
+  function refreshCardSlots(id) {
+    const hit = cardSlotRows[id];
+    if (!hit) return;
+    const info = Core.cardInfo(store, id);
+    if (!info.slotLine) { hit.row.remove(); delete cardSlotRows[id]; return; }
+    hit.line.textContent = info.slotLine;
   }
 
   /* ---------- 渲染 ---------- */
@@ -2294,6 +2509,7 @@
     $('stuckSafe').onclick = goSafe;
     $('stuckRestart').onclick = () => { $('stuckModal').classList.add('hidden'); restart(); };
     $('bagBtn').onclick = () => { renderBag(); $('bagModal').classList.remove('hidden'); };
+    $('saveBtn').onclick = () => { if (st) openSaveModal(curLevelId, 'play'); };   // B136：工具栏 💾（局内入口）
     $('charsBtn').onclick = openCharsBook;
     $('helpBtn').onclick = () => { $('helpBody').innerHTML = D.help.map(h => '<p>' + nm(h) + '</p>').join(''); $('helpModal').classList.remove('hidden'); };
     $('playerName').addEventListener('change', () => { if (store) Core.savePlayer(store, $('playerName').value); });

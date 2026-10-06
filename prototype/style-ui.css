@@ -6,6 +6,7 @@
  *       style.css 保持基础＋既有面（不跨 500 行），提示条归位一条自 style.css 外置到本档（§6.4）。
  * 分区：① 消息四类（§3）· ② 反馈区（§4）· ③ 物品栏（§5）· ④ 氧气数值（§6.1）
  *       ⑤ 浮现层（§7）· ⑥ 布局（物品栏行＋提示条归位）· ⑦ 选关页控件（§1.1）· ⑧ CG 整屏层（B132 · §6.7）
+ *       · ⑨ 存档 / 读档弹窗与卡片行（B136 · §1.2）
  * ==========================================================================*/
 
 /* ---------- ① 消息四类颜色（§3；机检：:root 四条 token，四类互不相同） ---------- */
@@ -166,6 +167,38 @@
   background: rgba(16, 24, 33, .85); border: 1px solid var(--line); pointer-events: none;
 }
 .cgChip.hidden { display: none !important; }
+
+/* ---------- ⑨ 存档 / 读档（B136 · §1.2）：弹窗档位行（空档/摘要/按钮）＋存储警示行＋卡片「存档位」行 ---------- */
+.saveWarn {
+  margin-bottom: 10px; padding: 8px 10px; font-size: 12.5px; line-height: 1.7; border-radius: 8px;
+  color: #ffd166; background: rgba(255, 209, 102, .08); border: 1px solid rgba(255, 209, 102, .4);
+}
+.saveWarn.hidden { display: none !important; }
+.slotRow {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap;
+  margin-bottom: 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card);
+}
+.slotRow.empty { border-style: dashed; opacity: .8; }
+.slotLine { flex: 1 1 260px; font-size: 13px; line-height: 1.6; color: #dbe7f2; }
+.slotRow.empty .slotLine { color: var(--dim); }
+.slotBtns { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 8px; }
+.slotBtns button {
+  padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12.5px;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line);
+}
+.slotBtns button:hover { border-color: var(--accent); }
+.slotBtns button.main { border-color: var(--accent); font-weight: 700; }                     /* 主按钮：存入／读取 */
+.slotBtns button[disabled] { opacity: .45; cursor: not-allowed; }                            /* 存储不可用 ⇒ 全禁用 */
+.slotTip { flex: 1 1 100%; font-size: 12px; line-height: 1.6; color: var(--msg-fail); }       /* 写入失败：行内提示 */
+.slotTip.hidden { display: none !important; }
+/* 卡片「存档位」行（仅当该关存在手动档时渲染；档位增删后就地刷新） */
+.lcSlotsRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.lcSlotsLine { font-size: 13px; color: #dbe7f2; }
+.lcSlotsRow button {
+  padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12.5px;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line);
+}
+.lcSlotsRow button:hover { border-color: var(--accent); }
 
 @media (max-width: 900px) {
   #stage { width: min(100%, calc((52vh - 58px) * var(--scene-w, 1) / var(--scene-h, 1))); }
