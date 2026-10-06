@@ -16,8 +16,8 @@
  *      任一资源 ≤0 → 该资源的失败结算（有 fail.node 就走进结算点，否则就地复用失败界面）；
  *      noSpendToZero 的资源沿用 v1.3 的购买守卫（「钱不够」/「花光就闯关失败」两种理由）
  *   ④ 玩家名：任务点文本与结局文案里的 {me} 占位符 → 渲染时替换成玩家名
- *   ⑤ 走投无路检测（卡死保险）：渲染后若当前节点已无任何可执行动作 → 弹「求救」面板
- *      （回到安全点 = 关卡 meta.safeNode；重开本关）
+ *   ⑤ 走投无路检测（卡死保险）：渲染后若当前节点已无任何可执行动作 → 弹「指路」面板
+ *      （回到安全点 = 关卡 meta.safeNode；重开本关——B137 更名：原「求救」面板升级为常驻「🧭 指路」）
  *   ⑥ 条件语言新增 all / any / pinsAll / notPins；战斗选项也可以带代价（fx）
  *
  * v0.3 改动（B01 体验层整改 · 引擎小能力 E1~E9，接口以设计档 §7 v0.3 表为准）：
@@ -99,9 +99,19 @@
  *       渲染，此后「继续」回到该档）；开新局不碰档位与记录；存储不可用 ⇒ 警示行＋按钮禁用（玩法照常）；坏档视空档；
  *       写入失败 ⇒ 行内提示＋toast（采用句）。B135（§6.7）：29 号 cg＋撤浮图（数据面，本层零改动）。
  *
+ * B06 轮（B137~B139 · 2026-10-06；口径＝docs/design-ui-v1.md §2-B137~B139、design-station-v1.md §7-E30~E32）：
+ *   E30 指路面板（原 🆘 升级更名「🧭 指路」）：Core.guideTarget／guideNeeds／guideClues（纯读——当前目标＝
+ *       `meta.targets` 首条命中行；还差什么＝命中行 `need[]` 按 `show` 门过滤；已知线索＝`st.learned` 键序）；
+ *       两处入口（工具栏 #stuckBtn／场景区 #guideFab）→ 同一入口函数（面板打开函数恰一份——现名 showStuck，
+ *       不改）；死局上下文行仅自动弹出（showStuck('dead')）显示；面板首行＝「这里已经没有你能做的事了——别急：……」。
+ *   E31 编号圈地点名（§2-B138）：Core.pinLabel——已到过（st.visited）且地图场景（!plainPins）⇒ 节点名；
+ *       房间/站外一律 null（不渲染——渐进揭示）；渲染＝环下 `.pname`（纯追加，不挡点击）。
+ *   E32 已探索分楼层（§2-B139）：Core.visitedGroups——组＝sceneLabel(sceneOfNode(id))（缺省「其它」），
+ *       组序＝场景表键序（「其它」置末）、组内编号升序；过滤与既有 renderVisited 一致（hidden/fail/win 排除）。
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
- *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/求救弹窗、坐标校准
+ *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/指路弹窗、坐标校准
  * ==========================================================================*/
 (function () {
   'use strict';
@@ -733,6 +743,71 @@
     /* ---- §6.2 结局名展示层去字母（数据面 n/endTag 不动；与 --player 的 playerEndName 同规则） ---- */
     endDisplayName(s) { return String(s == null ? '' : s).replace(/结局\s*[A-Za-z]\s*·/g, '结局 ·'); },
 
+    /* ---- B137~B139（§2-B137~B139 · 2026-10-06）：指路面板／编号圈地点名／已探索分楼层——纯读助手
+     * （不改状态；DOM 层与测试同源调用）。 */
+
+    /* B137（§2-B137）：当前目标＝`meta.targets` 首条 cond 命中行的 text（先匹配者为准；末行兜底 cond 缺省＝恒真）；
+     * 关卡无 targets（示例关）⇒ null（面板①块走降级句）。 */
+    guideTarget(st) {
+      const rows = (D && D.meta && Array.isArray(D.meta.targets)) ? D.meta.targets : null;
+      if (!rows) return null;
+      const hit = rows.find(r => Core.condOk(st, r.cond));
+      return (hit && typeof hit.text === 'string' && hit.text) ? hit.text : null;
+    },
+    /* B137（§2-B137）：「还差什么」＝当前目标行的 need[]——`show` 不成立者不出（缺省恒显）；返回 [{label, done}]；
+     * 行无 need ／ 全被 show 滤掉 ／ 无 targets ⇒ []（面板③块走空态句）。 */
+    guideNeeds(st) {
+      const rows = (D && D.meta && Array.isArray(D.meta.targets)) ? D.meta.targets : null;
+      if (!rows) return [];
+      const hit = rows.find(r => Core.condOk(st, r.cond));
+      const need = (hit && Array.isArray(hit.need)) ? hit.need : [];
+      return need.filter(n => Core.condOk(st, n.show)).map(n => ({ label: n.label, done: Core.condOk(st, n.done) }));
+    },
+    /* B137（§2-B137）：已知线索＝st.learned 的键序（获得先后——与 CLI「线索：」同源同字面） */
+    guideClues(st) { return (st && st.learned) ? Object.keys(st.learned) : []; },
+
+    /* B138（§2-B138）：编号圈地点名——已到过（当前点必然已到过）且地图场景（!plainPins）⇒ 节点名（与地点头／
+     * 已探索 title 同源：endDisplayName(nm(n))）；未到过 ⇒ null（不渲染，渐进揭示）；房间/站外一律 null
+     * （内景交互点多含事件名——不点名）。 */
+    pinLabel(st, id, sid) {
+      if (!st || !id || !st.visited || !st.visited[id]) return null;
+      const sid2 = sid || Core.sceneOf(st);
+      if (Core.plainPins(sid2)) return null;
+      const n = (D && D.nodes && D.nodes[id]) || null;
+      if (!n) return null;
+      return Core.endDisplayName(Core.fillName(String(n.n || ''), st));
+    },
+
+    /* B139（§2-B139）：已探索分楼层——组＝sceneLabel(sceneOfNode(id))（缺省/空 ⇒ 「其它」）；
+     * 组序＝场景表键序中该标签首次出现的顺序（「其它」＝未落于键序的标签，置末）；组内编号升序；
+     * 过滤与既有 renderVisited 一致（hidden／fail／win 排除）；全空 ⇒ []（调用方走既有空态句）。
+     * 返回 [{ label, ids: [...] }]（空组不出）。 */
+    visitedGroups(st) {
+      if (!D) return [];                          // 与兄弟助手同口径（D 未绑定时不作解引用）
+      const ids = Object.keys((st && st.visited) || {})
+        .filter(id => D.nodes[id] && !D.nodes[id].hidden && !D.nodes[id].fail && !D.nodes[id].win)
+        .sort((a, b) => Number(a) - Number(b));
+      const order = [];
+      Object.keys(D.scenes).forEach(sid => {
+        const lab = Core.sceneLabel(sid);
+        if (lab && order.indexOf(lab) < 0) order.push(lab);
+      });
+      const map = {}, labels = [];
+      ids.forEach(id => {
+        const lab = Core.sceneLabel(Core.sceneOfNode(id)) || '其它';
+        if (!map[lab]) { map[lab] = []; labels.push(lab); }
+        map[lab].push(id);
+      });
+      labels.sort((a, b) => {                      // 场景表键序；「其它」置末（两者均落空＝稳定序保底）
+        const ia = order.indexOf(a), ib = order.indexOf(b);
+        if (ia < 0 && ib < 0) return 0;
+        if (ia < 0) return 1;
+        if (ib < 0) return -1;
+        return ia - ib;
+      });
+      return labels.map(label => ({ label: label, ids: map[label] }));
+    },
+
     /* ---- §3 消息分类（渲染层据此上色；判据零数据改动） ---- */
     /* 选项消息的类：sayKind 可选覆盖（'fail'｜'info'）＞形状判据（say ∧ to=当前节点 ∧ ¬fx ∧ ¬once）＞ null */
     sayKindOf(st, ch) {
@@ -978,7 +1053,7 @@
     },
     /* ---- v0.2 走投无路检测（卡死保险，设计档 §6 第 5 条）----
      * 当前节点若既没有「condOk 且点得动的选项」、也没有「可达编号」、也没有「返回选项」
-     * → 判定走投无路（界面弹「求救」面板：回到安全点 / 重开本关）。 */
+     * → 判定走投无路（界面弹「指路」面板：回到安全点 / 重开本关——B137 更名）。 */
     deadEnd(st) {
       const node = st && st.loc ? D.nodes[st.loc] : null;
       if (!node || st.bankrupt) return false;
@@ -1600,7 +1675,7 @@
     hideAlertBar(); // 重绘即撤下上一条警示条（本次新发生的由 showFlash 在本函数之后重新弹出）
     renderHUD(); renderPins(); renderCharSpots(); renderMoments(); renderInv(); syncFeedback(); renderVisited(); renderNode();
     applyCg();      // B132（§6.7）：CG 整屏层（进节点求值＋跨渲染驻留——层在场景区最上）
-    if (Core.deadEnd(st)) showStuck();   // v0.2：卡死保险
+    if (Core.deadEnd(st)) showStuck('dead');   // v0.2：卡死保险（B137：自动弹出＝带死局上下文行）
   }
 
   /* HUD：全部资源（含低额预警）+ 武力值 */
@@ -1718,7 +1793,11 @@
       b.dataset.id = id;
       b.style.left = (x / sc.width * 100) + '%';
       b.style.top = (y / sc.height * 100) + '%';
+      /* B138（§2-B138）：已到过的地图点补地点名（Core.pinLabel 单源）——未到过/房间/站外 ⇒ 不渲染
+       * （纯追加：未到过 pin 结构＝ring＋num 逐字不变；.pname 不接收指针事件） */
+      const pname = Core.pinLabel(st, id, sid);
       b.innerHTML = '<span class="ring"></span><span class="num">' + id + '</span>'
+        + (pname ? '<span class="pname">' + esc(pname) + '</span>' : '')
         + (!plain && isCur ? '<span class="hereTag">你在这里</span>' : '');
       b.onclick = () => {
         if (calib || suppressClick || !canClick || st.loc === id) return;
@@ -1747,17 +1826,23 @@
     ids.forEach(id => { if (!lastReach[id]) return; const el = pinEl(id); if (el) el.classList.toggle('hint', on); });
   }
 
+  /* B139（§2-B139）：已探索按楼层分组（组序＝场景表键序；「其它」置末；组内编号升序）——分组判定住 Core.visitedGroups；
+   * 空组不出；全空＝既有空态句（过滤与改前一致——hidden／fail／win 排除）。 */
   function renderVisited() {
     const box = $('visitedList');
     box.innerHTML = '';
-    const ids = Object.keys(st.visited)
-      .filter(id => D.nodes[id] && !D.nodes[id].hidden && !D.nodes[id].fail && !D.nodes[id].win)
-      .sort((a, b) => Number(a) - Number(b));
-    if (!ids.length) { box.innerHTML = '<span class="dim">（还没去过任何地方）</span>'; return; }
-    ids.forEach(id => {
-      const s = document.createElement('span');
-      s.className = 'vchip'; s.textContent = id; s.title = Core.endDisplayName(nm(D.nodes[id].n));
-      box.appendChild(s);
+    const groups = Core.visitedGroups(st);
+    if (!groups.length) { box.innerHTML = '<span class="dim">（还没去过任何地方）</span>'; return; }
+    groups.forEach(g => {
+      const lab = document.createElement('span');
+      lab.className = 'vgLabel';
+      lab.textContent = g.label;
+      box.appendChild(lab);
+      g.ids.forEach(id => {
+        const s = document.createElement('span');
+        s.className = 'vchip'; s.textContent = id; s.title = Core.endDisplayName(nm(D.nodes[id].n));
+        box.appendChild(s);
+      });
     });
   }
 
@@ -2373,12 +2458,59 @@
       '　·　持有 ' + st.items.length + ' 件道具';
   }
 
-  /* ---------- 走投无路（v0.2 卡死保险）：求救面板 ---------- */
-  function showStuck() {
+  /* ---------- 走投无路（v0.2 卡死保险）：指路面板（B137 更名；四块＝当前目标/已知线索/还差什么/出口） ----------
+   * 两处入口（工具栏 #stuckBtn／场景区 #guideFab）→ 同一入口函数（面板打开函数恰一份）；
+   * 死局上下文行仅自动弹出（showStuck('dead')）时显示——手动点开＝该行隐藏（§2-B137 入口表）。
+   * 面板纯读 st（四块＝Core.guideTarget／guideClues／guideNeeds＋既有两出口），不改存档结构。 */
+  const GUIDE_FALLBACK = '（这一关没有设目标清单——随便逛逛吧。）';    // ① 降级句（无 targets——示例关）
+  const GUIDE_CLUES_EMPTY = '（还没记住什么——多问问、多看看。）';      // ② 空态句
+  const GUIDE_NEEDS_EMPTY = '（这一步没有要凑的东西。）';              // ③ 空态句
+  function guideDimLine(text) {
+    const d = document.createElement('div');
+    d.className = 'guideDim';
+    d.textContent = text;
+    return d;
+  }
+  function renderGuidePanel() {
+    /* ① 当前目标（Core.guideTarget 单源；无 targets ⇒ 降级句） */
+    const gb = $('guideGoal');
+    gb.innerHTML = '';
+    const goal = Core.guideTarget(st);
+    const gd = document.createElement('div');
+    gd.className = goal ? 'guideText' : 'guideDim';
+    gd.textContent = goal || GUIDE_FALLBACK;
+    gb.appendChild(gd);
+    /* ② 已知线索（获得先后——与 CLI「线索：」同源同字面） */
+    const cb = $('guideClues');
+    cb.innerHTML = '';
+    const clues = Core.guideClues(st);
+    if (!clues.length) cb.appendChild(guideDimLine(GUIDE_CLUES_EMPTY));
+    clues.forEach(c => {
+      const d = document.createElement('div');
+      d.className = 'guideLine';
+      d.textContent = c;
+      cb.appendChild(d);
+    });
+    /* ③ 还差什么（当前目标行 need[]——show 不成立者不出；done 成立＝☑） */
+    const nb = $('guideNeeds');
+    nb.innerHTML = '';
+    const needs = Core.guideNeeds(st);
+    if (!needs.length) nb.appendChild(guideDimLine(GUIDE_NEEDS_EMPTY));
+    needs.forEach(n => {
+      const d = document.createElement('div');
+      d.className = 'guideLine' + (n.done ? ' done' : '');
+      d.textContent = (n.done ? '☑ ' : '☐ ') + n.label;
+      nb.appendChild(d);
+    });
+  }
+  function showStuck(dead) {
     const safeId = Core.safeNodeId();
     const node = safeId ? D.nodes[safeId] : null;
-    $('stuckText').innerHTML = '这里已经没有你能做的事了。<br>可以回到安全点重新想办法，也可以重开本关——进度不会白费。';
+    /* 面板首行（原「这里已经没有你能做的事了。……」改稿——更名清单 #5）：仅死局（自动弹出）显示 */
+    $('stuckText').textContent = '这里已经没有你能做的事了——别急：看看下面，换个地方想想办法。';
+    $('stuckText').classList.toggle('hidden', !dead);
     $('stuckSafeName').textContent = safeId ? (safeId + ' · ' + Core.endDisplayName(nm(node ? node.n : ''))) : '（本关没有配置安全点）';
+    renderGuidePanel();
     $('stuckModal').classList.remove('hidden');
   }
   function goSafe() {
@@ -2506,6 +2638,7 @@
     $('restartBtn').onclick = restart;
     $('levelsBtn').onclick = backToLevelSelect;
     $('stuckBtn').onclick = () => { if (st) showStuck(); };
+    $('guideFab').onclick = () => { if (st) showStuck(); };   // B137（§2-B137）：第二入口——与工具栏同一入口函数（面板打开函数恰一份）
     $('stuckSafe').onclick = goSafe;
     $('stuckRestart').onclick = () => { $('stuckModal').classList.add('hidden'); restart(); };
     $('bagBtn').onclick = () => { renderBag(); $('bagModal').classList.remove('hidden'); };

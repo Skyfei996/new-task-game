@@ -33,6 +33,10 @@
       <div id="charLayer"></div>
       <div id="pinLayer"></div>
     </div>
+    <!-- B137（§2-B137「第二入口」·老板 2026-10-06 追加令）：场景区右下角常驻「🧭 指路」——与工具栏 #stuckBtn
+         同一入口函数（同一面板）；在 #stage 之外（不随身拖拽/缩放）；层序低于 .cgLayer/.modal（CG 显示时被盖住）；
+         指针事件只覆盖自身小盒（不挡 pins 点击/拖拽/滚轮） -->
+    <button id="guideFab" title="指路：现在该做什么 / 已知线索 / 出口">🧭 指路</button>
     <div id="sceneTag"></div>
     <div id="sceneCtrls">
       <button id="zoomIn" title="放大">＋</button>
@@ -59,7 +63,7 @@
       <span id="resList"></span>
       <span class="stat" id="atkEl">⚔ 武力值 0</span>
       <span class="spacer"></span>
-      <button id="stuckBtn" title="走投无路？回到安全点 / 重开本关">🆘</button>
+      <button id="stuckBtn" title="指路：现在该做什么 / 已知线索 / 出口">🧭</button>
       <button id="levelsBtn" title="返回关卡选择">🗂</button>
       <button id="charsBtn" title="人物图鉴">👥</button>
       <button id="bagBtn" title="背包">🎒</button>
@@ -95,15 +99,28 @@
       <span class="dim small">默认「林小晨」，保存在这台电脑上</span>
     </div>
     <div id="levelList"></div>
-    <p class="dim small">键盘 C = 坐标校准模式 · Esc 关闭弹窗 · 🆘 = 走投无路时的求救面板</p>
+    <p class="dim small">键盘 C = 坐标校准模式 · Esc 关闭弹窗 · 🧭 = 指路面板（当前目标 / 已知线索 / 出口）</p>
   </div>
 </div>
 
-<!-- v0.2：求救面板（走投无路检测触发：当前节点没有任何可执行动作） -->
+<!-- v0.2：指路面板（B137 更名——原「求救面板」；走投无路时自动弹出；平时随时可从工具栏或场景区按钮打开）
+     四块＝①当前目标／②已知线索／③还差什么／④出口；死局上下文行（#stuckText）仅自动弹出时显示 -->
 <div id="stuckModal" class="modal hidden">
   <div class="card">
-    <h3>🆘 走投无路？</h3>
-    <p id="stuckText"></p>
+    <h3>🧭 指路</h3>
+    <p id="stuckText" class="hidden"></p>
+    <div class="guideBlock">
+      <div class="guideTitle">🎯 当前目标</div>
+      <div id="guideGoal"></div>
+    </div>
+    <div class="guideBlock">
+      <div class="guideTitle">🔑 已知线索</div>
+      <div id="guideClues"></div>
+    </div>
+    <div class="guideBlock">
+      <div class="guideTitle">📋 还差什么</div>
+      <div id="guideNeeds"></div>
+    </div>
     <div class="diffRow">
       <button id="stuckSafe">🏠 回到安全点<br><small id="stuckSafeName"></small></button>
       <button id="stuckRestart">↺ 重开本关</button>

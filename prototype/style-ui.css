@@ -7,6 +7,7 @@
  * 分区：① 消息四类（§3）· ② 反馈区（§4）· ③ 物品栏（§5）· ④ 氧气数值（§6.1）
  *       ⑤ 浮现层（§7）· ⑥ 布局（物品栏行＋提示条归位）· ⑦ 选关页控件（§1.1）· ⑧ CG 整屏层（B132 · §6.7）
  *       · ⑨ 存档 / 读档弹窗与卡片行（B136 · §1.2）
+ *       · ⑩ 指路面板＋场景区第二入口＋地图点名字＋已探索分组（B06 · §2-B137/B138/B139）
  * ==========================================================================*/
 
 /* ---------- ① 消息四类颜色（§3；机检：:root 四条 token，四类互不相同） ---------- */
@@ -205,3 +206,31 @@
   #invRow { padding: 2px 8px 6px; }
   #hintBar { display: none; }   /* 窄屏：提示条让位给物品栏条目（首屏原则） */
 }
+
+/* ---------- ⑩ 指路面板＋场景区第二入口＋地图点名字＋已探索分组（B137~B139 · §2-B137/B138/B139） ---------- */
+/* 第二入口：场景区右下角常驻胶囊（图标＋可见文字——可发现性）；在 #stage 之外（不随身拖拽/缩放）、与 #sceneCtrls 同族；
+   z 序：规则不带 z-index（同 #sceneCtrls）⇒ 低于 .cgLayer(9) 与 .modal(50)——CG/弹窗显示时被盖住、不可点；
+   指针事件只覆盖自身盒子（不挡 pins 点击／拖拽／滚轮——DOM 冒烟验证） */
+#guideFab {
+  position: absolute; right: 12px; bottom: 52px;      /* bottom 沿 #calibBox 同款偏移：抬到物品栏行上方，不压物品栏 */
+  padding: 6px 12px; font-size: 12.5px; line-height: 1; cursor: pointer;
+  border-radius: 999px; color: var(--ink); background: rgba(20, 30, 42, .85); border: 1px solid var(--line);
+}
+#guideFab:hover { border-color: var(--accent); }
+/* 面板四块（§2-B137）：块标题＋行；降级/空态句＝.guideDim；③块勾选态＝☑＋绿色双冗余 */
+.guideBlock { margin: 10px 0 0; }
+.guideTitle { margin-bottom: 4px; font-size: 12.5px; letter-spacing: .5px; color: var(--dim); }
+.guideText { font-size: 14.5px; line-height: 1.7; color: #eaf3fb; }
+.guideLine { font-size: 13.5px; line-height: 1.85; color: #dbe7f2; }
+.guideLine.done { color: var(--msg-gain); }
+.guideDim { font-size: 13px; line-height: 1.7; color: var(--dim); }
+/* B138：编号圈地点名——环下方小字（不接收指针事件、不挡点击；随舞台缩放＝与 .pin 同层） */
+.pin .pname {
+  position: absolute; left: 50%; top: calc(100% + 3px); transform: translateX(-50%);
+  max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 10.5px; color: #cfe0ee; text-shadow: 0 1px 2px #000; pointer-events: none;
+}
+.pin.current .hereTag { top: calc(100% + 20px); }     /* 当前点既有地点名又有「你在这里」：名字在上、标签在下（不叠字） */
+/* B139：已探索组标题（小字；组间留距——组内 chip 沿用 .vchip 既有样式） */
+#visitedList .vgLabel { margin: 0 5px 0 8px; font-size: 11px; color: var(--dim); }
+#visitedList .vgLabel:first-child { margin-left: 0; }
