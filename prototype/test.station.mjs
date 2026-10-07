@@ -32,6 +32,8 @@
 //       / B09 轮（B144~B147＋⑦ · 2026-10-06）：多结局提示（§2-B144 机检①~④⑥）／记录线头（§2-B145 ①~④）／
 //         任务清单（§2-B146 机检①~⑨）／难度三档（§2-B147 机检①~⑤）／10 号呼应版（老板⑦）；
 //         资源与预算断言换三档（§1／§6／§8／§14：氧气 500/200/80、星币 25/20/15；可得 590/280/150）
+//       / B11 轮（B135 · 2026-10-07）：44 号整屏图注册（T81 defeat-oxygen·keep——到货＋老板批准；登记集 10 张）＋
+//         44 正断言（cg 逐字／文件在盘）替换「未获批＝无 cg」两条旧断言（§6.7 机检①）
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -3566,25 +3568,27 @@ console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B
 {
   const cgNode = id => D.nodes[id].cg || null;
   const cgIds = Object.keys(D.nodes).filter(id => !!cgNode(id)).sort((a, b) => Number(a) - Number(b));
-  eq(cgIds.join(','), '3,5,29,34,35,41,42,43', 'B132＋B135 §6.7-①：cg 字段集＝{3／5／29／34／35／41／42／43}（逐条枚举、零多余——B05 追加 29；44 未获批不并入）');
+  eq(cgIds.join(','), '3,5,29,34,35,41,42,43,44', 'B132＋B135＋B11 §6.7-①：cg 字段集＝{3／5／29／34／35／41／42／43／44}（逐条枚举、零多余——B11 追加 44）');
   eq(cgIds.filter(id => cgNode(id).once === true).map(Number).join(','), '3,5', 'B132 §6.7-①：once===true 集＝{3／5}（同一存档一次）');
-  eq(cgIds.filter(id => (cgNode(id).dismiss || 'click') === 'keep').map(Number).join(','), '29,41,42,43',
-    "B132＋B135 §6.7-①：dismiss==='keep' 集＝{29／41／42／43}（B05 追加 29；其余缺省 click）");
+  eq(cgIds.filter(id => (cgNode(id).dismiss || 'click') === 'keep').map(Number).join(','), '29,41,42,43,44',
+    "B132＋B135＋B11 §6.7-①：dismiss==='keep' 集＝{29／41／42／43／44}（B11 追加 44；其余缺省 click）");
   const cgDir = path.join(dir, '../images/station/cg');
   const cgFiles = fs.readdirSync(cgDir).sort();
-  eq(cgFiles.join(','), 'core-ignite.jpg,defeat-ambush.jpg,ending-a.jpg,ending-b.jpg,ending-c.jpg,jupiter-closeup.jpg,medbay-closeup.jpg,monitor-frame.jpg,prologue-scene.jpg',
-    'B132＋B135 §6.7：images/station/cg/ 实盘 9 张（B05：defeat-ambush 入库；defeat-oxygen 未到货不在盘）');
+  eq(cgFiles.join(','), 'core-ignite.jpg,defeat-ambush.jpg,defeat-oxygen.jpg,ending-a.jpg,ending-b.jpg,ending-c.jpg,jupiter-closeup.jpg,medbay-closeup.jpg,monitor-frame.jpg,prologue-scene.jpg',
+    'B132＋B135＋B11 §6.7：images/station/cg/ 实盘 10 张（B11：defeat-oxygen 入库——T81 到货）');
   eq(cgIds.map(id => id + ':' + path.basename(cgNode(id).file)).join('｜'),
-    '3:medbay-closeup.jpg｜5:jupiter-closeup.jpg｜29:defeat-ambush.jpg｜34:core-ignite.jpg｜35:monitor-frame.jpg｜41:ending-a.jpg｜42:ending-b.jpg｜43:ending-c.jpg',
-    'B132＋B135 §6.7-①：展示点登记表 9 张＋1 条件件逐条（节点 ↔ 文件；44 未获批 ⇒ 无 cg）');
+    '3:medbay-closeup.jpg｜5:jupiter-closeup.jpg｜29:defeat-ambush.jpg｜34:core-ignite.jpg｜35:monitor-frame.jpg｜41:ending-a.jpg｜42:ending-b.jpg｜43:ending-c.jpg｜44:defeat-oxygen.jpg',
+    'B132＋B135＋B11 §6.7-①：展示点登记表 10 张逐条（节点 ↔ 文件——B11 追加 44:defeat-oxygen.jpg）');
   eq(cgIds.filter(id => !(cgNode(id).file.indexOf('../images/station/cg/') === 0 && cgFiles.indexOf(path.basename(cgNode(id).file)) >= 0)).join(','), '',
     'B132 §6.7-①：每条 file 前缀＝cg 目录且文件在库（逐条）');
-  /* B135（§6.7-①）：29 号浮图零残留＋T71 留档＋44 两态（未批＝无 cg） */
+  /* B135＋B11（§6.7-①）：29 号浮图零残留＋T71 留档；44 已注册（defeat-oxygen 入库——T81 到货＋老板批准） */
   eq([String(D.nodes['29'].moments), String(D.moments['sangni-ambush'])].join('｜'), 'undefined｜undefined',
     'B135 §6.7-①：29 号浮图零残留（节点 moments 撤＋注册表条目撤——同一时刻单一呈现）');
   ok(fs.existsSync(path.join(dir, '../images/station/moments/sangni-ambush.jpg')), 'B135 §7.12 行 34：T71 资产留档在库（撤注册不删文件）');
-  eq(String(D.nodes['44'].cg), 'undefined', 'B135 §6.7-①：44 条件件未获批 ⇒ 无 cg（T81 未到货、不做缺图占位）');
-  ok(cgFiles.indexOf('defeat-oxygen.jpg') < 0, 'B135 §6.7-①：defeat-oxygen.jpg 未到货（不在实盘——不注册不占位）');
+  const s44 = C.newState('normal'); s44.loc = '44';   // B11：就地建探针（locState 于本块 22-4 段才定义——本点在其前）
+  eq(JSON.stringify(C.cgOf(s44)), JSON.stringify({ file: '../images/station/cg/defeat-oxygen.jpg', once: false, dismiss: 'keep' }),
+    'B11 §6.7-①：44 号整屏图注册逐字（file／dismiss——T81；非 once＝重开后再到即再显示）');
+  ok(cgFiles.indexOf('defeat-oxygen.jpg') >= 0, 'B11 §6.7-①：defeat-oxygen.jpg 已到货入库（实盘 10 张——T81 到货即注册）');
 
   /* --- 22-2 §6.7 机检②：序章（走既有 meta.prologue.image 图位——零新机制） --- */
   eq(D.meta.prologue.image, '../images/station/cg/prologue-scene.jpg', 'B132 §6.7-②：序章图＝meta.prologue.image（CG-08／T35）');
@@ -3630,15 +3634,15 @@ console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B
   eq([JSON.stringify(norm5.cgSeen), C.cgOf(norm5) !== null].join('｜'), '{}｜true',
     'B132 §6.7-⑤：旧档（无 cgSeen）补空表 ⇒ once 档照常首显');
   const s34 = locState('34'); s34.cgSeen = { '34': true, '3': true };
-  eq(C.cgOf(s34) !== null, true, 'B132 §6.7-⑤：非 once 档（34／35／41~43）⇒ 读档回节点即显示（标记不影响）');
+  eq(C.cgOf(s34) !== null, true, 'B132 §6.7-⑤：（非 once 档：29／34／35／41~43／44）⇒ 读档回节点即显示（标记不影响）');
   eq(['34', '35'].map(id => C.cgOf(locState(id)).dismiss).join(','), 'click,click',
     'B132 §6.7-⑤：34／35＝到达即显示、点击关闭（非 once＝每次到达）');
-  eq(['29', '41', '42', '43'].map(id => C.cgOf(locState(id)).dismiss).join(','), 'keep,keep,keep,keep',
-    'B132＋B135 §6.7-⑤：29／41／42／43＝整屏图常驻（点击不关——B05：失败结算与三结局同档）');
+  eq(['29', '41', '42', '43', '44'].map(id => C.cgOf(locState(id)).dismiss).join(','), 'keep,keep,keep,keep,keep',
+    'B132＋B135＋B11 §6.7-⑤：29／41／42／43／44＝整屏图常驻（点击不关——B11 追加 44：失败结算与三结局同档）');
   eq(JSON.stringify(C.cgOf(locState('29'))), JSON.stringify({ file: '../images/station/cg/defeat-ambush.jpg', once: false, dismiss: 'keep' }),
     'B135 §6.7-①：29 号整屏图注册逐字（file／dismiss——T80；非 once＝重开后再到即再显示）');
-  eq(['1', '18', '22', '44'].map(id => String(C.cgOf(locState(id)))).join('｜'), 'null｜null｜null｜null',
-    'B132 §6.7-⑦：无 cg 的节点 ⇒ 层不渲染（回归——场景区逐字零变化）');
+  eq(['1', '18', '22'].map(id => String(C.cgOf(locState(id)))).join('｜'), 'null｜null｜null',
+    'B132＋B11 §6.7-⑦：无 cg 的节点 ⇒ 层不渲染（回归——场景区逐字零变化；44 移出探针＝已注册）');
   ok(engSrc.indexOf('function applyCg()') >= 0 && engSrc.indexOf('if (nodeId !== cgNodeId)') >= 0,
     'B132 §6.7-④：进节点求值一回＋换节点先关再求值（源码契约）');
   ok(engSrc.indexOf('if (layer.dataset.node === nodeId) return;') >= 0, 'B132 §6.7-④：跨渲染驻留——同节点重渲染不重弹（源码契约）');
@@ -3667,7 +3671,7 @@ console.log('———— B127 浮窗窗口与首访一次 ＋ B129 遮罩 ＋ B
     allLv.map(() => '0').join(','), 'B130：全关场景无 dim 字段（17 房 dim 已清）');
   eq(Object.keys(D.scenes).filter(sid => /^room-/.test(sid) && D.scenes[sid].mask === false).length, 17,
     'B130：撤调暗不动遮罩口径（17 房 mask=false 仍在）');
-  P('§6.7 CG 整屏层：登记 9 张＋1 条件件／序章图／层序与 contain／一次性与读档（once＝3·5、keep＝29／41~43）／缺图兜底 逐条通过');
+  P('§6.7 CG 整屏层：登记 10 张／序章图／层序与 contain／一次性与读档（once＝3·5、keep＝29／41~44）／缺图兜底 逐条通过');
   P('B130 撤调暗：数据／样式／引擎三面零残留（示例关与站关同口径） 逐条通过');
 }
 
