@@ -12,6 +12,8 @@
 <div id="app">
   <section id="sceneWrap">
     <div id="stage">
+      <!-- B10（§2-B149 双帧层）：旧帧层——位于 #sceneImg 之前（下）；换图等待期显示「最近一张已就绪帧」，不空白不形变 -->
+      <img id="sceneImgPrev" alt="" draggable="false">
       <img id="sceneImg" src="" alt="场景图" draggable="false">
       <svg id="dimSvg" class="dimLayer" viewBox="0 0 800 800" aria-hidden="true">
         <defs>
@@ -26,6 +28,8 @@
         </defs>
         <rect id="dimRect" x="0" y="0" width="800" height="800" fill="#060a10" fill-opacity="0.6" mask="url(#dimMask)"/>
       </svg>
+      <!-- B10（§2-B149）：切场景轻帘（暗幕＋「载入场景…」）——双帧之上、浮现层/编号层之下；不接收指针事件 -->
+      <div id="scenePrevVeil" class="hidden">载入场景…</div>
       <!-- B04（§7.3 层序）：浮现层（L2）——在场景图/遮罩之上、编号层之下；pointer-events:none，不挡编号点击 -->
       <div id="momentLayer"></div>
       <!-- 人物光环层（画在编号层下面，pointer-events:none，不挡编号点击） -->
@@ -91,7 +95,7 @@
 <div id="overlay" class="modal">
   <div class="card wide">
     <h1>你有一个新任务！</h1>
-    <p class="dim">选一个关卡开始冒险。你的名字会出现在任务点的对话里。</p>
+    <p class="dim" id="overlaySub">选一个关卡开始冒险。你的名字会出现在任务点的对话里。</p>
     <div class="playerRow">
       <label for="playerName">👦 你的名字</label>
       <input id="playerName" maxlength="10" value="林小晨" autocomplete="off">

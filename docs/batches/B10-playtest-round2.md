@@ -190,4 +190,40 @@ VERDICT: pass
 - 实现范围＝§2 受影响表 7 文件（`engine.js`／`levels/station.js`／`index.html`／`style-ui.css`／三套自测）；`station-copy-v1.md` 与 `lab-docs.js` 重导＝父侧工具面。发布＝三闸复跑后增量发布。
 
 ## §5 实施记录（eng-coder）
+
+**状态行**：实施完成（B148~B153 六条＋自审＋内审 explore 1 轮＋代码评审 advisor 1 轮 pass＋修后复跑三套全绿）
+
+### 5.1 交付摘要（实现面）
+- **改动文件与增量（git 实读）**：`prototype/engine.js` **+169**（Core：`HIDDEN_LEVELS`／`cardLevelIds`／`preloadOrder`／`guideTasks` 加 `done`＋沉底／`guideSig` ③段加任务 done 位／`guideNotes` 两序倒置／`trackRecords`／`newState`+`normalizeState` 补 `st.recOrder`；DOM：`applyScene` 双帧原子置换＋`sceneLoad`／`sceneSwap`／`prevFrame`／`veilOn`／`runPreload`（启动点 3 处）＋③块 `.tdTitle.done`／②块组标题带计数／`save()` 头部 `trackRecords`／`renderLevelSelect` 走 `cardLevelIds()`＋`#overlaySub` 文案分支）；`prototype/levels/station.js` **+5**（t-yinhe need1 单调谓词＋need2 一行；3③／13①③⑤／17① 共 5 处 `to` 自指；②块序档头注释同步）；`prototype/index.html` **+4**（`#sceneImgPrev`／`#scenePrevVeil`／`#overlaySub`）；`prototype/style-ui.css` **+18（299 行 ≤300）**（⑭ 双帧层与轻帘／`#guideClues` 40vh·窄屏 36vh／`.giState`·`.giNew` nowrap／`.guideItem` 单行省略／`.tdTitle.done`）；`prototype/test.station.mjs` **+288**（新 §28 段：B148①~⑤／B149①~⑥／B150②④／B151①~④／B152①~⑧／B153①~⑥＋受影响断言重写）；`prototype/test.core.mjs` **+56**（§15：B150① 探针＋preloadOrder／guideTasks／trackRecords／guideNotes Core 面抽样）；`prototype/test.play.mjs` **+1**（A 路线补一步 `['13','先回底层大厅','21']`）。
+- **读数（实跑）**：`test.core.mjs` **589／0**、`test.station.mjs` **2671／0**、`test.play.mjs` **431／0**（基线 B09 收口 577／2594／426）；三档冒烟 `tools/play.mjs --player`＝**easy 星币 25·氧气 495 ｜ 默认 20·195 ｜ hard 15·75**（与 B09 逐值一致）；`git status --porcelain images/` **零输出**（图片字节零改动）。
+- **核心实现口径**：① 动作留房（13①③⑤／17①／3③ 自指）后**不重复收门票**——`Core.move` 自指不重跑 `en`（design-station-nodes.md:593 父侧裁定），故测试 harness 由直调 `Core.go` 改走 `Core.move`（与 DOM 层 `doChoice`（engine.js:2580）同收口），氧气预算原值全部保持；② B151 5 处自指后 `13③` 入「失败条」形状 ⇒ 失败条计数 26→**27**（设计受影响表已预告）；③ B122「变体缺图回落」改走双帧路径 `sceneLoad(sc.image, entry)`（源码契约断言同步改写，机制搬移、行为不变）。
+
+### 5.2 决策透明表
+| # | 决策 | 依据／理由 | 影响 |
+|---|---|---|---|
+| 1 | 测试 harness（`goPick`／路线执行）由 `C.go` 改 `C.move` | 原 harness 直调 `Core.go` 与 DOM 层 `doChoice`（走 `move`）不同源 ⇒ 自指留房会重复收门票，属 harness 假象 | 三套读数与原值一致；断言未放宽 |
+| 2 | B151 lint 加 `battle.winTo／loseTo` 扫描面＋两条前置断言；dalim 侧按「全量四类遍历」（不设编号豁免类） | 设计 §2-B151 机检②「含 `battle.loseTo/winTo`」、机检④「示例关 60 节点／132 选项按四类遍历…未解析豁免逐条计数在案」；内审 3 项 PARTIAL 指出的收窄逐条收口 | 站关 45 节点／160 去向判定、示例关 60 节点／131 去向判定全扫，零违规 |
+| 3 | `guideTasks` 完成位＝`!!(t.done && condOk(...))`（缺 `done` ⇒ 不判完成） | 代码评审①：`condOk` 对空条件返回真，单用会把漏写 `done` 的任务误标「✓ 已完成」并沉底（B146 旧口径＝未完成） | 现盘 3 条任务均声明 `done`，行为不变；防未来数据漏写 |
+| 4 | `sceneLoad` 换目标时先撤上一条待加载 `load` 监听 | 代码评审⑤：被超越的请求不再触发 `load`，`{once:true}` 监听会短暂积压 | 无行为变化（守卫仍是 `dataset.src !== src` 比对） |
+| 5 | `station.js` 档头②块序注释同步为「recOrder／learned 倒序，序权威在 Core.guideNotes」 | 代码评审②：B153 已两组倒序，数据档注释仍写旧序（B08 遗留），后人按注释改动会误判 | 纯注释面（+1 行），无行为变化 |
+| 6 | `style-ui.css` 压缩排版至 **299 行／+18** | 设计受影响表硬线「≤300 行／增量 ≤+18」（初版 313 行超线，压注释与合并写法规格） | 无行为变化（选择器与声明逐条保留） |
+| 7 | `prototype/lab-docs.js` 的 `generatedAt` 差异**不动** | 系上一轮 `tools/build-lab.mjs` 重导工具面产物，非本批改动 | 保持工作区原样；由父侧工具面决定是否重导 |
+
+### 5.3 内审与代码评审（轮次与终态）
+- **内审（explore · 1 轮）**：VERDICT＝divergences-found——3 项 PARTIAL（B151 lint 未扫 `battle` 去向／前置断言只验改动集 5 处／dalim 侧按站点编号约定只扫 1~21）＋2 项 DOC-DRIFT（失败条 26 字面残留于设计拥有段（**设计面，本批无权改**，见 §5.5 上抛）；test.station/test.core 实测增量超设计预估上界）。**3 项 PARTIAL 已全部落修**（见 5.2 决策 2）；DOC-DRIFT 两项：测试侧属增量披露（5.1 末），设计侧上抛父侧。
+- **代码评审（advisor · 1 轮）**：**VERDICT＝pass**（0 必须修）；5 条可选意见中 4 条已落修（决策 3／4／5＋决策 2 的 dalim 收口），第 5 条（等待期新场景编号圈按旧舞台比例错位显示、且 `#scenePrevVeil` `pointer-events:none` 不挡点击 ⇒ 快速连切的一小段窗口内可能点到错位圈）属**设计面裁定**（B149 只规定「舞台盒此刻不动」，未规定等待期编号圈可点性）——**未自行扩展语义**，上抛父侧（见 §5.5）。
+- **终态：`clean`**（无未决必须修项；修后三套自测复跑全绿：589／2671／431，均 0 失败）。
+
+### 5.4 fix round（内审／评审后集中修）
+| 轮 | 来源 | 修项 | 复验 |
+|---|---|---|---|
+| 1 | 自审 | `lintRooms` 闭包误用模块级 `D`（切关后仍读站关数据 ⇒ 「dalim 零命中」曾是假绿）⇒ 改读 `globalThis.GAME_DATA` | 修后 dalim 真实全量扫描：0 违规（此前该断言实际在重扫站关） |
+| 2 | 内审 3 项 PARTIAL | lint 加 `battle` 去向；前置两条（两关 `scene` 声明 ∈ 场景键集／站关 1~21 去向解析非空＋21 场景齐）；dalim 改全量四类遍历 | 三套全绿（2671／589／431） |
+| 3 | 代码评审（4 项可选） | `done` 缺省语义／`load` 监听撤换／档头注释同步／dalim 豁免类收口 | 三套全绿；预算复测 engine +169 ≤180、style-ui +18＝299 ≤300 |
+
+### 5.5 上抛父侧（超出本批写域，未自行动作）
+1. **设计档字面残留**：`docs/design-station-nodes.md` §9.7 拥有段仍写「失败条共 **26** 条」＋`docs/design-ui-v1.md` 两处「26 条集合」——实盘已是 **27**（13③ 自指后入形状，设计受影响表已预告）；建议父侧/设计侧同步字面（本批无权改 `docs/**`）。
+2. **B149 等待期编号圈可点性**：见 5.3 评审第 5 条——建议在 §2-B149 补一行口径（等待期编号圈位次／可点性），或裁定「可接受」并记录。
+3. **增量超预估**：`test.station.mjs` +288（设计估 ≤+120）、`test.core.mjs` +56（估 ≤+40）——按 B08 先例「增断言、不删凑行」披露，请父侧确认接受或要求收敛。
+
 ## §6 验证与收口（父代理）

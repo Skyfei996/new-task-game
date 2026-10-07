@@ -9,6 +9,7 @@
  *       · ⑨ 存档 / 读档弹窗与卡片行（B136 · §1.2）
  *       · ⑩ 指路面板＋场景区第二入口＋地图点名字＋已探索分组（B06 · §2-B137/B138/B139）
  *       · ⑪ 道具介绍（B07 · §2-B140／B141）
+ *       · ⑭ B10（B148~B153 · 试玩修复轮二）：双帧层与轻帘／③块已完成标／②块定高滚动
  * ==========================================================================*/
 
 /* ---------- ① 消息四类颜色（§3；机检：:root 四条 token，四类互不相同） ---------- */
@@ -250,13 +251,14 @@
 /* ②块条目（<button.guideItem>——首行 ▸/▾ 标题＋态标／「新」标；点开＝展开 .giText、再点＝收起；可多条同开） */
 .guideItem {
   display: block; width: 100%; text-align: left; font: inherit; cursor: pointer;
-  color: #dbe7f2; background: none; border: 0; border-radius: 6px; padding: 2px 5px; font-size: 13.5px; line-height: 1.85;
+  color: #dbe7f2; background: none; border: 0; border-radius: 6px; padding: 2px 5px; font-size: 13.5px; line-height: 1.7;   /* B10（§2-B153）：行高 1.85→1.7（单行紧凑） */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;   /* B10（§2-B153）：标题超长省略（单行） */
 }
 .guideItem:hover { background: rgba(255, 255, 255, .06); }
 .guideItem:disabled { cursor: default; color: var(--dim); }   /* 兜底行（有 learn 值、无对应条目）：仅标题、不可点 */
 .giText {
   display: none; margin: 3px 0 7px; padding-left: 10px; border-left: 2px solid var(--line);
-  font-size: 13px; line-height: 1.7; color: #b9cee0;
+  font-size: 13px; line-height: 1.7; color: #b9cee0; white-space: normal;   /* B10（§2-B153）：展开详情正常折行（省略只作用于条目行） */
 }
 .guideItem.open .giText { display: block; }     /* 展开态（DOM 瞬态——关面板复位；不落档） */
 .giState { margin-left: 6px; font-size: 11px; color: var(--dim); }
@@ -279,3 +281,19 @@
 /* ③块任务清单：任务名行＋ need 项缩进（勾选态沿用 .guideLine.done） */
 .tdTitle { margin-top: 7px; font-size: 13.5px; line-height: 1.7; color: #eaf3fb; }
 .tdNeed { padding-left: 16px; }
+
+/* ---------- ⑭ B10（B148~B153 · 试玩修复轮二）：双帧层与轻帘／③块已完成标／②块定高滚动 ---------- */
+/* B149：双帧层——旧帧在下、当前帧在上（同为绝对定位）；旧帧按自身尺寸比居中、不随新图拉伸（aspect-ratio＋object-fit 兜底）、不接收指针事件；
+   等待期（.sceneWait）当前帧不显示（旧帧＋轻帘顶上）；load 支新图淡入 0.12s；轻帘＝双帧之上、浮现层/编号层之下、不接收指针事件 */
+#sceneImgPrev, #sceneImg { position: absolute; inset: 0; }
+#sceneImgPrev { inset: auto; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 100%; max-width: 100%; max-height: 100%;
+  aspect-ratio: var(--prev-ratio, 1); object-fit: contain; border-radius: 10px; pointer-events: none; }
+#sceneImg.sceneWait { visibility: hidden; } #sceneImg.sceneIn { animation: sceneIn .12s ease-out; } @keyframes sceneIn { from { opacity: .3; } }
+#scenePrevVeil { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px;
+  background: rgba(11, 17, 24, .82); color: #cfe0ee; font-size: 13px; letter-spacing: 1px; pointer-events: none; }
+#scenePrevVeil.hidden { display: none !important; }
+/* B153：②块定高滚动（内容再多也不撑出屏）＋态标/「新」标不换行 ｜ B152：③块已完成任务（行保留＋沉底＋「✓ 已完成」小标） */
+#guideClues { max-height: 40vh; overflow-y: auto; }
+.giState, .giNew { white-space: nowrap; }
+.tdTitle.done { color: var(--msg-gain); }
+@media (max-width: 900px) { #guideClues { max-height: 36vh; } }   /* 窄屏 36vh（§2-B153） */

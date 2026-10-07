@@ -632,6 +632,62 @@ eq(C.prologue(), null, 'E2：没有 prologue 的关卡 → null（不显示序�
 h = C.newState('normal');
 ok(C.payReason(h, h.coins).indexOf('买完就剩 0') >= 0, 'E1：没有 fail:null 的资源仍守「买完必须留 1」（旧行为不变）');
 
+/* ---------- 15. B10（§2-B148~B153）：选关卡片清单（B150 ①）／Core 面助手抽样（preloadOrder／guideTasks／trackRecords／guideNotes） ---------- */
+console.log('');
+console.log('———— B10：cardLevelIds（B150 ①）／preloadOrder・guideTasks・trackRecords・guideNotes（Core 面抽样） ————');
+globalThis.LEVELS['b10probe'] = {
+  meta: { title: 'B10 探针关', safeNode: 'p1', prologue: null,
+    tasks: [
+      { id: 't-a', name: '甲任务', show: {}, done: { knows: '甲成了' }, need: [{ label: '甲件', done: { item: '甲物' } }] },
+      { id: 't-b', name: '乙任务', done: { knows: '乙成了' }, need: [{ label: '乙件', done: { item: '乙物' } }] }
+    ],
+    notes: [
+      { id: 'rec-01', kind: 'record', cond: { pinsAll: ['p1'] }, title: '记录一', text: '一。', src: 'p1' },
+      { id: 'rec-02', kind: 'record', cond: { pinsAll: ['p1'] }, title: '记录二', text: '二。', src: 'p1' },
+      { id: 'clue-01', kind: 'clue', key: '甲', text: '线索甲。', src: 'p1' }
+    ],
+    targets: [{ text: '探针目标。' }] },
+  scenes: {
+    s1: { id: 's1', name: '探针·一', label: '层一', image: 'p1.jpg', width: 100, height: 100, pins: { p1: [50, 50] },
+      variants: [{ cond: { knows: '甲成了' }, image: 'p1v.jpg', width: 100, height: 100 }] },
+    s2: { id: 's2', name: '探针·二', label: '层二', image: 'p2.jpg', width: 100, height: 100, pins: {} }
+  },
+  start: { node: 'p1' },
+  resources: [], items: { '甲物': {}, '乙物': {} }, characters: {}, charOrder: [], help: [],
+  nodes: {
+    p1: { n: '起点', t: '起点。', c: [{ l: '去二', to: 'p2' }, { l: '留', to: 'p1' }] },
+    p2: { n: '终点', t: '终点。', c: [] }
+  }
+};
+{
+  ok(C.selectLevel('b10probe'), 'B10：探针关已注册且可选中');
+  eq(C.cardLevelIds().join(','), 'b10probe', 'B150 ①：cardLevelIds() 去隐藏清单（dalim 不列卡片、其余关卡照列）');
+  eq(C.levelIds().indexOf('dalim') >= 0, true, 'B150 ①：levelIds() 仍含 dalim（lab 与自测依赖）');
+  eq(C.defaultLevelId(), 'dalim', 'B150 ①：defaultLevelId() 仍 = dalim（加载顺序第一个——不变）');
+}
+{
+  const s = C.newState('normal');
+  C.go(s, 'p1');
+  const ord = C.preloadOrder(s);
+  eq(ord.join(','), 'p1.jpg,p1v.jpg,p2.jpg',
+    'B10：preloadOrder——当前场景（变体紧随基础图）×其余场景（键序）；首项＝当前场景、无重复、只含场景图');
+  const t = C.newState('normal'); t.learned['甲成了'] = true;
+  eq(C.guideTasks(t).map(x => x.id + ':' + x.done).join(','), 't-b:false,t-a:true',
+    'B10：guideTasks 增 done 且 done 保留＋沉底（Core 面抽样）');
+  const t2 = C.newState('normal'); t2.items.push('甲物');
+  eq(C.guideTasks(t2)[0].needs.map(n => n.label + '=' + n.done).join(','), '甲件=true', 'B10：need 逐项勾选随 done');
+  const r = C.newState('normal'); r.visited['p1'] = true;
+  C.trackRecords(r); C.trackRecords(r);
+  eq(r.recOrder.join(','), 'rec-01,rec-02', 'B10：trackRecords 幂等（按数组序首次入列；重复调用不重复追加）');
+  eq(C.guideNotes(r).records.map(x => x.id).join(','), 'rec-02,rec-01', 'B10：②块记录＝recOrder 反序（最新在前）');
+  eq(JSON.stringify(C.normalizeState({ diff: 'normal', items: [], visited: {}, done: {}, learned: {}, chDone: {}, hist: [] }).recOrder), '[]',
+    'B10：normalizeState 补 recOrder 缺省（旧档＝[]）');
+  const q = C.newState('normal'); q.learned = { 甲: true };
+  eq([C.guideNotes(q).clues.map(x => x.key).join(','), C.guideClues(q).join(',')].join('｜'), '甲｜甲', 'B10：②块线索接 learned（Core 面）');
+  delete globalThis.LEVELS['b10probe'];
+  ok(C.selectLevel('dalim'), 'B10：探针关撤下、切回大里姆');
+}
+
 /* ---------- 汇总 ---------- */
 console.log('');
 console.log('通过 ' + pass + ' 项，失败 ' + fail + ' 项。');

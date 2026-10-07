@@ -415,7 +415,7 @@ function goPick(id, part, allowFail) {
   if (idx < 0) throw new Error('找不到选项：' + id + ' / ' + part);
   if (!C.condOk(st, node.c[idx].cond)) throw new Error('选项条件不满足：' + id + ' / ' + part);
   const res = C.choose(st, idx);
-  if (res.back) C.goBack(st); else if (res.to) C.go(st, res.to);
+  C.move(st, res);   // B10：走游戏同一移动收口（Core.move——原地自指不重跑 en，同 DOM 层 doChoice；13①/③⑤・17① 留房不重复收门票）
   if (!allowFail) {
     if (st.bankrupt) throw new Error('路线中触发失败结算：' + id + ' / ' + part + '（' + st.zeroRes + '）');
     if (st.oxygen <= 0 || st.coins < 0) throw new Error('资源为负/耗尽：' + id + ' / ' + part);
@@ -448,7 +448,8 @@ function runMainRoute(diff) {
   goPick('16', '往上爬'); snap('爬道到实验室');
   goPick('7', '打开工具柜'); snap('拆到芯片');
   goPick('30', '把芯片收好'); goPick('16', '回底层大厅'); goPick('21', '去冷却塔'); snap('进冷却塔');
-  goPick('13', '用万能扳手拧上总阀'); snap('关阀');
+  goPick('13', '用万能扳手拧上总阀'); snap('关阀');   // B10（§2-B151）：动作留房（13① 自指）——下一行＝明示出口
+  goPick('13', '先回底层大厅');
   goPick('21', '乘电梯去中层'); goPick('20', '去气闸舱');
   goPick('11', '打开安保柜'); goPick('11', '穿上磁力靴，出舱'); snap('舱外');
   goPick('19', '用工具把面板焊好'); snap('焊好');
@@ -552,17 +553,19 @@ st = C.newState('normal');
 st.items = ['万能扳手'];
 C.go(st, '13');
 eq(st.oxygen, 195, '冷却塔泄漏区每次进入 −5 氧');
-goPick('13', '用万能扳手拧上总阀'); eq(st.loc, '21', '13→21');
+goPick('13', '用万能扳手拧上总阀'); eq(st.loc, '13', '13→13（B10／§2-B151 动作留房：关完阀还在冷却塔）');
 eq(st.oxygen, 190, '关阀再 −5 氧');
 ok(C.hasItem(st, '冷却剂罐'), '拿到冷却剂罐（路径③：冷却塔备件）');
+goPick('13', '先回底层大厅'); eq(st.loc, '21', '13→21（留房后走留存出口）');
 
 /* 冷却剂·路径④（R12）：硬穿蒸汽也有收获，不再是零收益纯亏 */
 st = C.newState('normal');
 C.go(st, '13');
 eq(st.oxygen, 195, '进冷却塔 −5 氧');
-goPick('13', '冲过蒸汽'); eq(st.loc, '21', '13→21（硬穿）');
+goPick('13', '冲过蒸汽'); eq(st.loc, '13', '13→13（B10／§2-B151 动作留房：硬穿后还在冷却塔）');
 eq(st.oxygen, 185, '硬穿 −10 氧');
 ok(C.hasItem(st, '冷却剂罐'), '硬穿也能拿到冷却剂（R12）');
+goPick('13', '先回底层大厅'); eq(st.loc, '21', '13→21（留房后走留存出口）');
 
 /* 冷却剂·路径②：账本把柄（28 换账本 → 10② → 32） */
 st = C.newState('normal');
@@ -1078,6 +1081,7 @@ function cabinetShortcut(withMedical, diff) {
   goPick('16', '零件堆'); goPick('16', '往上爬'); goPick('7', '打开工具柜');
   goPick('30', '把芯片收好'); goPick('16', '回底层大厅'); goPick('21', '去冷却塔');
   goPick('13', '用万能扳手拧上总阀');
+  goPick('13', '先回底层大厅');   // B10（§2-B151）：动作留房——留房后走明示出口
   goPick('21', '乘电梯去中层'); goPick('20', '去气闸舱'); goPick('11', '打开安保柜'); goPick('11', '穿上磁力靴，出舱');
   goPick('19', '用工具把面板焊好'); goPick('39', '爬回气闸舱');
   goPick('11', '回中层大厅'); goPick('20', '乘电梯去底层');
@@ -1576,10 +1580,10 @@ function domAtoms(c, s) {   // 把成事条 cond 里的“未完成”谓词翻�
   }));
   eq(lockFields.join(','), '', 'L2① 静态：全关 lock／lockIf／lockText 均 0（灰显不复存在）');
   eq(lintL2Static(D).join(' ｜ '), '', 'L2① 静态：一次性语义清单均带 once ／完成态谓词（完成后齐隐）');
-  /* 失败条计数（§9.7.1）：共 26 条（可尝试 22 站点＋双条站点 4 处各多 1） */
+  /* 失败条计数（§9.7.1；B10 起 27：旧 26＋13③ 自指后入形状）：共 26 条旧锁定　＋１ */
   let failCount = 0;
   Object.keys(D.nodes).forEach(id => (D.nodes[id].c || []).forEach(ch => { if (isFailEntry(ch, id)) failCount += 1; }));
-  eq(failCount, 26, 'L2① 计数：失败条共 26 条（可尝试 22＋双条站点 9①/10①/17③/40④ 各多 1 条）');
+  eq(failCount, 27, 'L2① 计数：失败条共 27 条（可尝试 22＋双条站点 9①/10①/17③/40④ 各多 1 条＝26；B10／§2-B151 13③ 自指后入形状 ⇒ 27）');
   /* ② 站点逐条模拟：形状 / 互斥 / 失败探针 / 完成态探针 */
   const badShape = [], badExcl = [], badProbe = [], badFailProbe = [];
   siteUnion(L2_SITES).forEach(({ id, frag, group }) => {
@@ -1881,7 +1885,7 @@ function providedFlags(L) {
       if (!e) throw new Error(name + '：' + st.loc + ' 找不到「' + frag + '」');
       if (!e.ok) throw new Error(name + '：' + st.loc + '「' + frag + '」不可点');
       const r = C.choose(st, e.ci);
-      if (r.back) C.goBack(st); else if (r.to) C.go(st, r.to);
+      C.move(st, r);
       trace.push(st.loc);
       if (expect && st.loc !== expect) throw new Error(name + '：' + at + '「' + frag + '」→ ' + st.loc + '（期望 ' + expect + '）');
     }
@@ -1895,7 +1899,7 @@ function providedFlags(L) {
     ['28', '先回中层大厅', '20'], ['20', '坐在补给柜旁边', '20'],
     ['20', '去实验室', '7'], ['7', '帮他去找工具箱', '25'], ['25', '顺着维修爬道滑下去', '16'],
     ['16', '翻一翻零件堆', '16'], ['16', '往上爬', '7'], ['7', '自己动手', '30'],
-    ['30', '把芯片收好', '16'], ['16', '回底层大厅', '21'], ['21', '去冷却塔', '13'], ['13', '用万能扳手拧上总阀', '21'],
+    ['30', '把芯片收好', '16'], ['16', '回底层大厅', '21'], ['21', '去冷却塔', '13'], ['13', '用万能扳手拧上总阀', '13'], ['13', '先回底层大厅', '21'],
     ['21', '乘电梯去中层', '20'], ['20', '去气闸舱', '11'], ['11', '打开安保柜', '11'], ['11', '穿上磁力靴', '19'],
     ['19', '用工具把面板焊好', '39'], ['39', '爬回气闸舱', '11'], ['11', '回中层大厅', '20'],
     ['20', '乘电梯去底层', '21'], ['21', '去太阳能控制室', '15'], ['15', '双手推上主供电闸门', '36'],
@@ -2512,7 +2516,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   eq(C.textKind('失去 医疗包'), 'gain', 'B04 §3-3：fx.lose 同归 gain（帮助第 8 条含「交出去」）');
   eq(C.textKind('−5 点氧气'), 'info', 'B04 §3-1：其余效果日志 → info');
   eq(C.textKind('🛗 到达：顶层'), 'info', 'B04 §3-1：移动提示 → info');
-  /* 断言 2 fail 双向：形状命中集 ≡ 26 条集合（两向相等、零多报） */
+  /* 断言 2 fail 双向：形状命中集 ≡ 27 条集合（两向相等、零多报；B10 起 13③ 入形状） */
   const shapeFail = [];
   Object.keys(D.nodes).forEach(id => (D.nodes[id].c || []).forEach((ch, ci) => {
     if (C.sayKindOf({ loc: id }, ch) === 'fail') shapeFail.push(id + '#' + ci);
@@ -2520,8 +2524,8 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   const isFailRow = (ch, id) => !!ch.say && !ch.fx && !ch.once && !ch.toIf && !ch.back && !ch.battle && !ch.random && ch.to === id;
   const declared = [];
   Object.keys(D.nodes).forEach(id => (D.nodes[id].c || []).forEach((ch, ci) => { if (isFailRow(ch, id)) declared.push(id + '#' + ci); }));
-  eq(shapeFail.join(','), declared.join(','), 'B04 §3-2：fail 双向——形状命中集 ≡ 26 条集合（两向相等、零多报）');
-  eq(shapeFail.length, 26, 'B04 §3-2：fail 恰 26 条（design-station-nodes.md §9.7 旧锁定项）');
+  eq(shapeFail.join(','), declared.join(','), 'B04 §3-2：fail 双向——形状命中集 ≡ 27 条集合（两向相等、零多报）');
+  eq(shapeFail.length, 27, 'B04 §3-2：fail 恰 27 条（design-station-nodes.md §9.7 旧锁定 26；B10／§2-B151 13③ 自指后入形状 ⇒ 27）');
   eq(C.sayKindOf({ loc: '1' }, { say: '喂', sayKind: 'info', to: '1' }), 'info', 'B04：sayKind 可选覆盖生效（引擎能力保留）');
   const wrote = [];
   Object.keys(D.nodes).forEach(id => (D.nodes[id].c || []).forEach((ch, ci) => { if (ch.sayKind) wrote.push(id + '#' + ci); }));
@@ -2534,7 +2538,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   ['info', 'gain', 'key', 'fail'].forEach(k => ok(uiCssSrc.indexOf('.msg-' + k + ' ') >= 0, 'B04 §3-4：.msg-' + k + ' 类在案'));
   ok(engSrc.indexOf("className = 'msg msg-' + kind") >= 0 && engSrc.indexOf('dataset.kind = kind') >= 0,
     'B04 §3-1：消息节点＝class "msg msg-<kind>" ＋ data-kind（DOM 机检锚点）');
-  P('消息四类：判据／fail 双向 26 条／CSS 四色 token／data-kind 契约 逐条通过');
+  P('消息四类：判据／fail 双向 27 条／CSS 四色 token／data-kind 契约 逐条通过');
 }
 
 /* --- 18-3 §4 反馈区与 toast：时长 / 去重 / 同屏 / 清空规则 --- */
@@ -2586,7 +2590,7 @@ const engSrc = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
   const viaA = C.choose(a13, ci13); C.move(a13, viaA);
   const viaB = C.choose(b13, ci13); C.move(b13, viaB);
   eq(snapOf(a13), snapOf(b13), 'B04 §5-③：走「使用」与走「选项」后的状态逐字一致（资源/道具/去向）');
-  ok(C.hasItem(a13, '冷却剂罐') && a13.loc === '21', 'B04 §5-③：使用真的生效（拿到冷却剂罐、去向 21 号）');
+  ok(C.hasItem(a13, '冷却剂罐') && a13.loc === '13', 'B04 §5-③：使用真的生效（拿到冷却剂罐；B10 起留房——去向仍 13，不跳 21）');
   P('物品栏：内容＝st.items×itemOrder ／「使用」判据 7 组抽查 ／ 等效执行逐字一致 逐条通过');
 }
 
@@ -3198,8 +3202,8 @@ console.log('———— B122 背景变体（判定/几何/兜底/读档/回归
     eq(JSON.stringify(C.figuresOf('room-medbay', s).yilanna), '[690,255,195,180]', 'B122：合成变体已撤除（基础 figures 还原）');
   }
   /* ③ 兜底：运行期加载失败 ⇒ src 回落基础图＋一行告警（行为由临时 DOM 冒烟演示；此处为源码契约） */
-  ok(/背景状态变体缺图（回落基础图）/.test(engSrc) && engSrc.indexOf('img.dataset.fail = cur') >= 0 && engSrc.indexOf('img.dataset.src = sc.image') >= 0,
-    'B122 §7.10-3：变体图加载失败 ⇒ 回落基础图渲染＋一行告警（同一失败图不重复重试——源码契约）');
+  ok(/背景状态变体缺图（回落基础图）/.test(engSrc) && engSrc.indexOf('img.dataset.fail = cur') >= 0 && engSrc.indexOf('sceneLoad(sc.image, entry)') >= 0,
+    'B122 §7.10-3：变体图加载失败 ⇒ 回落基础图渲染＋一行告警（同一失败图不重复重试；B10 起回落同走双帧路径 sceneLoad——源码契约）');
   ok(engSrc.indexOf('const entry = Core.sceneEntry(st, sid)') >= 0 && engSrc.indexOf('toast(Core.arriveText(sid))') >= 0,
     'B122 §7.10：applyScene 单源＝sceneEntry（图／宽高）——逐帧求值（条件变化同帧生效、场景不变也重算）');
   ok(engSrc.indexOf('function applyMomentGeom(d, plan, sc)') >= 0 && engSrc.indexOf('d.dataset.plan !== momentKey(plan)') >= 0,
@@ -3892,13 +3896,13 @@ console.log('———— B06 指路面板（B137 ①~⑪）／地图点名字�
     'B146 机检②：到过指挥舱 ⇒ t-reactor＋t-power 两条出（t-yinhe 仍需 chDone 门）');
   eq(tasks(S({ visited: { '6': true }, items: ['控制芯片'] })).indexOf('控制芯片=true') >= 0, true,
     'B146 机检④：勾选态随 done（持物例：控制芯片到手 ⇒ ☑）');
-  eq(C.guideTasks(S({ learned: { '反应堆已重启': true }, visited: { '6': true } })).map(t => t.id).join(','), 't-power',
-    'B146 机检②：done 成立 ⇒ 整条不出（已收尾不占位——t-reactor 退场，t-power 仍在）');
+  eq(C.guideTasks(S({ learned: { '反应堆已重启': true }, visited: { '6': true } })).map(t => t.id + ':' + t.done).join(','), 't-power:false,t-reactor:true',
+    'B10／§2-B152：done 成立 ⇒ 保留可见＋沉底（不再整条滤掉——t-power 在前、t-reactor 沉底）');
   const powerNeed = D.meta.tasks.find(t => t.id === 't-power').need.find(n => n.label.indexOf('回控制室') >= 0);
   eq([C.condOk(S({ learned: { '太阳能板已修好': true } }), powerNeed.done),
       C.condOk(S({ learned: { '太阳能板已修好': true, '全站复电': true } }), powerNeed.done)].join(','), 'false,true',
     'B146 机检⑥：「回控制室，把主供电推上去」done＝knows 全站复电——条件随状态翻转（数据面直证）');
-  P('B146 ②④⑥ 任务表：空态／逐任务门／☑ 随 done／done 任务不出／链式条件 逐条通过');
+  P('B146 ②④⑥ 任务表：空态／逐任务门／☑ 随 done／done 任务保留＋沉底（B152）／链式条件 逐条通过');
 }
 
 /* --- 24-5 §2-B137 机检⑤：空态（清空 learned ⇒ ②空态句；命中无 need 的行 ⇒ ③空态句） --- */
@@ -4279,7 +4283,11 @@ console.log('———— B08 指路：面板Ⅱ（B142 ①~⑤）／线索与�
   eq(ids(S()), '', 'B143 §2-B143-②：新局（无 visited）⇒ 记录组零条（未探索＝零记录）');
   eq(ids(S({ visited: { '3': true } })), 'rec-03', 'B143 §2-B143-②：探针①（到过 3 ⇒ 仅 rec-03；其余 cond 未命中）');
   eq(ids(S({ visited: { '1': true, '5': true, '13': true } })), 'rec-01,rec-06,rec-13',
-    'B143 §2-B143-②：探针②（到过 1/5/13 ⇒ 三条齐、按节点号序）');
+    'B143 §2-B143-②：探针②（到过 1/5/13 ⇒ 三条齐；旧档无 recOrder ⇒ 未入列者按数组序垫底＝节点号序——B153 口径）');
+  { const r153 = S({ visited: { '1': true, '5': true, '13': true } });
+    C.trackRecords(r153); C.trackRecords(r153);                       // B153：入列＋幂等
+    eq([r153.recOrder.join(','), ids(r153)].join('｜'), 'rec-01,rec-06,rec-13｜rec-13,rec-06,rec-01',
+      'B10／§2-B153：入列后记录组＝recOrder 反序（最新在前）'); }
   eq(ids(S({ visited: { '28': true } })), 'rec-19', 'B143 §2-B143-②：探针③（到过 28 ⇒ rec-19）');
   P('§2-B143-② 只显示已知：零记录（新局）／cond 成立才出（三探针） 逐条通过');
 }
@@ -4371,8 +4379,9 @@ console.log('———— B08 指路：面板Ⅱ（B142 ①~⑤）／线索与�
 
 /* --- 26-11 §2-B143 机检⑥：渲染契约（两分组／组空不出／两组皆空＝空态句／条目可点展收·不落档） --- */
 {
-  ok(engSrc.indexOf("cb.appendChild(guideGroupHead('线索'))") >= 0 && engSrc.indexOf("cb.appendChild(guideGroupHead('记录'))") >= 0,
-    'B143 §2-B143-⑥：两分组（组标题「线索」／「记录」——组非空才出）');
+  ok(engSrc.indexOf("cb.appendChild(guideGroupHead('线索 · ' + g.clues.length))") >= 0
+    && engSrc.indexOf("cb.appendChild(guideGroupHead('记录 · ' + g.records.length))") >= 0,
+    'B143 §2-B143-⑥／B10（§2-B153）：两分组（组标题「线索 · n」／「记录 · n」——带计数、组非空才出）');
   ok(/if \(!g\.clues\.length && !g\.records\.length\) cb\.appendChild\(guideDimLine\(GUIDE_CLUES_EMPTY\)\);/.test(engSrc),
     'B143 §2-B143-⑥：两组皆空 ⇒ 既有空态句（单点判定）');
   ok(/if \(g\.clues\.length\) \{/.test(engSrc) && /if \(g\.records\.length\) \{/.test(engSrc),
@@ -4397,8 +4406,8 @@ console.log('———— B08 指路：面板Ⅱ（B142 ①~⑤）／线索与�
   eq([C.guideNotes(d0).records.length, C.guideNotes(d0).clues.length].join('/'), '0/0',
     'B143 §2-B143-⑦：dalim 无 notes ⇒ 记录组恒不出；新局无 learn ⇒ 两组皆空（②走既有空态句）');
   const d1 = C.newState('normal'); d1.learned['电梯密码'] = true; d1.learned['魔法数字'] = true;
-  eq(C.guideNotes(d1).clues.map(x => x.key + ':' + (x.text === null ? 'flat' : 'note')).join(','), '电梯密码:flat,魔法数字:flat',
-    'B143 §2-B143-⑦：dalim 两条 learn 值（dalim.js:484／489——已含 learn 值探针）⇒ 兜底行（仅标题、不可点、无详情）');
+  eq(C.guideNotes(d1).clues.map(x => x.key + ':' + (x.text === null ? 'flat' : 'note')).join(','), '魔法数字:flat,电梯密码:flat',
+    'B143 §2-B143-⑦／B10（§2-B153）：dalim 两条 learn 值 ⇒ 兜底行（仅标题、不可点、无详情）；序＝键序反序（新在前）');
   eq(new Set(C.guideSig(d1).split('|').filter(t => t.indexOf('C:') === 0)).size, 2,
     'B143 §2-B143-⑦：兜底行照常参与签名（以 key 记入——新学会即触发圆点）');
   C.selectLevel('station');
@@ -4534,8 +4543,8 @@ const TASK_NEEDS = (s, id) => { const t = TASKS_OF(s).find(x => x.id === id); re
   eq(ids(ST({ visited: { '15': true } })), 't-power', 'B146 ②：t-power 态二——到过配电盘 15（电力问题已知）⇒ 出');
   eq(ids(ST({ learned: { '太阳能板已修好': true } })), 't-power', 'B146 ②：t-power 态三——板已修好 ⇒ 出（show 或支）');
   eq(ids(ST({ chDone: { '跟胖胖打过招呼': true } })), 't-yinhe', 'B146 ②：t-yinhe 两态——打过招呼 ⇒ 出');
-  eq(ids(ST({ chDone: { '跟胖胖打过招呼': true }, items: ['桑尼的账本'] })), '',
-    'B146 ②：t-yinhe 两态——账本到手（done 成立）⇒ 整条不出');
+  eq(ids(ST({ chDone: { '跟胖胖打过招呼': true }, items: ['桑尼的账本'] })), 't-yinhe',
+    'B10／§2-B152：t-yinhe 完成态保留可见（done 成立不再整条滤掉——沉底＋「✓ 已完成」标）');
   P('B146 ② 只显示已知：新局零任务／t-power 三态／t-yinhe 两态 逐条通过');
 }
 
@@ -4618,8 +4627,9 @@ const TASK_NEEDS = (s, id) => { const t = TASKS_OF(s).find(x => x.id === id); re
 
 /* --- 27-14 §2-B146 机检⑨：渲染契约与文案纪律（含 guideNeeds 退役／--player·lab 零接入） --- */
 {
-  ok(engSrc.indexOf("tt.className = 'tdTitle';") >= 0 && engSrc.indexOf("d.className = 'guideLine tdNeed' + (n.done ? ' done' : '');") >= 0,
-    'B146 ⑨：渲染（任务名行 .tdTitle ＋ 逐项 .guideLine.tdNeed）；源码契约');
+  ok(engSrc.indexOf("tt.className = 'tdTitle' + (t.done ? ' done' : '');") >= 0
+    && engSrc.indexOf("d.className = 'guideLine tdNeed' + (n.done ? ' done' : '');") >= 0,
+    'B146 ⑨／B10（§2-B152）：渲染（任务名行 .tdTitle〔完成态 + done〕＋ 逐项 .guideLine.tdNeed）；源码契约');
   ok(uiCssSrc.indexOf('.tdTitle') >= 0 && uiCssSrc.indexOf('.tdNeed') >= 0, 'B146 ⑨：样式在案（style-ui.css 新面）');
   const texts = D.meta.tasks.flatMap(t => [t.name].concat(t.need.map(n => n.label)));
   eq(texts.filter(t => /\d/.test(t)).join(','), '', 'B146 ⑨：任务名与 need 标签无数字（' + texts.length + ' 项全文扫描）');
@@ -4684,6 +4694,307 @@ const TASK_NEEDS = (s, id) => { const t = TASKS_OF(s).find(x => x.id === id); re
   eq(t10({ visited: { '32': true }, items: ['监控回放'] }).indexOf('缩在货架后面') >= 0, true, 'B09 ⑦：置末不遮——第 2 条（到过 32）优先');
   eq(t10({ visited: { '31': true }, items: ['监控回放'] }).indexOf('帆布蒙上了') >= 0, true, 'B09 ⑦：置末不遮——第 3 条（到过 31）优先');
   P('B09 ⑦ 10 号呼应版：四条／cond 与文案逐字／持物才出／置末不遮前三条 逐条通过');
+}
+
+/* ============ 28. B10 试玩修复轮二：任务勾选语义／场景预载・旧帧保持／选关卡片／动作留房／③块完成态／②块倒序（§2-B148~B153 · 2026-10-06） ============ */
+console.log('');
+console.log('———— B10：B148 追银河勾选／B149 切场景预载＋旧帧／B150 卡片清单／B151 动作留房／B152 ③块完成态／B153 ②块倒序 ————');
+const S10 = extra => { const s = C.newState('normal'); if (extra) Object.assign(s, extra); return s; };
+const TASK10 = (s, id) => C.guideTasks(s).find(t => t.id === id);
+
+/* --- 28-1 §2-B148 机检①~⑤：t-yinhe 修正（结构／勾选递进／老板①正断言／全勾未完成样板／回归） --- */
+{
+  const tyNeed = D.meta.tasks.find(t => t.id === 't-yinhe').need;
+  const TY = extra => TASK10(S10(extra), 't-yinhe');
+  eq([tyNeed.length, tyNeed[1].label].join('｜'), '2｜追出去，看它往哪儿跑',
+    'B148 ①：t-yinhe need 恰 2 行、第 2 行标签逐字（bible §7.49 照抄区）');
+  eq(JSON.stringify(tyNeed[0].done), '{"any":[{"item":"站猫罐头"},{"item":"桑尼的账本"}]}',
+    'B148 ①：need1＝单调谓词 any[站猫罐头, 桑尼的账本]（文案不动）');
+  { const bad = [];
+    tyNeed.forEach(n => { try { C.condOk(S10(), n.done); } catch (e) { bad.push(n.label); } });
+    eq(bad.join(','), '', 'B148 ①：两条 need 全走条件语言（逐条 condOk 不抛）'); }
+  const gy = { chDone: { '跟胖胖打过招呼': true } };
+  const line = extra => { const t = TY(extra); return [t.needs.map(n => n.done).join(','), t.done].join('｜'); };
+  eq(line(gy), 'false,false｜false', 'B148 ②：未拿罐头 ⇒ 两行全 ☐（done:false）');
+  eq(line(Object.assign({ items: ['站猫罐头'] }, gy)), 'true,false｜false',
+    'B148 ②：持罐头（未追）⇒ 第 1 行 ☑／第 2 行 ☐／done:false');
+  eq(line(Object.assign({ items: ['桑尼的账本'] }, gy)), 'true,true｜true',
+    'B148 ②：换到账本且罐头被消耗（28① fx lose）⇒ 第 1 行仍 ☑（单调）＋第 2 行 ☑／done:true');
+  ok(TY(Object.assign({ items: ['站猫罐头'] }, gy)).needs.some(n => !n.done),
+    'B148 ③（老板①正断言）：持罐头未追 ⇒ 任务下仍有一条未勾的「还要做什么」');
+  { /* ③′ 行为面：真实走「5① 钻沙发 → 追出去 → 28① 换账本」（罐头被消耗） */
+    const sw = C.newState('normal'); C.go(sw, '5');
+    const pick5 = (id, part) => { const i = D.nodes[id].c.findIndex(ch => (ch.l || '').indexOf(part) >= 0); C.move(sw, C.choose(sw, i)); };
+    pick5('5', '钻到沙发后面'); pick5('5', '追出去'); pick5('28', '站猫罐头');
+    const t = TASK10(sw, 't-yinhe');
+    eq([C.hasItem(sw, '站猫罐头'), C.hasItem(sw, '桑尼的账本'), t.needs.map(n => n.done).join(','), t.done].join('｜'),
+      'false｜true｜true,true｜true', 'B148 ③′：换账本消耗罐头 ⇒ 两行全 ☑（全勾 ⟺ 完成在可达状态成立）'); }
+  { /* ④ 全勾未完成样板（12 号：三件＋复电 ⇒ 四条全 ☑、done:false、条目仍出） */
+    const s12 = S10({ visited: { '6': true }, items: ['控制芯片', '冷却剂罐', '站长授权卡'], learned: { '全站复电': true } });
+    const tr = TASK10(s12, 't-reactor');
+    eq([!!tr, tr.needs.map(n => n.done).join(','), tr.done].join('｜'), 'true｜true,true,true,true｜false',
+      'B148 ④／B152 表 b：全 ☑ ≠ 完成（t-reactor 四条全 ☑、done:false、条目仍出）'); }
+  eq(D.meta.tasks.find(t => t.id === 't-reactor').need.map(n => n.label).join('／'), '控制芯片／冷却剂罐／站长授权卡／电力',
+    'B148 ⑤：t-reactor need 逐字不变');
+  eq(D.meta.tasks.find(t => t.id === 't-power').need.map(n => n.label).join('／'),
+    '外部阵列那一路（站外的太阳能板）／带上能焊的工具（焊接枪或机械手套）／回控制室，把主供电推上去',
+    'B148 ⑤：t-power need 逐字不变');
+  eq(tyNeed.map(n => n.label).filter(t => /\d/.test(t) || /维修爬道|舱外|蒸汽/.test(t)).join(','), '',
+    'B148 ⑤：新行照扫文案纪律（无数字、无发现面名词——§2-B146 机检⑨ 同口径）');
+  P('§2-B148 ①~⑤：结构／勾选递进（真实序列＋行为面）／老板①正断言／全勾未完成样板／回归 逐条通过');
+}
+
+/* --- 28-2 §2-B149 机检①~⑥：预载顺序（两探针）／源码・CSS 契约／回归／零新路径 --- */
+{
+  const sceneImgAll = [];
+  Object.keys(D.scenes).forEach(sid => { sceneImgAll.push(D.scenes[sid].image); (D.scenes[sid].variants || []).forEach(v => sceneImgAll.push(v.image)); });
+  const s1 = S10({}); C.go(s1, '1');
+  const ord1 = C.preloadOrder(s1);
+  eq(ord1[0], D.scenes[C.sceneOf(s1)].image, 'B149 ①：首项＝当前场景图（1 号开局——食堂）');
+  eq([new Set(ord1).size, ord1.length, ord1.length === sceneImgAll.length].join('｜'),
+    [sceneImgAll.length, sceneImgAll.length, true].join('｜'),
+    'B149 ①：无重复项＋总数＝数据面场景图全集（含已注册变体；现盘 ' + sceneImgAll.length + ' 张——随资产同步）');
+  { const idx = u => ord1.indexOf(u);
+    const top = Object.keys(D.scenes).filter(sid => C.sceneLabel(sid) === '顶层' && /^room-/.test(sid)).map(sid => idx(D.scenes[sid].image));
+    const bot = Object.keys(D.scenes).filter(sid => C.sceneLabel(sid) === '底层' && /^room-/.test(sid)).map(sid => idx(D.scenes[sid].image));
+    eq([top.length, bot.length, Math.max.apply(null, top) < Math.min.apply(null, bot)].join('｜'), '5｜6｜true',
+      'B149 ①：同层（顶层 5 房）全部排在其它层房间之前（底层 6 房在后）'); }
+  { const mb = ord1.findIndex(u => /\/medbay\.jpg$/.test(u));
+    eq([mb >= 0, ord1.findIndex(u => /medbay-awake\.jpg$/.test(u)) - mb].join('｜'), 'true｜1',
+      'B149 ①：变体图紧随其基础图（medbay-awake 紧跟在 medbay 之后）'); }
+  const s12 = S10({}); C.go(s12, '12');
+  eq(C.preloadOrder(s12)[0].split('/').pop(), 'reactor.jpg', 'B149 ②：换位探针（st 在 12 号 ⇒ 首项＝reactor.jpg）');
+  eq([C.preloadOrder(s1).indexOf(D.scenes['room-reactor'].image) !== C.preloadOrder(s12).indexOf(D.scenes['room-reactor'].image),
+    C.preloadOrder(s12).length === sceneImgAll.length].join('｜'), 'true｜true',
+    'B149 ②：可达集变化带动顺序（12 号视角：reactor 越到前列——抽 1 例；全量仍在列）');
+  /* ③ 源码契约 */
+  const iPrev = HTML_SRC.indexOf('id="sceneImgPrev"'), iImg = HTML_SRC.indexOf('id="sceneImg"'),
+    iVeil = HTML_SRC.indexOf('id="scenePrevVeil"'), iMom = HTML_SRC.indexOf('id="momentLayer"');
+  ok(iPrev >= 0 && iVeil >= 0 && iPrev < iImg && iImg < iVeil && iVeil < iMom,
+    'B149 ③：index.html 双帧层＋轻帘在案且位次正确（#sceneImgPrev 先于 #sceneImg；轻帘在双帧之后、浮现层之前）');
+  ok(engSrc.indexOf('img.complete && img.naturalWidth > 0') >= 0,
+    'B149 ③：判据＝complete && naturalWidth（就绪＝原子置换支）');
+  { const body = engSrc.slice(engSrc.indexOf('function idleNext'), engSrc.indexOf('function veilOn'));
+    ok(body.indexOf('requestIdleCallback') >= 0 && body.indexOf('setTimeout(fn, 0)') >= 0
+      && body.indexOf('moments') < 0 && body.indexOf('cg') < 0,
+      'B149 ③：预载＝串行空闲（requestIdleCallback 优先／setTimeout 兜底）、函数体不含 moments／cg'); }
+  eq(engSrc.split('runPreload();').length - 1, 3, 'B149 ③：启动点恰 3 处（startGame／resumeGame／restart——不递归）');
+  ok(engSrc.indexOf('if (img.dataset.src !== src) return;') >= 0 && engSrc.indexOf('晚到帧守卫') >= 0,
+    'B149 ③：晚到帧守卫＝load 回调先比对当前目标图（非当前目标不回写、不撤帘）');
+  ok(engSrc.indexOf("$('scenePrevVeil').classList.toggle('hidden', !on)") >= 0
+    && engSrc.indexOf('veilOn(true);') >= 0 && engSrc.indexOf('veilOn(false);') >= 0,
+    'B149 ③：轻帘单点控制（veilOn——等待上帘／置换撤帘）');
+  ok(engSrc.indexOf('sceneFail.add(cur)') >= 0 && engSrc.indexOf('if (sceneFail.has(entry.image))') >= 0,
+    'B149 ③：基础图失败＝停旧帧＋告警＋记失败表；切入该场景重设 src 一次（最小重试）');
+  /* ④ CSS 契约 */
+  { const p = uiCssSrc.slice(uiCssSrc.indexOf('#sceneImgPrev {'), uiCssSrc.indexOf('#sceneImg.sceneWait'));
+    ok(p.indexOf('aspect-ratio') >= 0 && p.indexOf('pointer-events: none') >= 0,
+      'B149 ④：旧帧 pointer-events:none＋独立 aspect-ratio（不随新图拉伸）'); }
+  { const v = uiCssSrc.slice(uiCssSrc.indexOf('#scenePrevVeil {'), uiCssSrc.indexOf('#guideClues'));
+    ok(v.indexOf('pointer-events: none') >= 0, 'B149 ④：轻帘 pointer-events:none（不挡交互）'); }
+  /* ⑤ 回归（同图不重设／resetView 时机／变体失败记忆清除） */
+  ok(engSrc.indexOf('img.dataset.src !== entry.image && img.dataset.fail !== entry.image') >= 0,
+    'B149 ⑤：同图不重设判据在案（避免重复加载/闪烁）');
+  ok(engSrc.indexOf('resetView();') > engSrc.indexOf('if (sid !== curScene) {') && engSrc.indexOf('resetView();') < engSrc.indexOf('if (!first && st) toast'),
+    'B149 ⑤：resetView 时机不变（仍在换场景分支内、到达提示之前）');
+  ok(engSrc.indexOf('imgFailReset();') >= 0 && engSrc.indexOf('function imgFailReset()') >= 0,
+    'B149 ⑤：变体失败记忆清除照旧（重进房间即生效——零变化）');
+  /* ⑥ 不降画质：预载只按数据面原路径加载现有文件（图片张数与字节零变化由实现轮 git 核） */
+  ok(engSrc.indexOf('new Image()') >= 0 && engSrc.indexOf('im.src = u;') >= 0,
+    'B149 ⑥：预载只按数据面原路径加载现有文件（不新增缩图/压缩图——零新路径）');
+  P('§2-B149 ①~⑥：顺序（两探针）／源码契约（判据・空闲・启动点・晚到帧・重试）／CSS 契约／回归／零新路径 逐条通过');
+}
+
+/* --- 28-3 §2-B150 机检②~④：卡片清单单源／lab 零改动／单卡文案逐字／卡片渲染回归 --- */
+{
+  eq(C.cardLevelIds().join(','), 'station', 'B150 ①：cardLevelIds() 恰 [station]（dalim 在引擎侧隐藏清单）');
+  eq([C.levelIds().indexOf('dalim') >= 0, C.defaultLevelId()].join('｜'), 'true｜dalim', 'B150 ①：levelIds 仍含 dalim／defaultLevelId 不变');
+  const rs = engSrc.slice(engSrc.indexOf('function renderLevelSelect()'), engSrc.indexOf("$('overlaySub')"));
+  ok(rs.indexOf('Core.cardLevelIds()') >= 0 && rs.indexOf('Core.levelIds().forEach') < 0,
+    'B150 ②：renderLevelSelect 走 cardLevelIds()（不用 levelIds()——隐藏清单生效）');
+  ok(engSrc.indexOf("const HIDDEN_LEVELS = ['dalim'];") >= 0,
+    'B150 ②：隐藏清单字面在案（引擎侧一行——恢复＝删一行）');
+  eq([_strip(LAB_SRC).indexOf('cardLevelIds'), _strip(LAB_SRC).indexOf('C.levelIds()') >= 0].join('｜'), '-1｜true',
+    'B150 ②：lab.js 仍用 levelIds()（工具面零改动）');
+  ok(engSrc.indexOf("? '选一个关卡开始冒险。你的名字会出现在任务点的对话里。'") >= 0
+    && engSrc.indexOf(": '开始冒险吧——你的名字会出现在任务点的对话里。'") >= 0,
+    'B150 ③：单卡文案分支与两句逐字（卡数 >1 ⇒ 原文案；卡数 ＝1 ⇒ 「开始冒险吧——…」）');
+  ok(engSrc.indexOf('list.forEach(id => box.appendChild(levelCard(id, LEVELS[id])));') >= 0
+    && engSrc.indexOf("$('playerName').value = Core.playerName(store);") >= 0,
+    'B150 ④：卡片渲染其余部分逐行不变（levelCard 调用＋玩家名行——回归）');
+  P('§2-B150 ②④：卡片清单单源／隐藏清单在案／lab 零改动／单卡文案逐字／卡片渲染回归 逐条通过');
+}
+
+/* --- 28-4 §2-B151 机检①~④：改动集防回退／规则 lint（含前置断言）／出口自证／dalim 抽查 --- */
+{
+  const FIVE = [['3', '问阿雅：站里的事——还有没有别的门路？'], ['13', '用万能扳手拧上总阀。'], ['13', '系上绳索，贴着管壁挪过去。'],
+    ['13', '捂住口鼻，硬着头皮冲过蒸汽。'], ['17', '按检查表，把三枚逃生舱挨个检查一遍。']];
+  const bad5 = [];
+  FIVE.forEach(([id, l]) => {
+    const hits = D.nodes[id].c.filter(ch => ch.l === l);
+    if (!hits.length || hits.some(ch => ch.to !== id)) bad5.push(id + ':' + l);
+  });
+  eq(bad5.join(','), '', 'B151 ①：改动集 5 条去向＝自指（文案原样匹配——防回退）');
+  /* 规则 lint（§2-B151 判据四条；关卡无关代码＋各关地点编号上界；扫全部选项含 battle.winTo／loseTo——机检②「含 battle.loseTo/winTo」；
+   * §14-64：事件节点去向＝剧情收束面，不在扫描面——station 以编号上界豁免（22~45）；dalim 事件节点本就无场景归属
+   * ⇒ 按机检④「全量四类遍历」不另设豁免（复核：dalim pins 全 ≤30、无节点级 scene 声明——豁免项均落「未解析」类） */
+  const targetsOf = ch => [ch.to, ch.battle && ch.battle.winTo, ch.battle && ch.battle.loseTo].filter(Boolean);
+  const LOC_MAX = { station: 21, dalim: 30 };   // 地点节点编号上界（两关数据约定：站关 1~21 房/厅；示例关 1~30）
+  const lintRooms = (scanMax, evCap) => {
+    const L = globalThis.GAME_DATA;   // 当前关卡数据（切关后随 C.selectLevel 变——不得用模块级 D 缓存）
+    const bad = [], stat = { self: 0, none: 0, same: 0, cross: 0, skipEvent: 0, opts: 0, nodes: 0 };
+    Object.keys(L.nodes).filter(id => /^\d+$/.test(id) && Number(id) <= scanMax).forEach(id => {
+      stat.nodes += 1;
+      const nS = C.sceneOfNode(id);
+      (L.nodes[id].c || []).forEach(ch => {
+        targetsOf(ch).forEach(t => {
+          stat.opts += 1;
+          if (t === id) { stat.self += 1; return; }                                  // 自指 ⇒ 合规
+          if (evCap && /^\d+$/.test(t) && Number(t) > evCap) { stat.skipEvent += 1; return; }   // 事件节点＝收束面（station 22~45；§14-64）
+          const tS = C.sceneOfNode(t);
+          if (!nS || !tS) { stat.none += 1; return; }                                // 任一端无场景归属 ⇒ 合规
+          if (nS === tS) { stat.same += 1; return; }                                 // 同场景 ⇒ 合规
+          stat.cross += 1;                                                           // 跨场景 ⇒ 文案须命中位移词
+          if (!/去|回|爬|出舱|滑|追/.test(ch.l || '')) bad.push(id + '→' + t + ':' + (ch.l || ''));
+        });
+      });
+    });
+    return { bad, stat };
+  };
+  { /* 前置断言两条（§2-B151 机检②） */
+    const declBad = [];
+    ['station', 'dalim'].forEach(lv => {
+      C.selectLevel(lv); const L = globalThis.GAME_DATA;
+      Object.keys(L.nodes).forEach(id => { if (L.nodes[id].scene && !L.scenes[L.nodes[id].scene]) declBad.push(lv + ':' + id + '=' + L.nodes[id].scene); });
+    });
+    C.selectLevel('station');
+    eq(declBad.join(','), '', 'B151 ② 前置①：两关逐节点 scene 声明 ∈ 场景表键集（无「声明未注册」）');
+    const un = [];
+    Object.keys(D.nodes).filter(id => /^\d+$/.test(id) && Number(id) <= LOC_MAX.station).forEach(id =>
+      (D.nodes[id].c || []).forEach(ch => targetsOf(ch).forEach(t => { if (!C.sceneOfNode(t)) un.push(id + '→' + t); })));
+    eq([un.join(','), Object.keys(D.scenes).length].join('｜'), '｜21',
+      'B151 ② 前置②：站关 1~21 全部去向节点 sceneOfNode 解析非空（现盘 100%）＋站关场景清单齐（21 条）');
+  }
+  { const { bad, stat } = lintRooms(LOC_MAX.station, LOC_MAX.station);
+    eq(bad.join(','), '', 'B151 ②：规则 lint 零违规（自指／任一端无归属／同场景／跨场景须命中 去|回|爬|出舱|滑|追——关卡无关）');
+    ok(stat.cross >= 10 && stat.self >= 30,
+      'B151 ②：四类非空转（' + stat.nodes + ' 地点节点／' + stat.opts + ' 去向判定：自指 ' + stat.self + '／同场景 ' + stat.same +
+      '／跨场景 ' + stat.cross + ' 全数命中位移词；事件节点去向豁免 ' + stat.skipEvent + ' 条在案）'); }
+  { /* ③ 出口自证（动作留房后仍有明示退出） */
+    const s13 = C.newState('normal'); s13.items.push('万能扳手'); C.go(s13, '13');
+    const i13 = D.nodes['13'].c.findIndex(ch => (ch.l || '').indexOf('用万能扳手拧上总阀') >= 0);
+    C.move(s13, C.choose(s13, i13));
+    eq([s13.loc, C.visibleChoices(s13).some(x => (x.label || '').indexOf('先回底层大厅') >= 0)].join('｜'), '13｜true',
+      'B151 ③：13 关阀后留房（loc 仍 13）且「先回底层大厅」出口可见可点');
+    const s17 = C.newState('normal'); C.go(s17, '17');
+    const i17 = D.nodes['17'].c.findIndex(ch => (ch.l || '').indexOf('检查表') >= 0);
+    C.move(s17, C.choose(s17, i17));
+    eq([s17.loc, C.visibleChoices(s17).some(x => x.ok && (x.label || '').indexOf('回') >= 0)].join('｜'), '17｜true',
+      'B151 ③：17 检查后留房且「回底层大厅」出口可点');
+    const s3 = C.newState('normal'); C.go(s3, '3');
+    const i3 = D.nodes['3'].c.findIndex(ch => (ch.l || '').indexOf('问阿雅') >= 0);
+    C.move(s3, C.choose(s3, i3));
+    eq([s3.loc, C.visibleChoices(s3).some(x => x.ok && (x.label || '').indexOf('回') >= 0)].join('｜'), '3｜true',
+      'B151 ③：3 问阿雅后留房（医务室）且「回中央大厅」出口可点'); }
+  C.selectLevel('dalim');
+  { const { bad, stat } = lintRooms(Infinity, null);
+    eq(bad.join(','), '', 'B151 ④：示例关（dalim）同规则全量 ⇒ 零命中（' + Object.keys(globalThis.GAME_DATA.nodes).length + ' 节点／地点面 ' + stat.nodes +
+      ' 节点：自指 ' + stat.self + '／同场景 ' + stat.same + '／跨场景 ' + stat.cross + ' 全数命中位移词；未解析豁免 ' + stat.none +
+      ' 条＋事件节点去向豁免 ' + stat.skipEvent + ' 条——逐条计数在案；判据不写死场景 id）'); }
+  C.selectLevel('station');
+  P('§2-B151 ①~④：改动集 5 条／规则 lint 零违规（含前置）／出口自证（13・17・3）／dalim 零命中 逐条通过');
+}
+
+/* --- 28-5 §2-B152 机检①~⑧：done 保留／沉底／全勾未完成／渲染契约／签名／空态／回归 --- */
+{
+  const T = s => C.guideTasks(s);
+  eq(T(S10({ visited: { '6': true } })).map(t => typeof t.done).join(','), 'boolean,boolean',
+    'B152 ①：每条输出含 done 布尔（两条可见任务）');
+  const sDone = S10({ learned: { '反应堆已重启': true }, visited: { '6': true } });
+  eq(T(sDone).map(t => t.id + ':' + t.done).join(','), 't-power:false,t-reactor:true',
+    'B152 ②③（老板⑤正断言）：done 保留（t-reactor 仍在）＋沉底（未完成 t-power 在前）');
+  ok(T(sDone).find(t => t.id === 't-reactor').needs.length > 0,
+    'B152 ②：已完成任务的全部条目仍列出（老板原话「为什么要把其它的隐藏呀」）');
+  { const s12 = S10({ visited: { '6': true }, items: ['控制芯片', '冷却剂罐', '站长授权卡'], learned: { '全站复电': true } });
+    const tr = T(s12).find(t => t.id === 't-reactor');
+    eq([tr.needs.map(n => n.done).join(','), tr.done, T(s12).some(t => t.id === 't-reactor')].join('｜'),
+      'true,true,true,true｜false｜true', 'B152 ④（表 b）：全勾未完成——四条全 ☑、done:false、条目仍出'); }
+  ok(engSrc.indexOf("tt.className = 'tdTitle' + (t.done ? ' done' : '');") >= 0
+    && engSrc.indexOf("s.textContent = '✓ 已完成';") >= 0 && uiCssSrc.indexOf('.tdTitle.done') >= 0
+    && engSrc.indexOf("d.className = 'guideLine tdNeed' + (n.done ? ' done' : '');") >= 0,
+    'B152 ⑤：渲染契约（.tdTitle.done＋「✓ 已完成」＋CSS 在案；need 逐项渲染不变）');
+  { const s = S10({ visited: { '6': true } });
+    C.markGuideSeen(s);
+    s.learned['反应堆已重启'] = true;
+    eq(C.guideHasNew(s), true, 'B152 ⑥：完成态翻转（t-reactor done 假→真）⇒ 有更新（签名③段含任务 done 位）');
+    C.markGuideSeen(s);
+    eq(C.guideHasNew(s), false, 'B152 ⑥：打开即清（落签名 ⇒ 无更新）');
+    ok(/parts\.push\('T:' \+ t\.id \+ ':' \+ \(t\.done \? '1' : '0'\)/.test(engSrc),
+      'B152 ⑥：签名③段＝`T:<id>:<任务done>:…`（源码契约）'); }
+  ok(C.guideTasks(C.newState('normal')).length === 0
+    && /if \(!tasks\.length\) nb\.appendChild\(guideDimLine\(GUIDE_TASKS_EMPTY\)\);/.test(engSrc),
+    'B152 ⑦：空态句口径不变（真无可见任务才出；新局零任务）');
+  ok(engSrc.indexOf('const g = Core.guideNotes(st);') >= 0 && D.meta.targets.length === 6,
+    'B152 ⑧：回归——①块／②块走既有单源；targets 六行不动');
+  C.selectLevel('dalim');
+  eq(C.guideTasks(C.newState('normal')).length, 0, 'B152 ⑧：dalim（无 tasks）⇒ ③块空态照旧');
+  C.selectLevel('station');
+  eq([_strip(PLAY_SRC).indexOf('guideTasks') < 0, _strip(LAB_SRC).indexOf('guideTasks') < 0].join(','), 'true,true',
+    'B152 ⑧：--player／lab 零接入（沿既有口径）');
+  P('§2-B152 ①~⑧：done 布尔／保留＋沉底／全勾未完成／渲染契约／签名／空态／回归 逐条通过');
+}
+
+/* --- 28-6 §2-B153 机检①~⑥：两组序／幂等／旧档补序／渲染契约・纯读／回归 --- */
+{
+  /* ① 线索序（key 反序；guideClues 输出不变） */
+  const sc = S10({}); sc.learned = { 甲: true, 乙: true, 丙: true };
+  eq([C.guideNotes(sc).clues.map(x => x.key).join(','), C.guideClues(sc).join(',')].join('｜'), '丙,乙,甲｜甲,乙,丙',
+    'B153 ①：线索组＝learned 键序反序（新在前）；guideClues 输出不变（CLI 口径）');
+  /* ② 记录序（分三次 trackRecords：rec-01／rec-06／rec-13 逐个出现） */
+  const r = S10({ visited: { '1': true } });
+  C.trackRecords(r);
+  eq(r.recOrder.join(','), 'rec-01', 'B153 ②：首次出现（到过 1 ⇒ rec-01）入列');
+  r.visited['5'] = true; C.trackRecords(r);
+  r.visited['13'] = true; C.trackRecords(r);
+  eq([r.recOrder.join(','), C.guideNotes(r).records.map(x => x.id).join(',')].join('｜'), 'rec-01,rec-06,rec-13｜rec-13,rec-06,rec-01',
+    'B153 ②：recOrder＝加入序；记录组＝反序（最新在前）');
+  /* ③ 幂等＋cond 不成立不入列 */
+  C.trackRecords(r); C.trackRecords(r);
+  eq(r.recOrder.join(','), 'rec-01,rec-06,rec-13', 'B153 ③：重复 trackRecords 不重复追加、不改序（幂等）');
+  const r2 = S10({ visited: { '1': true } }); C.trackRecords(r2);
+  eq([r2.recOrder.indexOf('rec-06'), r2.recOrder.indexOf('rec-13')].join('｜'), '-1｜-1',
+    'B153 ③：cond 不成立的条目不入列（未到过 5／13）');
+  /* ④ 旧档补序（未入列者按数组序垫底） */
+  const old153 = C.normalizeState({ diff: 'normal', loc: '1', coins: 10, oxygen: 90, items: [], visited: { '1': true, '13': true }, done: {}, learned: {}, chDone: {}, hist: [] });
+  eq(JSON.stringify(old153.recOrder), '[]', 'B153 ④：normalizeState 补 recOrder 缺省（旧档＝空数组）');
+  eq(C.guideNotes(old153).records.map(x => x.id).join(','), 'rec-01,rec-13',
+    'B153 ④：未入列者按数组序垫底（节点号序——求值不抛）');
+  C.trackRecords(old153);
+  eq([old153.recOrder.join(','), C.guideNotes(old153).records.map(x => x.id).join(',')].join('｜'), 'rec-01,rec-13｜rec-13,rec-01',
+    'B153 ④：旧档首次落档按已见顺序补入 ⇒ 反序生效（一次性，披露）');
+  /* ⑤ 渲染契约＋纯读 */
+  ok(engSrc.indexOf("guideGroupHead('线索 · ' + g.clues.length)") >= 0 && engSrc.indexOf("guideGroupHead('记录 · ' + g.records.length)") >= 0,
+    'B153 ⑤：组标题串含条数（`线索 · n`／`记录 · n`——源码契约）');
+  ok(/#guideClues \{ max-height: 40vh; overflow-y: auto; \}/.test(uiCssSrc) && /@media \(max-width: 900px\)/.test(uiCssSrc),
+    'B153 ⑤：#guideClues 定高滚动在案（40vh；窄屏 36vh）');
+  { const idx = engSrc.indexOf('const save = () => {');
+    ok(engSrc.slice(idx, idx + 120).indexOf('Core.trackRecords(st);') >= 0,
+      'B153 ⑤：save() 头部调用 Core.trackRecords(st)（源码契约）'); }
+  { const p = S10({ visited: { '1': true, '5': true } });
+    const snap = JSON.stringify(p);
+    C.guideNotes(p); C.guideSig(p); C.guideHasNew(p); C.guideClues(p);
+    eq(JSON.stringify(p), snap, 'B153 ⑤：guideNotes 纯读（求值前后状态不变——仅 trackRecords 写）'); }
+  /* ⑥ 回归 */
+  eq([C.guideTarget(S10({})).length > 0, engSrc.indexOf("n.className = 'giNew';") >= 0,
+    engSrc.indexOf("state: n.done ? (done ? 'done' : 'undone') : null") >= 0].join(','), 'true,true,true',
+    'B153 ⑥：「新」标与态标照旧（isNew 由 gSeen 令牌决定，与排序无关）＋①块输出不变');
+  C.selectLevel('dalim');
+  eq([C.guideNotes(C.newState('normal')).records.length, C.guideNotes(C.newState('normal')).clues.length].join('/'), '0/0',
+    'B153 ⑥：dalim（无 notes）⇒ ②块空态照旧');
+  C.selectLevel('station');
+  eq([_strip(PLAY_SRC).indexOf('guideNotes') < 0, _strip(LAB_SRC).indexOf('guideNotes') < 0].join(','), 'true,true',
+    'B153 ⑥：--player／lab 零接入（沿既有口径）');
+  P('§2-B153 ①~⑥：两组序／幂等／旧档补序／渲染契约・纯读／回归 逐条通过');
 }
 
 /* ============ 汇总 ============ */
