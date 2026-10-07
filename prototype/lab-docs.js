@@ -1,7 +1,7 @@
 /* 由 tools/build-lab.mjs 生成 —— 不要手改；改 .md 源文件后重跑：node tools/build-lab.mjs */
 /* 管理台（prototype/lab.html）用：内嵌文档正文，这样 file:// 双击打开也能看（本地 fetch 会被浏览器拒绝）。 */
 window.LAB_DOCS = {
-  "generatedAt": "2026-10-07T01:30:19.859Z",
+  "generatedAt": "2026-10-07T01:41:20.286Z",
   "files": [
     "docs/README.md",
     "docs/design-station-nodes.md",
