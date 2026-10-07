@@ -133,6 +133,17 @@
  *   E36 难度三档（B147）：`easy`/`normal`/`hard`（默认中等）；Core.startValue／diffLabel 单源；HUD 条基准＝
  *       `start[st.diff]`（含 lowThreshold／档位色）；卡片三行资源＋三单选；档位词全处三档（旧「普通模式」删除）。
  *
+ * B10 轮（B148~B153 · 2026-10-06 试玩修复轮二；口径＝docs/design-ui-v1.md §2-B148~B153、design-station-v1.md §7 v0.16）：
+ *   E39 任务完成态语义（B148／B152）：Core.guideTasks 增 `done` 且 done 不再整条滤掉（show 门控照旧；未完成在前、
+ *       已完成沉底＋「✓ 已完成」标——`.tdTitle.done`）；guideSig ③段加任务 done 位；
+ *       need 仍全列（t-yinhe need 追加一行＋need1 单调谓词＝站关数据面）。
+ *   E40 场景图预载＋旧帧保持（B149）：Core.preloadOrder（当前场景→同层→reachablePins 可达→其余；变体紧随基础图）
+ *       ＋DOM 层 runPreload（串行空闲·启动点 3 处）＋applyScene 双帧原子置换（#sceneImgPrev／#scenePrevVeil；
+ *       complete && naturalWidth 判据；失败＝停旧帧＋切入重试一次）。
+ *   E41 选关页卡片清单（B150）：Core.cardLevelIds＝levelIds 去 HIDDEN_LEVELS（引擎侧常量）；#overlaySub 按卡数。
+ *   E42 ②块序（B153）：线索＝learned 键序反序；记录＝st.recOrder 反序（未入列者按数组序垫底）；组标题带计数；
+ *       #guideClues 定高滚动；Core.trackRecords（save() 头部）。
+ *
  * 结构分两层：
  *   ① 纯核心 Core：状态机 + 条件/效果/战斗/资源/存档求解，不接触 DOM，可在 Node 中直接测试
  *   ② DOM 层：关卡选择、场景图、编号环、遮罩、侧栏、背包/人物/指路弹窗、坐标校准
@@ -148,6 +159,9 @@
    * 结算屏 win 档＝`.endMore`；序章层＝`.proMore`；两处共用判据 `Core.moreEndings()`（本关 win 数 ≥2）。 */
   const MORE_END_TEXT = '🔀 还有别的结局——换一条路、换一种做法，故事会有不一样的收尾。';
   const MORE_PRO_TEXT = '结局不止一个——你做的每个选择，都会把故事带向不同的收尾。';
+  /* B10（§2-B150 · 2026-10-06）：选关页隐藏清单——示例关《勇闯大里姆》卡片不出（引擎侧；数据与自测保留，
+   * 恢复＝清单删一行）；levelIds()／defaultLevelId() 不受影响（lab 与 Node 自测照旧）。 */
+  const HIDDEN_LEVELS = ['dalim'];
 
   let D = null;        // 当前关卡数据（selectLevel 绑定；同步给 G.GAME_DATA，旧代码/旧测试仍可读）
   let levelId = null;  // 当前关卡 id
@@ -171,6 +185,8 @@
     currentLevelId() { return levelId; },
     currentLevel() { return D; },
     defaultLevelId() { return Object.keys(LEVELS)[0] || null; },   // 加载顺序里的第一个（levels/dalim.js 在前）
+    /* B10（§2-B150）：选关页卡片清单＝levelIds 去引擎侧隐藏清单（示例关卡片不出——数据与自测保留）。 */
+    cardLevelIds() { return Core.levelIds().filter(id => HIDDEN_LEVELS.indexOf(id) < 0); },
     /* 选中关卡：绑定 D 并同步 G.GAME_DATA；返回是否成功 */
     selectLevel(id) {
       const lv = LEVELS[id];
@@ -316,6 +332,7 @@
         mSeen: {},         // B127（§7.3）：浮现图「首访一次」标记（node.mOnce——渲染后落库；旧档缺省为空）
         cgSeen: {},        // B132（§6.7）：CG「首访一次」标记（node.cg.once——显示后落库；旧档缺省为空）
         gSeen: '',         // B08（§2-B143 · R5）：指路面板「有更新」签名位（上次打开时的面板签名——空＝从未打开）
+        recOrder: [],      // B10（§2-B153）：记录「加入序」（记录首次可见顺序——随存档；旧档由 normalizeState 补空）
         wristband: 0,
         hist: [],
         loc: null,
@@ -337,6 +354,7 @@
       ['items'].forEach(k => { if (!Array.isArray(st[k])) st[k] = []; });
       ['visited', 'done', 'learned', 'chDone', 'mSeen', 'cgSeen'].forEach(k => { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; });   // B127：mSeen＝浮现图首访标记；B132：cgSeen＝CG 首访标记（旧档补空表）
       if (typeof st.gSeen !== 'string') st.gSeen = '';   // B08（§2-B143）：签名位缺省——旧档无值 ⇒ 首次打开前显圆点（一次性，披露）
+      if (!Array.isArray(st.recOrder)) st.recOrder = [];   // B10（§2-B153）：记录加入序缺省（旧档自动补空数组）
       if (!Array.isArray(st.hist)) st.hist = [];
       if (st.wristband == null) st.wristband = 0;
       if (!st.diff) st.diff = 'normal';
@@ -807,53 +825,83 @@
       const hit = rows.find(r => Core.condOk(st, r.cond));
       return (hit && typeof hit.text === 'string' && hit.text) ? hit.text : null;
     },
-    /* B146（§2-B146）：「还差什么」＝`meta.tasks` 任务清单（`guideNeeds` 退役——`targets.need` 同步退役）：
-     * 逐任务 `[{ id, name, needs: [{label, done}] }]`——`show` 不成立不出（「只显示已知」）／`done` 成立整条不出
-     * （已收尾不占位）；`need[].show` 门控逐项（缺省恒显）；无 `tasks`（示例关）⇒ []（面板③块走空态句）。 */
+    /* B146（§2-B146）／B10（§2-B152 改版）：「还差什么」＝`meta.tasks` 任务清单（`guideNeeds` 退役——`targets.need`
+     * 同步退役）：逐任务 `[{ id, name, done, needs: [{label, done}] }]`——`show` 不成立不出（「只显示已知」）；
+     * `done` 成立**不再整条滤掉**（保留返回；未完成在前、已完成沉底——组内按数组序的稳定序）；`need[].show`
+     * 门控逐项（缺省恒显）；无 `tasks`（示例关）⇒ []（面板③块走空态句）。 */
     guideTasks(st) {
       const rows = (D && D.meta && Array.isArray(D.meta.tasks)) ? D.meta.tasks : null;
       if (!rows) return [];
-      return rows
-        .filter(t => Core.condOk(st, t.show))
-        .filter(t => !(t.done && Core.condOk(st, t.done)))
-        .map(t => ({
-          id: t.id, name: t.name,
-          needs: ((Array.isArray(t.need) ? t.need : []).filter(n => Core.condOk(st, n.show)))
-            .map(n => ({ label: n.label, done: Core.condOk(st, n.done) }))
-        }));
+      const live = rows.filter(t => Core.condOk(st, t.show));   // show 门控照旧（组内保序）
+      /* B10（§2-B152）＋构建期评审①：`done` 缺省 ⇒ 不判完成（沿 B146 口径）——`condOk` 对空条件返回真，
+       * 不得单用（否则漏写 `done` 的任务会被误标「✓ 已完成」并沉底） */
+      const isDone = t => !!(t.done && Core.condOk(st, t.done));
+      const undone = [], done = [];
+      live.forEach(t => (isDone(t) ? done : undone).push(t));   // B152：未完成在前、已完成沉底
+      return undone.concat(done).map(t => ({
+        id: t.id, name: t.name, done: isDone(t),
+        needs: ((Array.isArray(t.need) ? t.need : []).filter(n => Core.condOk(st, n.show)))
+          .map(n => ({ label: n.label, done: Core.condOk(st, n.done) }))
+      }));
     },
     /* B137（§2-B137）：已知线索＝st.learned 的键序（获得先后——与 CLI「线索：」同源同字面） */
     guideClues(st) { return (st && st.learned) ? Object.keys(st.learned) : []; },
 
-    /* ---- B143（§2-B143 · 2026-10-06）：指路记录面——面板②块「线索与记录」（纯读；DOM 层与测试同源调用）。
-     * 线索组＝Core.guideClues 键序接 meta.notes 的 clue 条目（key 逐字；无对应条目 ⇒ text＝null＝兜底行）；
-     * 记录组＝record 条目按 `cond` 过滤（数组序＝节点号升序），有 `done` 者给 state（'done'／'undone'）；
-     * 生效稿＝done 成立 ⇒ doneText（缺省沿用 text）；isNew＝相对上次打开（st.gSeen 令牌集）的新增/翻转条目
-     * （无基线——旧档／新局未打开过 ⇒ 不标「新」；打开即落档 ⇒ 下次不再标）。 */
+    /* ---- B143（§2-B143 · 2026-10-06）／B10（§2-B153 改版）：指路记录面——面板②块「线索与记录」（纯读）。
+     * 序（B153 改版）＝两组各按「加入时间」倒序——线索＝`st.learned` 键序**反序**（`guideClues` 输出不变——CLI 口径）；
+     * 记录＝`st.recOrder` **反序**（最新在前）、未入列者按 `meta.notes` 数组序**垫底**（旧档首次读入、尚未落档）；
+     * 线索组＝Core.guideClues 反序接 meta.notes 的 clue 条目（key 逐字；无对应条目 ⇒ text＝null＝兜底行）；
+     * 记录组＝record 条目按 `cond` 过滤，有 `done` 者给 state（'done'／'undone'）；生效稿＝done 成立 ⇒ doneText
+     * （缺省沿用 text）；isNew＝相对上次打开（st.gSeen 令牌集）的新增/翻转条目（无基线——旧档／新局未打开过
+     * ⇒ 不标「新」；打开即落档 ⇒ 下次不再标）。 */
     guideNotes(st) {
       const notes = (D && D.meta && Array.isArray(D.meta.notes)) ? D.meta.notes : [];
       const prev = typeof (st && st.gSeen) === 'string' ? st.gSeen : '';
       const seen = {}; prev.split('|').forEach(t => { seen[t] = true; });
-      const clues = Core.guideClues(st).map(k => {
+      const clues = Core.guideClues(st).slice().reverse().map(k => {   // B153：线索＝键序反序（新在前）
         const n = notes.find(x => x.kind === 'clue' && x.key === k) || null;
         return { id: n ? n.id : null, key: k, text: n ? n.text : null, isNew: prev !== '' && !seen['C:' + k] };
       });
-      const records = notes.filter(n => n.kind === 'record' && Core.condOk(st, n.cond)).map(n => {
-        const done = !!n.done && Core.condOk(st, n.done);
-        const tok = 'R:' + n.id + (n.done ? (done ? ':done' : ':undone') : ':-');
-        return { id: n.id, title: n.title, text: done ? (n.doneText || n.text) : n.text,
-                 state: n.done ? (done ? 'done' : 'undone') : null, isNew: prev !== '' && !seen[tok] };
-      });
+      const order = (st && Array.isArray(st.recOrder)) ? st.recOrder : [];
+      const rank = id => order.indexOf(id);
+      const records = notes.filter(n => n.kind === 'record' && Core.condOk(st, n.cond))
+        .sort((a, b) => {                              // B153：recOrder 反序；未入列 ⇒ 保持数组序（垫底；sort 稳定）
+          const ra = rank(a.id), rb = rank(b.id);
+          if (ra < 0 && rb < 0) return 0;
+          if (ra < 0) return 1;
+          if (rb < 0) return -1;
+          return rb - ra;
+        })
+        .map(n => {
+          const done = !!n.done && Core.condOk(st, n.done);
+          const tok = 'R:' + n.id + (n.done ? (done ? ':done' : ':undone') : ':-');
+          return { id: n.id, title: n.title, text: done ? (n.doneText || n.text) : n.text,
+                   state: n.done ? (done ? 'done' : 'undone') : null, isNew: prev !== '' && !seen[tok] };
+        });
       return { clues: clues, records: records };
     },
-    /* B143（R5）：面板内容签名＝①块文本＋②块条目 id／key:态序列＋③块逐任务 id:need:done 序列（B146 改版——
-     * 任务出现／☑ 翻转 ⇒ 圆点；写入 st.gSeen 后比对差异） */
+    /* B10（§2-B153）：记录「加入时间」序——把当前 `cond` 命中且尚未入列的记录 id 依次（meta.notes 数组序）追加；
+     * 只在「首次出现」追加（已有 id 不重复、不移动位置——幂等）；纯状态写、无 DOM。调用点＝DOM 层 `save()` 头部
+     * （每次操作落档前记一次——save() 是既有唯一落档收口）。不是「查看时间」——是「面板里第一次能看到它」的时刻。 */
+    trackRecords(st) {
+      if (!st) return;
+      if (!Array.isArray(st.recOrder)) st.recOrder = [];
+      const notes = (D && D.meta && Array.isArray(D.meta.notes)) ? D.meta.notes : [];
+      notes.forEach(n => {
+        if (n.kind !== 'record') return;
+        if (!Core.condOk(st, n.cond)) return;
+        if (st.recOrder.indexOf(n.id) >= 0) return;
+        st.recOrder.push(n.id);
+      });
+    },
+    /* B143（R5）／B10（§2-B152 改版）：面板内容签名＝①块文本＋②块条目 id／key:态序列＋③块逐任务
+     * `T:<id>:<任务done>:<need label:done…>` 序列（B152：加任务 done 位——完成态翻转 ⇒ 圆点；写入 st.gSeen 后比对差异） */
     guideSig(st) {
       const parts = ['G:' + (Core.guideTarget(st) || '')];
       const g = Core.guideNotes(st);
       g.clues.forEach(c => parts.push('C:' + c.key));
       g.records.forEach(r => parts.push('R:' + r.id + (r.state ? ':' + r.state : ':-')));
-      Core.guideTasks(st).forEach(t => parts.push('T:' + t.id + ':' + t.needs.map(n => n.label + ':' + (n.done ? '1' : '0')).join(',')));
+      Core.guideTasks(st).forEach(t => parts.push('T:' + t.id + ':' + (t.done ? '1' : '0') + ':' + t.needs.map(n => n.label + ':' + (n.done ? '1' : '0')).join(',')));   // B152：③段加任务 done 位
       return parts.join('|');
     },
     /* B143（R5）：有更新＝签名≠上次打开时的签名（旧档／新局无基线 ⇒ 视为有更新——一次性「请看一眼」） */
@@ -1146,6 +1194,28 @@
       });
       return set;
     },
+    /* B10（§2-B149）：场景图预载顺序（纯函数·DOM 层 runPreload 单源）——
+     * ① 当前场景（基础图＋已注册变体图）；② 同层其它场景（`sceneLabel` 相同）；③ `reachablePins` 命中编号所在场景；
+     * ④ 其余场景（`scenes` 键序）；各场景变体图紧随其基础图；去重；只含场景图（浮现图与 CG 不进预载）。 */
+    preloadOrder(st) {
+      if (!D || !D.scenes) return [];
+      const out = [], seen = {};
+      const add = u => { if (u && !seen[u]) { seen[u] = true; out.push(u); } };
+      const addScene = sid => {
+        const sc = D.scenes[sid];
+        if (!sc) return;
+        add(sc.image);
+        (sc.variants || []).forEach(v => add(v.image));   // 变体图紧随其基础图（未注册变体＝不存在）
+      };
+      const sid = st ? Core.sceneOf(st) : Core.defaultScene();
+      addScene(sid);
+      const lab = Core.sceneLabel(sid);
+      Object.keys(D.scenes).forEach(id => { if (id !== sid && Core.sceneLabel(id) === lab) addScene(id); });
+      const pinIds = st ? Object.keys(Core.reachablePins(st)) : [];
+      pinIds.forEach(p => { const s = Core.sceneOfNode(p); if (s) addScene(s); });
+      Object.keys(D.scenes).forEach(id => addScene(id));
+      return out;
+    },
     /* ---- v0.2 走投无路检测（卡死保险，设计档 §6 第 5 条）----
      * 当前节点若既没有「condOk 且点得动的选项」、也没有「可达编号」、也没有「返回选项」
      * → 判定走投无路（界面弹「指路」面板：回到安全点 / 重开本关——B137 更名）。 */
@@ -1286,6 +1356,7 @@
 
   /* B117（§1.1/D56）：存档写入——顺带记通关（win 节点）；记录＝独立键，失败不写、开新局不丢 */
   const save = () => {
+    Core.trackRecords(st);              // B10（§2-B153）：落档前记「加入序」（幂等——只追加首次可见的记录 id）
     if (!store || !st) return;
     Core.saveTo(store, curLevelId, st);
     const n = (D && D.nodes && st.loc) ? D.nodes[st.loc] : null;
@@ -1402,10 +1473,95 @@
 
   /* ---------- 场景（v1.2 双区域 → v0.2 多场景通用） ---------- */
   function sceneLabel(sid) { return Core.sceneLabel(sid); }   // B123：口径单源＝Core.sceneLabel（到达提示与角标同源）
+  /* B10（§2-B149）：场景图预载（串行·空闲）——进关即跑（序章层期间就开始）；换场景不重启队列
+   * （当前场景图由换图路径自请求）；同一时刻至多 1 张；已载过的 URL 跳过（preloaded Set 记账）；
+   * 队列进行中再启动 ⇒ 不并行（此轮不重排——序列数不变）。 */
+  const preloaded = new Set();   // 已加载过的场景图 URL
+  let preloadBusy = false;       // 队列进行中（同一时刻至多 1 张）
+  function idleNext(fn) {        // 让出主线程：requestIdleCallback 优先、缺省回落 setTimeout（两 API 任一不可用不得报错）
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(() => fn());
+    else setTimeout(fn, 0);
+  }
+  function runPreload() {
+    if (!D || !st || preloadBusy) return;
+    preloadBusy = true;
+    const urls = Core.preloadOrder(st);
+    let i = 0;
+    const step = () => {
+      while (i < urls.length) {
+        const u = urls[i++];
+        if (preloaded.has(u)) continue;                  // 已加载过 ⇒ 跳过
+        const im = new Image();
+        preloaded.add(u);
+        im.onload = im.onerror = () => idleNext(step);   // 串行：一张到达才取下一张
+        im.src = u;                                      // 路径只来自关卡数据（levels/*.js）
+        return;
+      }
+      preloadBusy = false;
+    };
+    idleNext(step);
+  }
   /* 同步当前场景：背景图 / 遮罩尺寸 / 舞台比例 / 场景角标；变化时复位视图并提示一次。
    * B122（§7.10）：图／宽高走 Core.sceneEntry（变体首匹配、逐帧求值——条件变化同帧生效，场景不变也重算）；
    *   变体图运行期加载失败 ⇒ 回落基础图渲染＋控制台一行告警（不空白、不破图）——同一失败图不重复重试。
-   * B123（§6.3）：到达提示＝Core.arriveText（房间＝「到达：<房间名>」无 🛗；其余＝现形）。 */
+   * B123（§6.3）：到达提示＝Core.arriveText（房间＝「到达：<房间名>」无 🛗；其余＝现形）。
+   * B10（§2-B149）：换图＝双帧层原子置换（#sceneImgPrev 旧帧／#scenePrevVeil 轻帘）——已就绪（complete &&
+   *   naturalWidth）⇒ 同帧置换（--scene-w/h 与图同帧）；未就绪 ⇒ 旧帧层＝最近一张已就绪帧＋轻帘「载入场景…」，
+   *   load 到达再置换（新图淡入 0.12s）；竞态＝晚到 load 非当前目标不回写不撤帘；失败 ⇒ 既有变体回落链 → 基础图
+   *   亦失败 ⇒ 停旧帧＋一行告警＋记失败表（此后切入该场景时重设 src 一次——最小重试）。 */
+  const sceneFail = new Set();   // 基础图失败表（B149：切入该场景时重设 src 一次）
+  let lastReadySrc = null;       // 最近一张已就绪帧（旧帧层内容）
+  let lastReadyEntry = null;     // 最近一张已就绪帧的条目（旧帧层自身尺寸比——aspect-ratio 不随新图拉伸）
+  function veilOn(on) { $('scenePrevVeil').classList.toggle('hidden', !on); }
+  /* 旧帧层＝最近一张已就绪帧（按自身尺寸比居中、不变形——CSS aspect-ratio＋object-fit:contain）；
+   * 无 ⇒ 清空（首进关靠轻帘＋舞台底色） */
+  function prevFrame(src) {
+    const p = $('sceneImgPrev');
+    if (src) {
+      if (lastReadyEntry) p.style.setProperty('--prev-ratio', lastReadyEntry.width + ' / ' + lastReadyEntry.height);
+      if (p.dataset.src !== src) { p.dataset.src = src; p.src = src; }
+      return;
+    }
+    if (p.dataset.src) { p.dataset.src = ''; p.removeAttribute('src'); }
+  }
+  /* 原子置换：--scene-w/h 与新图同帧；撤旧帧与轻帘（无过渡、无闪烁）；load 支新图淡入 0.12s */
+  function sceneSwap(entry, animate) {
+    const img = $('sceneImg');
+    $('stage').style.setProperty('--scene-w', entry.width);
+    $('stage').style.setProperty('--scene-h', entry.height);
+    $('dimSvg').setAttribute('viewBox', '0 0 ' + entry.width + ' ' + entry.height);
+    [$('maskRect'), $('dimRect')].forEach(r => {      // 遮罩尺寸随原子置换同帧换
+      r.setAttribute('width', entry.width);
+      r.setAttribute('height', entry.height);
+    });
+    /* B129（§6.6）：遮罩只属楼层图——mask=false 场景遮罩整层不渲染（房间/站外：整图直接可看） */
+    $('dimSvg').classList.toggle('hidden', !entry.mask);
+    lastReadySrc = img.dataset.src;
+    lastReadyEntry = { width: entry.width, height: entry.height };
+    img.classList.remove('sceneWait');
+    if (animate) { img.classList.remove('sceneIn'); void img.offsetWidth; img.classList.add('sceneIn'); setTimeout(() => img.classList.remove('sceneIn'), 200); }
+    veilOn(false);
+    prevFrame(null);                                  // 撤旧帧（同帧）
+  }
+  /* 把当前帧切到 src：已就绪 ⇒ 原子置换；未就绪 ⇒ 旧帧＋轻帘，load 到达再置换 */
+  let pendingLoad = null;                     // B10／评审⑤：当前待加载目标的一次性 load 处理（换目标时先撤——监听不积压）
+  function sceneLoad(src, entry) {
+    const img = $('sceneImg');
+    img.dataset.src = src;
+    img.src = src;                            // 路径只来自关卡数据（levels/*.js）
+    if (img.complete && img.naturalWidth > 0) { img.classList.remove('sceneWait'); sceneSwap(entry, false); return; }
+    prevFrame(lastReadySrc);
+    img.classList.add('sceneWait');           // 等待期当前帧不显示（旧帧顶上）
+    veilOn(true);
+    if (pendingLoad) { img.removeEventListener('load', pendingLoad); pendingLoad = null; }
+    const onLoad = () => {
+      pendingLoad = null;
+      if (img.dataset.src !== src) return;    // 晚到帧守卫：非当前目标 ⇒ 不回写、不撤帘
+      sceneSwap(entry, true);
+    };
+    pendingLoad = onLoad;
+    img.addEventListener('load', onLoad, { once: true });
+  }
   function applyScene() {
     const sid = st ? Core.sceneOf(st) : Core.defaultScene();
     if (!sid) return;
@@ -1419,33 +1575,30 @@
       resetView();
       if (calib) calibRedraw();      // B120：校准模式中换场景 ⇒ 重画标定层（既有 figures 虚线框）
       imgFailReset();
+      /* B10（§2-B149）：该场景图此前失败过 ⇒ 切入时重设 src 一次（最小重试——恢复联网后切走再切回即正常） */
+      if (sceneFail.has(entry.image)) { sceneFail.delete(entry.image); img.dataset.src = ''; }
       if (!first && st) toast(Core.arriveText(sid));   // B123：房间＝到达：<房间名>；其余＝现形
     }
     const img = $('sceneImg');
     img.alt = sc.name + ' 场景图';
     if (img.dataset.src !== entry.image && img.dataset.fail !== entry.image) {   // 同图不重设（避免重复加载/闪烁）
-      img.dataset.src = entry.image;
-      img.src = entry.image;           // 路径只来自关卡数据（levels/*.js）
+      sceneLoad(entry.image, entry);   // B10（§2-B149）：双帧切换（就绪＝同帧置换；未就绪＝旧帧＋轻帘）
     }
-    /* 变体图缺图兜底（§7.10）：加载失败 ⇒ 回落基础图渲染＋一行告警；基础图失败＝不重复触发（照旧交浏览器） */
+    /* 变体图缺图兜底（§7.10）：加载失败 ⇒ 回落基础图渲染＋一行告警；基础图亦失败 ⇒ 停旧帧＋告警＋记失败表 */
     img.onerror = () => {
       const cur = img.dataset.src;
-      if (!cur || cur === sc.image) return;
+      if (!cur) return;
+      if (cur === sc.image) {
+        sceneFail.add(cur);            // B149：此后切入该场景时重设 src 一次（最小重试）
+        console.warn('场景图加载失败（保持旧帧——切入该场景时重试一次）：' + cur);
+        return;
+      }
       img.dataset.fail = cur;          // 记下失败图：同一图不重复重试（条件恢复/重进房时由 imgFailReset 清）
       console.warn('背景状态变体缺图（回落基础图）：' + cur);
-      img.dataset.src = sc.image;
-      img.src = sc.image;
+      sceneLoad(sc.image, entry);      // 回落基础图（§7.10 口径不变——同走双帧路径）
     };
-    $('dimSvg').setAttribute('viewBox', '0 0 ' + entry.width + ' ' + entry.height);
-    [$('maskRect'), $('dimRect')].forEach(r => {
-      r.setAttribute('width', entry.width);
-      r.setAttribute('height', entry.height);
-    });
-    $('stage').style.setProperty('--scene-w', entry.width);
-    $('stage').style.setProperty('--scene-h', entry.height);
-    /* B129（§6.6）：遮罩只属楼层图——mask=false 场景遮罩整层不渲染（房间/站外：整图直接可看） */
-    $('dimSvg').classList.toggle('hidden', !entry.mask);
-    /* B129（§6.5/§6.6）：提示条随场景（房间/站外＝无「灰暗区域」句） */
+    /* B10（§2-B149）：文本面随场景即时更；几何面（--scene-w/h／遮罩尺寸）随原子置换同帧换（sceneSwap）。
+     * B129（§6.5/§6.6）：提示条随场景（房间/站外＝无「灰暗区域」句） */
     $('hintBar').textContent = Core.hintText(sid);
     $('sceneTag').textContent = Core.sceneLabel(sid);
   }
@@ -1566,7 +1719,12 @@
     const box = $('levelList');
     box.innerHTML = '';
     cardSlotRows = {};   // B136：卡片行登记随重渲染重置（行由 levelCard 重新登记）
-    Core.levelIds().forEach(id => box.appendChild(levelCard(id, LEVELS[id])));
+    const list = Core.cardLevelIds();   // B10（§2-B150）：只渲染卡片清单（示例关《勇闯大里姆》卡片不出）
+    list.forEach(id => box.appendChild(levelCard(id, LEVELS[id])));
+    /* B10（§2-B150）：副标题按卡数自适应（单卡＝「开始冒险吧——…」；多卡＝原文案——逐字） */
+    $('overlaySub').textContent = list.length > 1
+      ? '选一个关卡开始冒险。你的名字会出现在任务点的对话里。'
+      : '开始冒险吧——你的名字会出现在任务点的对话里。';
     $('playerName').value = Core.playerName(store);
   }
 
@@ -1616,6 +1774,7 @@
     foldLoc = null;                      // 换关卡 = 折叠状态归零（foldLoc 在下方声明，执行时早已初始化）
     fbLoc = null;                        // 换局：反馈区不得留上一局的消息（§4「重开本关时清空」）
     $('overlay').classList.add('hidden');
+    runPreload();                        // B10（§2-B149）：进关即预载（序章层期间就开始——点「开始」时首图多半就绪）
     startRun();
   }
   function resumeGame(id, s) {
@@ -1630,6 +1789,7 @@
     fbLoc = null;                        // 读档＝换局：反馈区清空（存档节点与上一局末节点相同也如此）
     save();
     $('overlay').classList.add('hidden');
+    runPreload();                        // B10（§2-B149）：读档进关同样预载
     renderAll();
   }
   function restart(noAsk) {
@@ -1640,6 +1800,7 @@
     hudPrev = null;
     foldLoc = null;
     fbLoc = null;                        // 重开本关 ⇒ 反馈区清空（§4）
+    runPreload();                        // B10（§2-B149）：重开本关同样预载
     startRun();          // E2：重开本关 = 新局 → 有 prologue 也先弹一次（读档不重放）
   }
   function backToLevelSelect() {
@@ -2591,7 +2752,7 @@
     d.textContent = text;
     return d;
   }
-  /* B143（§2-B143）：②块分组标题（小字——仅组非空时出；文案「线索」／「记录」） */
+  /* B143（§2-B143）：②块分组标题（小字——仅组非空时出）；B10（§2-B153 起带计数：`线索 · n`／`记录 · n`） */
   function guideGroupHead(text) {
     const d = document.createElement('div');
     d.className = 'guideGroup';
@@ -2639,20 +2800,22 @@
     gd.className = goal ? 'guideText' : 'guideDim';
     gd.textContent = goal || GUIDE_FALLBACK;
     gb.appendChild(gd);
-    /* ② 线索与记录（B143 改版：两分组——组标题仅组非空时出；两组皆空 ⇒ 既有空态句） */
+    /* ② 线索与记录（B143 改版：两分组——组标题仅组非空时出；两组皆空 ⇒ 既有空态句）；
+     * B10（§2-B153）：两组均按「加入时间」倒序（引擎内 guideNotes 已倒序）＋组标题带计数。 */
     const cb = $('guideClues');
     cb.innerHTML = '';
     const g = Core.guideNotes(st);
     if (!g.clues.length && !g.records.length) cb.appendChild(guideDimLine(GUIDE_CLUES_EMPTY));
     if (g.clues.length) {
-      cb.appendChild(guideGroupHead('线索'));
+      cb.appendChild(guideGroupHead('线索 · ' + g.clues.length));    // B10（§2-B153）：组标题带计数
       g.clues.forEach(c => cb.appendChild(guideItemEl(c.key, c.text, null, c.isNew)));
     }
     if (g.records.length) {
-      cb.appendChild(guideGroupHead('记录'));
+      cb.appendChild(guideGroupHead('记录 · ' + g.records.length));  // B10（§2-B153）：组标题带计数
       g.records.forEach(r => cb.appendChild(guideItemEl(r.title, r.text, r.state, r.isNew)));
     }
-    /* ③ 还差什么（B146：任务清单——`meta.tasks` 逐任务 `name`＋need 逐项 ☐/☑；show 门控、done 任务不出）；
+    /* ③ 还差什么（B146：任务清单——`meta.tasks` 逐任务 `name`＋need 逐项 ☐/☑；show 门控；
+     * B10／§2-B152 改版：done 任务保留可见＋沉底，已完成行 `.tdTitle.done`＋「✓ 已完成」小标）；
      * 空态句只在「真无可见任务」时出——多任务在身不得出空态句（老板④正断言）。
      * 容器 id 沿用 `#guideNeeds`（id 不改，沿 B137 先例——B146 更名留痕，函数已改 `guideTasks`）。 */
     const nb = $('guideNeeds');
@@ -2661,8 +2824,14 @@
     if (!tasks.length) nb.appendChild(guideDimLine(GUIDE_TASKS_EMPTY));
     tasks.forEach(t => {
       const tt = document.createElement('div');
-      tt.className = 'tdTitle';
+      tt.className = 'tdTitle' + (t.done ? ' done' : '');   // B152：已完成＝保留可见＋沉底＋态标（绿色小字规格沿用 .giState.done）
       tt.textContent = t.name;
+      if (t.done) {
+        const s = document.createElement('span');
+        s.className = 'giState done';
+        s.textContent = '✓ 已完成';
+        tt.appendChild(s);
+      }
       nb.appendChild(tt);
       t.needs.forEach(n => {
         const d = document.createElement('div');
